@@ -1,3 +1,18 @@
+#!/bin/bash
+cd ~/githup/Mybot
+
+echo "=== Step 1: Remove workflow ==="
+rm -f .github/workflows/build.yml
+git add -A
+git commit -m "Remove workflow"
+git push origin main
+
+echo "=== Waiting 30 seconds ==="
+sleep 30
+
+echo "=== Step 2: Re-create workflow ==="
+mkdir -p .github/workflows
+cat > .github/workflows/build.yml << 'EOF'
 name: Build Debug APK
 
 on:
@@ -33,3 +48,10 @@ jobs:
           name: mybot-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
+EOF
+
+git add -A
+git commit -m "Re-add CI workflow"
+git push origin main
+
+echo "=== Done! Check https://github.com/ChenChihChun/Mybot/actions ==="
