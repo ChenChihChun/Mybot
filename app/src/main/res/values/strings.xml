@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mybot</string>
+    <string name="notification_channel_id">mybot_channel</string>
+    <string name="notification_channel_name">Mybot Notifications</string>
+</resources>
