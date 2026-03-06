@@ -1,52 +1,85 @@
 package com.mybot.app;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.widget.Toast;
+import android.view.Gravity;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
 
-    private static final int SMS_PERMISSION_CODE = 100;
-    private static final int NOTIFICATION_PERMISSION_CODE = 101;
+    private static final int PERMISSION_CODE = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         NotificationHelper.createNotificationChannel(this);
+        requestPermissions();
 
-        // Request SMS permission
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECEIVE_SMS)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{
-                            android.Manifest.permission.RECEIVE_SMS,
-                            android.Manifest.permission.READ_SMS
-                    }, SMS_PERMISSION_CODE);
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setGravity(Gravity.CENTER);
+        layout.setPadding(48, 48, 48, 48);
+
+        TextView title = new TextView(this);
+        title.setText("Mybot");
+        title.setTextSize(28);
+        title.setGravity(Gravity.CENTER);
+
+        TextView status = new TextView(this);
+        status.setText("通知監聽服務運行中\n請確認已開啟通知存取權限");
+        status.setTextSize(16);
+        status.setGravity(Gravity.CENTER);
+        status.setPadding(0, 32, 0, 32);
+
+        Button btnNotification = new Button(this);
+        btnNotification.setText("開啟通知存取權限");
+        btnNotification.setOnClickListener(v -> {
+            Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+            startActivity(intent);
+        });
+
+        layout.addView(title);
+        layout.addView(status);
+        layout.addView(btnNotification);
+
+        setContentView(layout);
+    }
+
+    private void requestPermissions() {
+        String[] perms;
+        if (Build.VERSION.SDK_INT >= 33) {
+            perms = new String[]{
+                    android.Manifest.permission.RECEIVE_SMS,
+                    android.Manifest.permission.READ_SMS,
+                    "android.permission.POST_NOTIFICATIONS"
+            };
+        } else {
+            perms = new String[]{
+                    android.Manifest.permission.RECEIVE_SMS,
+                    android.Manifest.permission.READ_SMS
+            };
         }
 
-        // Request POST_NOTIFICATIONS permission (Android 13+)
-        if (Build.VERSION.SDK_INT >= 33) {
-            if (ContextCompat.checkSelfPermission(this, "android.permission.POST_NOTIFICATIONS")
-                    != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{"android.permission.POST_NOTIFICATIONS"},
-                        NOTIFICATION_PERMISSION_CODE);
+        boolean needRequest = false;
+        for (String perm : perms) {
+            if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+                needRequest = true;
+                break;
             }
         }
 
-        // Open notification listener settings
-        Toast.makeText(this, "請開啟 Mybot 的通知存取權限", Toast.LENGTH_LONG).show();
-        Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
-        startActivity(intent);
-
-        finish();
+        if (needRequest) {
+            ActivityCompat.requestPermissions(this, perms, PERMISSION_CODE);
+        }
     }
 }
