@@ -30,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
         NotificationHelper.createNotificationChannel(this);
         requestPermissions();
         ReminderHelper.restoreIfEnabled(this);
+        ReminderHelper.scheduleTodoCheck(this);
 
         getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
 
@@ -126,6 +127,9 @@ public class MainActivity extends AppCompatActivity {
         Button btnExpenses = UIHelper.cardButton(this, "消費紀錄", "查看所有消費明細", UIHelper.ACCENT_RED);
         btnExpenses.setOnClickListener(v -> startActivity(new Intent(this, ExpenseActivity.class)));
 
+        Button btnTodo = UIHelper.cardButton(this, "待辦事項", "TO DO 時間管理", UIHelper.ACCENT_GREEN);
+        btnTodo.setOnClickListener(v -> startActivity(new Intent(this, TodoActivity.class)));
+
         Button btnMonitor = UIHelper.cardButton(this, "監聽狀態", "即時通知與簡訊 Log", UIHelper.ACCENT_BLUE);
         btnMonitor.setOnClickListener(v -> startActivity(new Intent(this, MonitorActivity.class)));
 
@@ -134,12 +138,13 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)));
 
         content.addView(btnExpenses);
+        content.addView(btnTodo);
         content.addView(btnMonitor);
         content.addView(btnPermission);
 
         // Version footer
         TextView version = new TextView(this);
-        version.setText("v2.1");
+        version.setText("v2.2");
         version.setTextSize(11);
         version.setTextColor(UIHelper.TEXT_HINT);
         version.setGravity(Gravity.CENTER);

@@ -16,6 +16,8 @@ public class BootReceiver extends BroadcastReceiver {
             NotificationHelper.sendNotification(context, "Mybot", "Mybot 已隨開機啟動");
             // Restore daily reminder alarm
             ReminderHelper.restoreIfEnabled(context);
+            // Restore TODO deadline check
+            ReminderHelper.scheduleTodoCheck(context);
         }
     }
 }

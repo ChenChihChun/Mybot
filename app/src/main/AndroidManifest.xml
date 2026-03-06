@@ -38,6 +38,12 @@
         <!-- Report Activity -->
         <activity android:name=".ReportActivity" android:exported="false" />
 
+        <!-- Todo Activity -->
+        <activity android:name=".TodoActivity" android:exported="false" />
+
+        <!-- Add Todo Activity -->
+        <activity android:name=".AddTodoActivity" android:exported="false" />
+
         <!-- Notification Listener Service -->
         <service
             android:name=".NotificationService"
@@ -71,6 +77,11 @@
         <!-- Daily Reminder Receiver -->
         <receiver
             android:name=".ReminderReceiver"
+            android:exported="false" />
+
+        <!-- Todo Deadline Reminder Receiver -->
+        <receiver
+            android:name=".TodoReminderReceiver"
             android:exported="false" />
 
     </application>
