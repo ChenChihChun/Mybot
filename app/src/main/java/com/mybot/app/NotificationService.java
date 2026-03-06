@@ -4,12 +4,29 @@ import android.content.Intent;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class NotificationService extends NotificationListenerService {
+
+    private final Set<String> seenKeys = new HashSet<>();
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
         if (sbn.getPackageName().equals(getPackageName())) {
             return;
+        }
+
+        // Dedup: same notification key only processed once
+        String notiKey = sbn.getKey();
+        if (seenKeys.contains(notiKey)) {
+            return;
+        }
+        seenKeys.add(notiKey);
+
+        // Prevent memory leak: cap at 500
+        if (seenKeys.size() > 500) {
+            seenKeys.clear();
         }
 
         String appName = getAppName(sbn);
@@ -28,7 +45,7 @@ public class NotificationService extends NotificationListenerService {
         }
 
         String message = "[通知] " + appName + ": " + title + " - " + content;
-        NotificationHelper.sendNotification(this, "Mybot - 通知監聽", message);
+        NotificationHelper.sendNotification(this, "Mybot - 通知監聯", message);
 
         // Log and analyze
         NotificationLog log = new NotificationLog(appName, title, content, "通知");
@@ -41,6 +58,8 @@ public class NotificationService extends NotificationListenerService {
 
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {
+        // Remove from seen so if same notification reappears later it gets processed
+        seenKeys.remove(sbn.getKey());
     }
 
     private void analyzeAndStore(NotificationLog log, String rawText) {

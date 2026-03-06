@@ -139,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Version footer
         TextView version = new TextView(this);
-        version.setText("v1.5");
+        version.setText("v1.6");
         version.setTextSize(12);
         version.setTextColor(UIHelper.TEXT_HINT);
         version.setGravity(Gravity.CENTER);
