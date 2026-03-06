@@ -1,5 +1,6 @@
 package com.mybot.app;
 
+import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -15,6 +16,7 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -36,43 +38,33 @@ public class ExpenseActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        getWindow().setStatusBarColor(Color.parseColor("#0A1520"));
+        getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
         dbHelper = new ExpenseDbHelper(this);
 
         LinearLayout root = UIHelper.pageRoot(this);
 
         // Top bar
         LinearLayout topBar = UIHelper.topBar(this, "消費紀錄");
-        Button addBtn = new Button(this);
-        addBtn.setText("+ 新增");
-        addBtn.setTextColor(UIHelper.ACCENT_BLUE);
-        addBtn.setTextSize(14);
-        addBtn.setAllCaps(false);
-        addBtn.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
-        addBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_BLUE, 10, 1, this));
-        addBtn.setStateListAnimator(null);
-        addBtn.setElevation(0);
-        int btnPad = UIHelper.dp(this, 12);
-        addBtn.setPadding(btnPad, 0, btnPad, 0);
-        addBtn.setOnClickListener(v -> startActivity(new Intent(this, AddExpenseActivity.class)));
 
-        Button reportBtn = new Button(this);
-        reportBtn.setText("報表");
-        reportBtn.setTextColor(UIHelper.ACCENT_GREEN);
-        reportBtn.setTextSize(14);
-        reportBtn.setAllCaps(false);
-        reportBtn.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
-        reportBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_GREEN, 10, 1, this));
-        reportBtn.setStateListAnimator(null);
-        reportBtn.setElevation(0);
-        reportBtn.setPadding(btnPad, 0, btnPad, 0);
-        LinearLayout.LayoutParams reportLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        reportLp.setMargins(UIHelper.dp(this, 8), 0, 0, 0);
-        reportBtn.setLayoutParams(reportLp);
+        Button reportBtn = UIHelper.smallButton(this, "報表", UIHelper.ACCENT_GREEN);
         reportBtn.setOnClickListener(v -> startActivity(new Intent(this, ReportActivity.class)));
 
+        Button reminderBtn = UIHelper.smallButton(this, "提醒", UIHelper.ACCENT_ORANGE);
+        LinearLayout.LayoutParams reminderLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        reminderLp.setMargins(UIHelper.dp(this, 8), 0, 0, 0);
+        reminderBtn.setLayoutParams(reminderLp);
+        reminderBtn.setOnClickListener(v -> showReminderSettings());
+
+        Button addBtn = UIHelper.smallButton(this, "+ 新增", UIHelper.ACCENT_BLUE);
+        LinearLayout.LayoutParams addLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        addLp.setMargins(UIHelper.dp(this, 8), 0, 0, 0);
+        addBtn.setLayoutParams(addLp);
+        addBtn.setOnClickListener(v -> startActivity(new Intent(this, AddExpenseActivity.class)));
+
         topBar.addView(reportBtn);
+        topBar.addView(reminderBtn);
         topBar.addView(addBtn);
 
         // Filter bar
@@ -80,13 +72,14 @@ public class ExpenseActivity extends AppCompatActivity {
         filterBar.setOrientation(LinearLayout.HORIZONTAL);
         filterBar.setGravity(Gravity.CENTER_VERTICAL);
         filterBar.setBackgroundColor(UIHelper.BG_CARD);
-        int fp = UIHelper.dp(this, 16);
-        filterBar.setPadding(fp, UIHelper.dp(this, 10), fp, UIHelper.dp(this, 10));
+        int fp = UIHelper.dp(this, 20);
+        filterBar.setPadding(fp, UIHelper.dp(this, 12), fp, UIHelper.dp(this, 12));
 
         TextView filterLabel = new TextView(this);
         filterLabel.setText("類別篩選");
         filterLabel.setTextSize(13);
         filterLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        filterLabel.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         filterLabel.setPadding(0, 0, UIHelper.dp(this, 12), 0);
 
         categorySpinner = new Spinner(this);
@@ -116,7 +109,7 @@ public class ExpenseActivity extends AppCompatActivity {
         listView.setBackgroundColor(UIHelper.BG_PRIMARY);
         listView.setDivider(null);
         listView.setDividerHeight(0);
-        int listPad = UIHelper.dp(this, 12);
+        int listPad = UIHelper.dp(this, 16);
         listView.setPadding(listPad, UIHelper.dp(this, 8), listPad, listPad);
         listView.setClipToPadding(false);
         adapter = new ExpenseAdapter();
@@ -156,6 +149,37 @@ public class ExpenseActivity extends AppCompatActivity {
                 android.R.layout.simple_spinner_item, items);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categorySpinner.setAdapter(spinnerAdapter);
+    }
+
+    private void showReminderSettings() {
+        boolean enabled = ReminderHelper.isEnabled(this);
+        int hour = ReminderHelper.getHour(this);
+        int minute = ReminderHelper.getMinute(this);
+
+        if (enabled) {
+            android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+            builder.setTitle("記帳提醒");
+            builder.setMessage(String.format("目前提醒時間: %02d:%02d\n\n選擇操作：", hour, minute));
+            builder.setPositiveButton("修改時間", (d, w) -> pickReminderTime());
+            builder.setNegativeButton("關閉提醒", (d, w) -> {
+                ReminderHelper.cancelReminder(this);
+                Toast.makeText(this, "已關閉每日提醒", Toast.LENGTH_SHORT).show();
+            });
+            builder.setNeutralButton("取消", null);
+            builder.show();
+        } else {
+            pickReminderTime();
+        }
+    }
+
+    private void pickReminderTime() {
+        int hour = ReminderHelper.getHour(this);
+        int minute = ReminderHelper.getMinute(this);
+        new TimePickerDialog(this, (view, h, m) -> {
+            ReminderHelper.scheduleReminder(this, h, m);
+            Toast.makeText(this, String.format("已設定每日 %02d:%02d 提醒記帳", h, m),
+                    Toast.LENGTH_SHORT).show();
+        }, hour, minute, true).show();
     }
 
     private void refreshList() {
@@ -208,7 +232,7 @@ public class ExpenseActivity extends AppCompatActivity {
             LinearLayout bottomRow = new LinearLayout(ExpenseActivity.this);
             bottomRow.setOrientation(LinearLayout.HORIZONTAL);
             bottomRow.setGravity(Gravity.CENTER_VERTICAL);
-            bottomRow.setPadding(0, UIHelper.dp(ExpenseActivity.this, 8), 0, 0);
+            bottomRow.setPadding(0, UIHelper.dp(ExpenseActivity.this, 10), 0, 0);
 
             TextView dateView = new TextView(ExpenseActivity.this);
             dateView.setText(sdf.format(new Date(e.createdAt)));

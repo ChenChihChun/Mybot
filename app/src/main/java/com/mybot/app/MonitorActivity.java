@@ -48,7 +48,7 @@ public class MonitorActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        getWindow().setStatusBarColor(Color.parseColor("#0A1520"));
+        getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
 
         LinearLayout root = UIHelper.pageRoot(this);
 
@@ -67,8 +67,8 @@ public class MonitorActivity extends AppCompatActivity {
         bridgeBar.setOrientation(LinearLayout.HORIZONTAL);
         bridgeBar.setGravity(Gravity.CENTER_VERTICAL);
         bridgeBar.setBackgroundColor(UIHelper.BG_CARD);
-        int bp = UIHelper.dp(this, 16);
-        bridgeBar.setPadding(bp, UIHelper.dp(this, 10), bp, UIHelper.dp(this, 10));
+        int bp = UIHelper.dp(this, 20);
+        bridgeBar.setPadding(bp, UIHelper.dp(this, 12), bp, UIHelper.dp(this, 12));
 
         TextView bridgeLabel = new TextView(this);
         bridgeLabel.setText("AI Bridge: ");
@@ -89,19 +89,7 @@ public class MonitorActivity extends AppCompatActivity {
         bridgeStatus.setLayoutParams(new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
-        Button testBtn = new Button(this);
-        testBtn.setText("測試");
-        testBtn.setTextColor(UIHelper.ACCENT_BLUE);
-        testBtn.setTextSize(12);
-        testBtn.setAllCaps(false);
-        testBtn.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
-        testBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_BLUE, 8, 1, this));
-        testBtn.setStateListAnimator(null);
-        testBtn.setElevation(0);
-        int tbp = UIHelper.dp(this, 10);
-        testBtn.setPadding(tbp, 0, tbp, 0);
-        testBtn.setMinimumWidth(0);
-        testBtn.setMinWidth(0);
+        Button testBtn = UIHelper.smallButton(this, "測試", UIHelper.ACCENT_BLUE);
         testBtn.setOnClickListener(v -> testBridge());
 
         bridgeBar.addView(bridgeLabel);
@@ -114,8 +102,8 @@ public class MonitorActivity extends AppCompatActivity {
         statusBar.setOrientation(LinearLayout.HORIZONTAL);
         statusBar.setGravity(Gravity.CENTER_VERTICAL);
         statusBar.setBackgroundColor(UIHelper.BG_CARD_ALT);
-        int sp = UIHelper.dp(this, 16);
-        statusBar.setPadding(sp, UIHelper.dp(this, 8), sp, UIHelper.dp(this, 8));
+        int sp = UIHelper.dp(this, 20);
+        statusBar.setPadding(sp, UIHelper.dp(this, 10), sp, UIHelper.dp(this, 10));
 
         TextView dot = new TextView(this);
         dot.setBackground(UIHelper.roundRect(UIHelper.ACCENT_GREEN, 20, this));

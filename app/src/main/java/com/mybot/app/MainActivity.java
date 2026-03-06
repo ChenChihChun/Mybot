@@ -1,6 +1,5 @@
 package com.mybot.app;
 
-import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -9,12 +8,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -32,60 +31,69 @@ public class MainActivity extends AppCompatActivity {
         requestPermissions();
         ReminderHelper.restoreIfEnabled(this);
 
-        getWindow().setStatusBarColor(Color.parseColor("#0A1520"));
+        getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
 
         LinearLayout root = UIHelper.pageRoot(this);
 
-        // Top section with app name
+        // Top section - hero area
         LinearLayout topSection = new LinearLayout(this);
         topSection.setOrientation(LinearLayout.VERTICAL);
         topSection.setGravity(Gravity.CENTER);
+        topSection.setBackgroundColor(UIHelper.BG_TOP_BAR);
         int p = UIHelper.dp(this, 24);
-        topSection.setPadding(p, UIHelper.dp(this, 48), p, UIHelper.dp(this, 24));
+        topSection.setPadding(p, UIHelper.dp(this, 40), p, UIHelper.dp(this, 32));
+        topSection.setElevation(UIHelper.dp(this, 4));
 
         // App icon circle
         TextView iconCircle = new TextView(this);
         iconCircle.setText("M");
-        iconCircle.setTextSize(36);
+        iconCircle.setTextSize(32);
         iconCircle.setTextColor(Color.WHITE);
         iconCircle.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         iconCircle.setGravity(Gravity.CENTER);
-        iconCircle.setBackground(UIHelper.roundRect(UIHelper.ACCENT_BLUE, 40, this));
+        iconCircle.setBackground(UIHelper.roundRect(UIHelper.ACCENT_GREEN, 22, this));
+        iconCircle.setElevation(UIHelper.dp(this, 4));
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(
-                UIHelper.dp(this, 80), UIHelper.dp(this, 80));
+                UIHelper.dp(this, 72), UIHelper.dp(this, 72));
         iconLp.gravity = Gravity.CENTER;
         iconLp.setMargins(0, 0, 0, UIHelper.dp(this, 16));
         iconCircle.setLayoutParams(iconLp);
 
         TextView title = new TextView(this);
         title.setText("Mybot");
-        title.setTextSize(32);
+        title.setTextSize(30);
         title.setTextColor(UIHelper.TEXT_PRIMARY);
-        title.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         title.setGravity(Gravity.CENTER);
+        title.setLetterSpacing(0.05f);
 
         TextView subtitle = new TextView(this);
         subtitle.setText("Smart Notification Assistant");
-        subtitle.setTextSize(14);
+        subtitle.setTextSize(13);
         subtitle.setTextColor(UIHelper.TEXT_SECONDARY);
         subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+        subtitle.setPadding(0, UIHelper.dp(this, 6), 0, 0);
+        subtitle.setLetterSpacing(0.03f);
 
         topSection.addView(iconCircle);
         topSection.addView(title);
         topSection.addView(subtitle);
 
+        // Scrollable content
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(p, UIHelper.dp(this, 20), p, p);
+
         // Status card
         LinearLayout statusCard = UIHelper.card(this);
-        LinearLayout.LayoutParams statusLp = (LinearLayout.LayoutParams) statusCard.getLayoutParams();
-        statusLp.setMargins(p, UIHelper.dp(this, 8), p, UIHelper.dp(this, 8));
-        statusCard.setLayoutParams(statusLp);
 
         LinearLayout statusRow = new LinearLayout(this);
         statusRow.setOrientation(LinearLayout.HORIZONTAL);
         statusRow.setGravity(Gravity.CENTER_VERTICAL);
 
-        // Green dot
         TextView dot = new TextView(this);
         dot.setBackground(UIHelper.roundRect(UIHelper.ACCENT_GREEN, 20, this));
         LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(
@@ -112,92 +120,39 @@ public class MainActivity extends AppCompatActivity {
         statusCard.addView(statusHint);
 
         // Menu section
-        LinearLayout menuSection = new LinearLayout(this);
-        menuSection.setOrientation(LinearLayout.VERTICAL);
-        menuSection.setPadding(p, UIHelper.dp(this, 16), p, p);
-
-        TextView menuLabel = new TextView(this);
-        menuLabel.setText("MENU");
-        menuLabel.setTextSize(12);
-        menuLabel.setTextColor(UIHelper.TEXT_HINT);
-        menuLabel.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
-        menuLabel.setLetterSpacing(0.15f);
-        menuLabel.setPadding(UIHelper.dp(this, 4), 0, 0, UIHelper.dp(this, 12));
+        content.addView(statusCard);
+        content.addView(UIHelper.sectionHeader(this, "MENU"));
 
         Button btnExpenses = UIHelper.cardButton(this, "消費紀錄", "查看所有消費明細", UIHelper.ACCENT_RED);
         btnExpenses.setOnClickListener(v -> startActivity(new Intent(this, ExpenseActivity.class)));
 
-        Button btnReport = UIHelper.cardButton(this, "消費報表", "年報 / 季報 / 月報", UIHelper.ACCENT_PURPLE);
-        btnReport.setOnClickListener(v -> startActivity(new Intent(this, ReportActivity.class)));
-
         Button btnMonitor = UIHelper.cardButton(this, "監聽狀態", "即時通知與簡訊 Log", UIHelper.ACCENT_BLUE);
         btnMonitor.setOnClickListener(v -> startActivity(new Intent(this, MonitorActivity.class)));
 
-        Button btnReminder = UIHelper.cardButton(this, "記帳提醒", "每日定時提醒記帳", UIHelper.ACCENT_GREEN);
-        btnReminder.setOnClickListener(v -> showReminderSettings());
-
         Button btnPermission = UIHelper.cardButton(this, "通知存取權限", "開啟系統設定", UIHelper.ACCENT_ORANGE);
-        btnPermission.setOnClickListener(v -> {
-            startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
-        });
+        btnPermission.setOnClickListener(v ->
+                startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)));
 
-        menuSection.addView(menuLabel);
-        menuSection.addView(btnExpenses);
-        menuSection.addView(btnReport);
-        menuSection.addView(btnMonitor);
-        menuSection.addView(btnReminder);
-        menuSection.addView(btnPermission);
+        content.addView(btnExpenses);
+        content.addView(btnMonitor);
+        content.addView(btnPermission);
 
         // Version footer
         TextView version = new TextView(this);
         version.setText("v2.1");
-        version.setTextSize(12);
+        version.setTextSize(11);
         version.setTextColor(UIHelper.TEXT_HINT);
         version.setGravity(Gravity.CENTER);
-        version.setPadding(0, UIHelper.dp(this, 16), 0, UIHelper.dp(this, 16));
+        version.setPadding(0, UIHelper.dp(this, 24), 0, UIHelper.dp(this, 16));
+        content.addView(version);
 
-        ScrollView menuScroll = new ScrollView(this);
-        menuScroll.addView(menuSection);
+        scrollView.addView(content);
 
         root.addView(topSection);
-        root.addView(statusCard);
-        root.addView(menuScroll, new LinearLayout.LayoutParams(
+        root.addView(scrollView, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
-        root.addView(version);
 
         setContentView(root);
-    }
-
-    private void showReminderSettings() {
-        boolean enabled = ReminderHelper.isEnabled(this);
-        int hour = ReminderHelper.getHour(this);
-        int minute = ReminderHelper.getMinute(this);
-
-        if (enabled) {
-            // Already enabled — show dialog to change time or disable
-            android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-            builder.setTitle("記帳提醒");
-            builder.setMessage(String.format("目前提醒時間: %02d:%02d\n\n選擇操作：", hour, minute));
-            builder.setPositiveButton("修改時間", (d, w) -> pickReminderTime());
-            builder.setNegativeButton("關閉提醒", (d, w) -> {
-                ReminderHelper.cancelReminder(this);
-                Toast.makeText(this, "已關閉每日提醒", Toast.LENGTH_SHORT).show();
-            });
-            builder.setNeutralButton("取消", null);
-            builder.show();
-        } else {
-            pickReminderTime();
-        }
-    }
-
-    private void pickReminderTime() {
-        int hour = ReminderHelper.getHour(this);
-        int minute = ReminderHelper.getMinute(this);
-        new TimePickerDialog(this, (view, h, m) -> {
-            ReminderHelper.scheduleReminder(this, h, m);
-            Toast.makeText(this, String.format("已設定每日 %02d:%02d 提醒記帳", h, m),
-                    Toast.LENGTH_SHORT).show();
-        }, hour, minute, true).show();
     }
 
     private void requestPermissions() {

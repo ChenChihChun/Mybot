@@ -32,18 +32,13 @@ public class AddExpenseActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        getWindow().setStatusBarColor(Color.parseColor("#0A1520"));
+        getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
 
         LinearLayout root = UIHelper.pageRoot(this);
 
         // Top bar
         LinearLayout topBar = UIHelper.topBar(this, "新增消費");
-        Button closeBtn = new Button(this);
-        closeBtn.setText("X");
-        closeBtn.setTextColor(UIHelper.TEXT_SECONDARY);
-        closeBtn.setTextSize(16);
-        closeBtn.setBackground(null);
-        closeBtn.setStateListAnimator(null);
+        Button closeBtn = UIHelper.smallButton(this, "X", UIHelper.TEXT_SECONDARY);
         closeBtn.setOnClickListener(v -> finish());
         topBar.addView(closeBtn);
 
@@ -150,9 +145,9 @@ public class AddExpenseActivity extends AppCompatActivity {
         aiBtn.setTextSize(13);
         aiBtn.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         aiBtn.setAllCaps(false);
-        aiBtn.setBackground(UIHelper.roundRect(UIHelper.ACCENT_BLUE, 10, this));
+        aiBtn.setBackground(UIHelper.roundRect(UIHelper.ACCENT_BLUE, 12, this));
         aiBtn.setStateListAnimator(null);
-        aiBtn.setElevation(0);
+        aiBtn.setElevation(UIHelper.dp(this, 2));
         int aiPad = UIHelper.dp(this, 14);
         aiBtn.setPadding(aiPad, 0, aiPad, 0);
         aiBtn.setMinimumWidth(0);

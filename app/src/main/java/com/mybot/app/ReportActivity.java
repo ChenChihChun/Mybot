@@ -39,7 +39,7 @@ public class ReportActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        getWindow().setStatusBarColor(Color.parseColor("#0A1520"));
+        getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
         dbHelper = new ExpenseDbHelper(this);
 
         LinearLayout root = UIHelper.pageRoot(this);
