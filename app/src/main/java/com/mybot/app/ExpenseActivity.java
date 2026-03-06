@@ -36,40 +36,50 @@ public class ExpenseActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        getWindow().setStatusBarColor(Color.parseColor("#0A1520"));
         dbHelper = new ExpenseDbHelper(this);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(24, 24, 24, 24);
+        LinearLayout root = UIHelper.pageRoot(this);
 
-        // Header
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView title = new TextView(this);
-        title.setText("消費紀錄");
-        title.setTextSize(22);
-        title.setTypeface(null, Typeface.BOLD);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        title.setLayoutParams(titleParams);
-
+        // Top bar
+        LinearLayout topBar = UIHelper.topBar(this, "消費紀錄");
         Button addBtn = new Button(this);
         addBtn.setText("+ 新增");
-        addBtn.setOnClickListener(v -> {
-            startActivity(new Intent(this, AddExpenseActivity.class));
-        });
+        addBtn.setTextColor(UIHelper.ACCENT_BLUE);
+        addBtn.setTextSize(14);
+        addBtn.setAllCaps(false);
+        addBtn.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        addBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_BLUE, 10, 1, this));
+        addBtn.setStateListAnimator(null);
+        addBtn.setElevation(0);
+        int btnPad = UIHelper.dp(this, 12);
+        addBtn.setPadding(btnPad, 0, btnPad, 0);
+        addBtn.setOnClickListener(v -> startActivity(new Intent(this, AddExpenseActivity.class)));
+        topBar.addView(addBtn);
 
-        header.addView(title);
-        header.addView(addBtn);
+        // Filter bar
+        LinearLayout filterBar = new LinearLayout(this);
+        filterBar.setOrientation(LinearLayout.HORIZONTAL);
+        filterBar.setGravity(Gravity.CENTER_VERTICAL);
+        filterBar.setBackgroundColor(UIHelper.BG_CARD);
+        int fp = UIHelper.dp(this, 16);
+        filterBar.setPadding(fp, UIHelper.dp(this, 10), fp, UIHelper.dp(this, 10));
 
-        // Category filter
+        TextView filterLabel = new TextView(this);
+        filterLabel.setText("類別篩選");
+        filterLabel.setTextSize(13);
+        filterLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        filterLabel.setPadding(0, 0, UIHelper.dp(this, 12), 0);
+
         categorySpinner = new Spinner(this);
-        categorySpinner.setPadding(0, 16, 0, 16);
+        categorySpinner.setBackgroundColor(Color.TRANSPARENT);
         categorySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (view instanceof TextView) {
+                    ((TextView) view).setTextColor(UIHelper.ACCENT_BLUE);
+                    ((TextView) view).setTextSize(14);
+                }
                 String selected = (String) parent.getItemAtPosition(position);
                 currentFilter = "全部".equals(selected) ? null : selected;
                 refreshList();
@@ -79,14 +89,34 @@ public class ExpenseActivity extends AppCompatActivity {
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
+        filterBar.addView(filterLabel);
+        filterBar.addView(categorySpinner, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
         // List
         listView = new ListView(this);
+        listView.setBackgroundColor(UIHelper.BG_PRIMARY);
+        listView.setDivider(null);
+        listView.setDividerHeight(0);
+        int listPad = UIHelper.dp(this, 12);
+        listView.setPadding(listPad, UIHelper.dp(this, 8), listPad, listPad);
+        listView.setClipToPadding(false);
         adapter = new ExpenseAdapter();
         listView.setAdapter(adapter);
 
-        root.addView(header);
-        root.addView(categorySpinner);
-        root.addView(listView, new LinearLayout.LayoutParams(
+        // Empty state
+        TextView emptyView = new TextView(this);
+        emptyView.setText("尚無消費紀錄");
+        emptyView.setTextSize(16);
+        emptyView.setTextColor(UIHelper.TEXT_HINT);
+        emptyView.setGravity(Gravity.CENTER);
+        emptyView.setPadding(0, UIHelper.dp(this, 60), 0, 0);
+        root.addView(emptyView);
+        listView.setEmptyView(emptyView);
+
+        root.addView(topBar, 0);
+        root.addView(filterBar, 1);
+        root.addView(listView, 2, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
@@ -130,59 +160,56 @@ public class ExpenseActivity extends AppCompatActivity {
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            LinearLayout row;
-            if (convertView instanceof LinearLayout) {
-                row = (LinearLayout) convertView;
-                row.removeAllViews();
-            } else {
-                row = new LinearLayout(ExpenseActivity.this);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setPadding(16, 20, 16, 20);
-                row.setGravity(Gravity.CENTER_VERTICAL);
-            }
+            LinearLayout card = UIHelper.card(ExpenseActivity.this);
 
             ExpenseDbHelper.Expense e = data.get(position);
 
-            // Date
+            // Top row: merchant + amount
+            LinearLayout topRow = new LinearLayout(ExpenseActivity.this);
+            topRow.setOrientation(LinearLayout.HORIZONTAL);
+            topRow.setGravity(Gravity.CENTER_VERTICAL);
+
+            TextView merchantView = new TextView(ExpenseActivity.this);
+            merchantView.setText(e.merchant != null && !e.merchant.isEmpty() ? e.merchant : "-");
+            merchantView.setTextSize(16);
+            merchantView.setTextColor(UIHelper.TEXT_PRIMARY);
+            merchantView.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+            merchantView.setLayoutParams(new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+            TextView amountView = new TextView(ExpenseActivity.this);
+            amountView.setText(String.format(Locale.getDefault(), "-$%.0f", e.amount));
+            amountView.setTextSize(18);
+            amountView.setTextColor(UIHelper.ACCENT_RED);
+            amountView.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+
+            topRow.addView(merchantView);
+            topRow.addView(amountView);
+
+            // Bottom row: date + category badge
+            LinearLayout bottomRow = new LinearLayout(ExpenseActivity.this);
+            bottomRow.setOrientation(LinearLayout.HORIZONTAL);
+            bottomRow.setGravity(Gravity.CENTER_VERTICAL);
+            bottomRow.setPadding(0, UIHelper.dp(ExpenseActivity.this, 8), 0, 0);
+
             TextView dateView = new TextView(ExpenseActivity.this);
             dateView.setText(sdf.format(new Date(e.createdAt)));
-            dateView.setTextSize(13);
-            dateView.setTextColor(Color.GRAY);
-            dateView.setLayoutParams(new LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 2));
+            dateView.setTextSize(12);
+            dateView.setTextColor(UIHelper.TEXT_SECONDARY);
+            dateView.setLayoutParams(new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
-            // Merchant
-            TextView merchantView = new TextView(ExpenseActivity.this);
-            merchantView.setText(e.merchant != null ? e.merchant : "-");
-            merchantView.setTextSize(15);
-            merchantView.setTypeface(null, Typeface.BOLD);
-            merchantView.setLayoutParams(new LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 3));
+            bottomRow.addView(dateView);
 
-            // Amount
-            TextView amountView = new TextView(ExpenseActivity.this);
-            amountView.setText(String.format(Locale.getDefault(), "$%.0f", e.amount));
-            amountView.setTextSize(15);
-            amountView.setTextColor(Color.parseColor("#D32F2F"));
-            amountView.setGravity(Gravity.END);
-            amountView.setLayoutParams(new LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 2));
+            if (e.category != null && !e.category.isEmpty()) {
+                TextView badge = UIHelper.statusBadge(ExpenseActivity.this, e.category, UIHelper.ACCENT_PURPLE);
+                bottomRow.addView(badge);
+            }
 
-            // Category
-            TextView catView = new TextView(ExpenseActivity.this);
-            catView.setText(e.category != null ? e.category : "");
-            catView.setTextSize(12);
-            catView.setTextColor(Color.parseColor("#1976D2"));
-            catView.setGravity(Gravity.END);
-            catView.setLayoutParams(new LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 2));
+            card.addView(topRow);
+            card.addView(bottomRow);
 
-            row.addView(dateView);
-            row.addView(merchantView);
-            row.addView(amountView);
-            row.addView(catView);
-
-            return row;
+            return card;
         }
     }
 }

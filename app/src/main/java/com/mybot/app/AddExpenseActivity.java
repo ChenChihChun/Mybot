@@ -1,11 +1,14 @@
 package com.mybot.app;
 
+import android.graphics.Color;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -17,23 +20,66 @@ public class AddExpenseActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(48, 48, 48, 48);
+        getWindow().setStatusBarColor(Color.parseColor("#0A1520"));
 
-        TextView title = new TextView(this);
-        title.setText("手動新增消費");
-        title.setTextSize(22);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 32);
+        LinearLayout root = UIHelper.pageRoot(this);
 
-        EditText amountInput = createInput("金額");
-        EditText merchantInput = createInput("商家");
-        EditText categoryInput = createInput("類別");
-        EditText descInput = createInput("描述");
+        // Top bar
+        LinearLayout topBar = UIHelper.topBar(this, "新增消費");
+        Button closeBtn = new Button(this);
+        closeBtn.setText("X");
+        closeBtn.setTextColor(UIHelper.TEXT_SECONDARY);
+        closeBtn.setTextSize(16);
+        closeBtn.setBackground(null);
+        closeBtn.setStateListAnimator(null);
+        closeBtn.setOnClickListener(v -> finish());
+        topBar.addView(closeBtn);
 
-        Button saveBtn = new Button(this);
-        saveBtn.setText("儲存");
+        // Form area
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        int p = UIHelper.dp(this, 24);
+        form.setPadding(p, UIHelper.dp(this, 16), p, p);
+
+        // Amount section with big display
+        LinearLayout amountCard = UIHelper.card(this);
+        LinearLayout.LayoutParams acLp = (LinearLayout.LayoutParams) amountCard.getLayoutParams();
+        acLp.setMargins(0, 0, 0, UIHelper.dp(this, 16));
+        amountCard.setLayoutParams(acLp);
+
+        TextView amountLabel = new TextView(this);
+        amountLabel.setText("金額 (TWD)");
+        amountLabel.setTextSize(12);
+        amountLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+
+        EditText amountInput = UIHelper.styledInput(this, "0");
+        amountInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        amountInput.setTextSize(28);
+        amountInput.setTextColor(UIHelper.ACCENT_RED);
+        amountInput.setGravity(Gravity.CENTER);
+
+        amountCard.addView(amountLabel);
+        amountCard.addView(amountInput);
+
+        // Detail fields
+        TextView detailLabel = new TextView(this);
+        detailLabel.setText("消費明細");
+        detailLabel.setTextSize(12);
+        detailLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        detailLabel.setPadding(UIHelper.dp(this, 4), 0, 0, UIHelper.dp(this, 8));
+
+        EditText merchantInput = UIHelper.styledInput(this, "商家名稱");
+        EditText categoryInput = UIHelper.styledInput(this, "類別 (如：餐飲、交通)");
+        EditText descInput = UIHelper.styledInput(this, "備註描述");
+
+        // Buttons
+        Button saveBtn = UIHelper.primaryButton(this, "儲存");
+        LinearLayout.LayoutParams saveLp = (LinearLayout.LayoutParams) saveBtn.getLayoutParams();
+        saveLp.setMargins(0, UIHelper.dp(this, 24), 0, UIHelper.dp(this, 8));
+        saveBtn.setLayoutParams(saveLp);
         saveBtn.setOnClickListener(v -> {
             String amountStr = amountInput.getText().toString().trim();
             if (amountStr.isEmpty()) {
@@ -58,27 +104,23 @@ public class AddExpenseActivity extends AppCompatActivity {
             finish();
         });
 
-        Button cancelBtn = new Button(this);
-        cancelBtn.setText("取消");
+        Button cancelBtn = UIHelper.outlineButton(this, "取消");
         cancelBtn.setOnClickListener(v -> finish());
 
-        root.addView(title);
-        root.addView(amountInput);
-        root.addView(merchantInput);
-        root.addView(categoryInput);
-        root.addView(descInput);
-        root.addView(saveBtn);
-        root.addView(cancelBtn);
+        form.addView(amountCard);
+        form.addView(detailLabel);
+        form.addView(merchantInput);
+        form.addView(categoryInput);
+        form.addView(descInput);
+        form.addView(saveBtn);
+        form.addView(cancelBtn);
+
+        scrollView.addView(form);
+
+        root.addView(topBar);
+        root.addView(scrollView, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
-    }
-
-    private EditText createInput(String hint) {
-        EditText et = new EditText(this);
-        et.setHint(hint);
-        et.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-        return et;
     }
 }

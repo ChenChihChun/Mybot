@@ -30,34 +30,73 @@ public class MonitorActivity extends AppCompatActivity {
 
     private LogAdapter adapter;
     private BroadcastReceiver receiver;
+    private TextView countView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(24, 24, 24, 24);
+        getWindow().setStatusBarColor(Color.parseColor("#0A1520"));
 
-        TextView title = new TextView(this);
-        title.setText("監聽狀態");
-        title.setTextSize(22);
-        title.setTypeface(null, Typeface.BOLD);
-        title.setPadding(0, 0, 0, 16);
+        LinearLayout root = UIHelper.pageRoot(this);
 
-        TextView hint = new TextView(this);
-        hint.setText("即時顯示攔截到的通知與簡訊");
-        hint.setTextSize(13);
-        hint.setTextColor(Color.GRAY);
-        hint.setPadding(0, 0, 0, 16);
+        // Top bar
+        LinearLayout topBar = UIHelper.topBar(this, "監聽狀態");
 
+        countView = new TextView(this);
+        countView.setTextSize(13);
+        countView.setTextColor(UIHelper.TEXT_SECONDARY);
+        countView.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        updateCount();
+        topBar.addView(countView);
+
+        // Status indicator bar
+        LinearLayout statusBar = new LinearLayout(this);
+        statusBar.setOrientation(LinearLayout.HORIZONTAL);
+        statusBar.setGravity(Gravity.CENTER_VERTICAL);
+        statusBar.setBackgroundColor(UIHelper.BG_CARD);
+        int sp = UIHelper.dp(this, 16);
+        statusBar.setPadding(sp, UIHelper.dp(this, 10), sp, UIHelper.dp(this, 10));
+
+        TextView dot = new TextView(this);
+        dot.setBackground(UIHelper.roundRect(UIHelper.ACCENT_GREEN, 20, this));
+        LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(
+                UIHelper.dp(this, 8), UIHelper.dp(this, 8));
+        dotLp.setMargins(0, 0, UIHelper.dp(this, 8), 0);
+        dot.setLayoutParams(dotLp);
+
+        TextView statusText = new TextView(this);
+        statusText.setText("即時監聽中 - 攔截到的通知與簡訊會顯示在下方");
+        statusText.setTextSize(12);
+        statusText.setTextColor(UIHelper.TEXT_SECONDARY);
+
+        statusBar.addView(dot);
+        statusBar.addView(statusText);
+
+        // List
         ListView listView = new ListView(this);
+        listView.setBackgroundColor(UIHelper.BG_PRIMARY);
+        listView.setDivider(null);
+        listView.setDividerHeight(0);
+        int listPad = UIHelper.dp(this, 12);
+        listView.setPadding(listPad, UIHelper.dp(this, 8), listPad, listPad);
+        listView.setClipToPadding(false);
         adapter = new LogAdapter();
         listView.setAdapter(adapter);
 
-        root.addView(title);
-        root.addView(hint);
-        root.addView(listView, new LinearLayout.LayoutParams(
+        // Empty state
+        TextView emptyView = new TextView(this);
+        emptyView.setText("等待通知或簡訊...");
+        emptyView.setTextSize(16);
+        emptyView.setTextColor(UIHelper.TEXT_HINT);
+        emptyView.setGravity(Gravity.CENTER);
+        emptyView.setPadding(0, UIHelper.dp(this, 60), 0, 0);
+        root.addView(emptyView);
+        listView.setEmptyView(emptyView);
+
+        root.addView(topBar, 0);
+        root.addView(statusBar, 1);
+        root.addView(listView, 2, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
@@ -66,8 +105,13 @@ public class MonitorActivity extends AppCompatActivity {
             @Override
             public void onReceive(Context context, Intent intent) {
                 adapter.notifyDataSetChanged();
+                updateCount();
             }
         };
+    }
+
+    private void updateCount() {
+        countView.setText(logs.size() + " 筆");
     }
 
     @Override
@@ -75,6 +119,7 @@ public class MonitorActivity extends AppCompatActivity {
         super.onResume();
         registerReceiver(receiver, new IntentFilter(ACTION_NEW_LOG), Context.RECEIVER_NOT_EXPORTED);
         adapter.notifyDataSetChanged();
+        updateCount();
     }
 
     @Override
@@ -97,71 +142,97 @@ public class MonitorActivity extends AppCompatActivity {
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            LinearLayout card;
-            if (convertView instanceof LinearLayout) {
-                card = (LinearLayout) convertView;
-                card.removeAllViews();
-            } else {
-                card = new LinearLayout(MonitorActivity.this);
-                card.setOrientation(LinearLayout.VERTICAL);
-                card.setPadding(16, 16, 16, 16);
-            }
+            LinearLayout card = UIHelper.card(MonitorActivity.this);
 
             NotificationLog log = (NotificationLog) getItem(position);
 
-            // Row 1: time + source app
+            // Row 1: time + source badge
             LinearLayout row1 = new LinearLayout(MonitorActivity.this);
             row1.setOrientation(LinearLayout.HORIZONTAL);
+            row1.setGravity(Gravity.CENTER_VERTICAL);
 
             TextView timeView = new TextView(MonitorActivity.this);
             timeView.setText(sdf.format(new Date(log.timestamp)));
             timeView.setTextSize(12);
-            timeView.setTextColor(Color.GRAY);
+            timeView.setTextColor(UIHelper.TEXT_HINT);
+            timeView.setPadding(0, 0, UIHelper.dp(MonitorActivity.this, 8), 0);
 
-            TextView sourceView = new TextView(MonitorActivity.this);
-            sourceView.setText("  " + log.sourceApp + " [" + log.source + "]");
-            sourceView.setTextSize(12);
-            sourceView.setTextColor(Color.parseColor("#1976D2"));
+            TextView sourceBadge = UIHelper.statusBadge(MonitorActivity.this,
+                    log.sourceApp,
+                    "簡訊".equals(log.source) ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_BLUE);
+
+            TextView typeBadge = UIHelper.statusBadge(MonitorActivity.this,
+                    log.source,
+                    Color.parseColor("#37474F"));
+            LinearLayout.LayoutParams typeLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            typeLp.setMargins(UIHelper.dp(MonitorActivity.this, 6), 0, 0, 0);
+            typeBadge.setLayoutParams(typeLp);
 
             row1.addView(timeView);
-            row1.addView(sourceView);
+            row1.addView(sourceBadge);
+            row1.addView(typeBadge);
 
-            // Row 2: title + content
+            // Row 2: content
             TextView contentView = new TextView(MonitorActivity.this);
-            contentView.setText(log.title + ": " + log.content);
+            String displayContent = log.title;
+            if (log.content != null && !log.content.isEmpty()) {
+                displayContent += ": " + log.content;
+            }
+            contentView.setText(displayContent);
             contentView.setTextSize(14);
+            contentView.setTextColor(UIHelper.TEXT_PRIMARY);
             contentView.setMaxLines(2);
-            contentView.setPadding(0, 4, 0, 4);
+            contentView.setPadding(0, UIHelper.dp(MonitorActivity.this, 8), 0,
+                    UIHelper.dp(MonitorActivity.this, 8));
 
             // Row 3: AI result
-            TextView aiView = new TextView(MonitorActivity.this);
-            aiView.setTextSize(12);
+            LinearLayout aiRow = new LinearLayout(MonitorActivity.this);
+            aiRow.setOrientation(LinearLayout.HORIZONTAL);
+            aiRow.setGravity(Gravity.CENTER_VERTICAL);
+            aiRow.setBackground(UIHelper.roundRect(UIHelper.BG_CARD_ALT, 8, MonitorActivity.this));
+            int aiPad = UIHelper.dp(MonitorActivity.this, 10);
+            aiRow.setPadding(aiPad, UIHelper.dp(MonitorActivity.this, 6),
+                    aiPad, UIHelper.dp(MonitorActivity.this, 6));
+
+            TextView aiIcon = new TextView(MonitorActivity.this);
+            aiIcon.setTextSize(11);
+            aiIcon.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+            aiIcon.setPadding(0, 0, UIHelper.dp(MonitorActivity.this, 8), 0);
+
+            TextView aiText = new TextView(MonitorActivity.this);
+            aiText.setTextSize(13);
+
             if (!log.analyzed) {
-                aiView.setText("分析中...");
-                aiView.setTextColor(Color.GRAY);
+                aiIcon.setText("AI");
+                aiIcon.setTextColor(UIHelper.TEXT_HINT);
+                aiText.setText("分析中...");
+                aiText.setTextColor(UIHelper.TEXT_HINT);
             } else if (log.offline) {
-                aiView.setText("AI: 離線");
-                aiView.setTextColor(Color.parseColor("#FF6F00"));
+                aiIcon.setText("AI");
+                aiIcon.setTextColor(UIHelper.ACCENT_ORANGE);
+                aiText.setText("Bridge 離線");
+                aiText.setTextColor(UIHelper.ACCENT_ORANGE);
             } else if (log.isExpense) {
-                aiView.setText(String.format(Locale.getDefault(),
-                        "消費: $%.0f %s [%s]", log.amount, log.merchant, log.category));
-                aiView.setTextColor(Color.parseColor("#D32F2F"));
-                aiView.setTypeface(null, Typeface.BOLD);
+                aiIcon.setText("$");
+                aiIcon.setTextColor(UIHelper.ACCENT_RED);
+                aiText.setText(String.format(Locale.getDefault(),
+                        "消費 $%.0f  %s  [%s]", log.amount, log.merchant, log.category));
+                aiText.setTextColor(UIHelper.ACCENT_RED);
+                aiText.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
             } else {
-                aiView.setText("非消費");
-                aiView.setTextColor(Color.GRAY);
+                aiIcon.setText("AI");
+                aiIcon.setTextColor(UIHelper.TEXT_SECONDARY);
+                aiText.setText("非消費通知");
+                aiText.setTextColor(UIHelper.TEXT_SECONDARY);
             }
 
-            // Divider
-            View divider = new View(MonitorActivity.this);
-            divider.setBackgroundColor(Color.parseColor("#E0E0E0"));
-            divider.setLayoutParams(new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, 1));
+            aiRow.addView(aiIcon);
+            aiRow.addView(aiText);
 
             card.addView(row1);
             card.addView(contentView);
-            card.addView(aiView);
-            card.addView(divider);
+            card.addView(aiRow);
 
             return card;
         }
