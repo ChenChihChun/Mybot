@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -117,7 +118,11 @@ public class MonitorActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        registerReceiver(receiver, new IntentFilter(ACTION_NEW_LOG), Context.RECEIVER_NOT_EXPORTED);
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(receiver, new IntentFilter(ACTION_NEW_LOG), Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(receiver, new IntentFilter(ACTION_NEW_LOG));
+        }
         adapter.notifyDataSetChanged();
         updateCount();
     }
