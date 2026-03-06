@@ -16,7 +16,7 @@ import java.util.concurrent.Executors;
 
 public class BridgeClient {
 
-    private static final String BASE_URL = "http://localhost:8765";
+    private static final String BASE_URL = "http://127.0.0.1:8765";
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 

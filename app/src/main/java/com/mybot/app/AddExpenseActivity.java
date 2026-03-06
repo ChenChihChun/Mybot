@@ -1,5 +1,7 @@
 package com.mybot.app;
 
+import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -15,9 +17,16 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Locale;
+
 public class AddExpenseActivity extends AppCompatActivity {
 
     private boolean aiRequesting = false;
+    private final Calendar selectedDate = Calendar.getInstance();
+    private TextView dateDisplay;
+    private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +55,49 @@ public class AddExpenseActivity extends AppCompatActivity {
         form.setOrientation(LinearLayout.VERTICAL);
         int p = UIHelper.dp(this, 24);
         form.setPadding(p, UIHelper.dp(this, 16), p, p);
+
+        // Date picker card
+        LinearLayout dateCard = UIHelper.card(this);
+        LinearLayout.LayoutParams dateLp = (LinearLayout.LayoutParams) dateCard.getLayoutParams();
+        dateLp.setMargins(0, 0, 0, UIHelper.dp(this, 12));
+        dateCard.setLayoutParams(dateLp);
+
+        TextView dateLabel = new TextView(this);
+        dateLabel.setText("消費日期");
+        dateLabel.setTextSize(12);
+        dateLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+
+        LinearLayout dateRow = new LinearLayout(this);
+        dateRow.setOrientation(LinearLayout.HORIZONTAL);
+        dateRow.setGravity(Gravity.CENTER_VERTICAL);
+        dateRow.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+
+        dateDisplay = new TextView(this);
+        dateDisplay.setText(sdf.format(selectedDate.getTime()));
+        dateDisplay.setTextSize(18);
+        dateDisplay.setTextColor(UIHelper.TEXT_PRIMARY);
+        dateDisplay.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        dateDisplay.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        Button dateBtn = new Button(this);
+        dateBtn.setText("選擇");
+        dateBtn.setTextColor(UIHelper.ACCENT_BLUE);
+        dateBtn.setTextSize(13);
+        dateBtn.setAllCaps(false);
+        dateBtn.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        dateBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_BLUE, 10, 1, this));
+        dateBtn.setStateListAnimator(null);
+        dateBtn.setElevation(0);
+        int dbPad = UIHelper.dp(this, 12);
+        dateBtn.setPadding(dbPad, 0, dbPad, 0);
+        dateBtn.setOnClickListener(v -> showDatePicker());
+
+        dateRow.addView(dateDisplay);
+        dateRow.addView(dateBtn);
+
+        dateCard.addView(dateLabel);
+        dateCard.addView(dateRow);
 
         // Amount section
         LinearLayout amountCard = UIHelper.card(this);
@@ -92,7 +144,6 @@ public class AddExpenseActivity extends AppCompatActivity {
         catInputLp.setMargins(0, 0, UIHelper.dp(this, 8), 0);
         categoryInput.setLayoutParams(catInputLp);
 
-        // AI suggest button
         Button aiBtn = new Button(this);
         aiBtn.setText("AI");
         aiBtn.setTextColor(Color.WHITE);
@@ -110,7 +161,6 @@ public class AddExpenseActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, UIHelper.dp(this, 48));
         aiBtn.setLayoutParams(aiBtnLp);
 
-        // AI status hint
         TextView aiHint = new TextView(this);
         aiHint.setTextSize(12);
         aiHint.setTextColor(UIHelper.TEXT_HINT);
@@ -182,13 +232,13 @@ public class AddExpenseActivity extends AppCompatActivity {
             String category = categoryInput.getText().toString().trim();
             String desc = descInput.getText().toString().trim();
 
-            // If no category, try AI one more time synchronously-ish
             if (category.isEmpty() && !merchant.isEmpty()) {
                 Toast.makeText(this, "建議按 AI 按鈕取得類別", Toast.LENGTH_SHORT).show();
             }
 
             ExpenseDbHelper db = new ExpenseDbHelper(this);
-            db.insert(amount, "TWD", category, merchant, desc, "手動", "");
+            db.insert(amount, "TWD", category, merchant, desc, "手動", "",
+                    selectedDate.getTimeInMillis());
             Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
             finish();
         });
@@ -196,6 +246,7 @@ public class AddExpenseActivity extends AppCompatActivity {
         Button cancelBtn = UIHelper.outlineButton(this, "取消");
         cancelBtn.setOnClickListener(v -> finish());
 
+        form.addView(dateCard);
         form.addView(amountCard);
         form.addView(detailLabel);
         form.addView(merchantInput);
@@ -212,5 +263,26 @@ public class AddExpenseActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
+    }
+
+    private void showDatePicker() {
+        new DatePickerDialog(this, (view, year, month, day) -> {
+            selectedDate.set(Calendar.YEAR, year);
+            selectedDate.set(Calendar.MONTH, month);
+            selectedDate.set(Calendar.DAY_OF_MONTH, day);
+            showTimePicker();
+        }, selectedDate.get(Calendar.YEAR),
+                selectedDate.get(Calendar.MONTH),
+                selectedDate.get(Calendar.DAY_OF_MONTH)).show();
+    }
+
+    private void showTimePicker() {
+        new TimePickerDialog(this, (view, hour, minute) -> {
+            selectedDate.set(Calendar.HOUR_OF_DAY, hour);
+            selectedDate.set(Calendar.MINUTE, minute);
+            selectedDate.set(Calendar.SECOND, 0);
+            dateDisplay.setText(sdf.format(selectedDate.getTime()));
+        }, selectedDate.get(Calendar.HOUR_OF_DAY),
+                selectedDate.get(Calendar.MINUTE), true).show();
     }
 }

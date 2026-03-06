@@ -51,6 +51,11 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
 
     public long insert(double amount, String currency, String category, String merchant,
                        String description, String source, String rawText) {
+        return insert(amount, currency, category, merchant, description, source, rawText, System.currentTimeMillis());
+    }
+
+    public long insert(double amount, String currency, String category, String merchant,
+                       String description, String source, String rawText, long createdAt) {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put(COL_AMOUNT, amount);
@@ -60,7 +65,7 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         cv.put(COL_DESCRIPTION, description);
         cv.put(COL_SOURCE, source);
         cv.put(COL_RAW_TEXT, rawText);
-        cv.put(COL_CREATED_AT, System.currentTimeMillis());
+        cv.put(COL_CREATED_AT, createdAt);
         return db.insert(TABLE, null, cv);
     }
 
