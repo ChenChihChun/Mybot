@@ -19,17 +19,33 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Cache debug keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: debug-keystore-v1
+
+      - name: Create debug keystore if not cached
+        run: |
+          if [ ! -f ~/.android/debug.keystore ]; then
+            mkdir -p ~/.android
+            keytool -genkeypair -v -keystore ~/.android/debug.keystore \
+              -alias androiddebugkey -keyalg RSA -keysize 2048 \
+              -validity 36500 -storepass android -keypass android \
+              -dname "CN=Mybot Debug,O=Mybot,C=TW"
+          fi
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '7.5.1'
 
       - name: Build debug APK
-        run: gradle assembleDebug
+        run: gradle assembleDebug --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mybot-v${{ github.run_number }}-debug
+          name: mybot-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7

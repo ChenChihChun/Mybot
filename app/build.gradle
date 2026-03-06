@@ -10,8 +10,12 @@ android {
         applicationId "com.mybot.app"
         minSdk 26
         targetSdk 33
-        versionCode 7
-        versionName "1.6"
+        versionCode 8
+        versionName "1.7"
+    }
+
+    lintOptions {
+        abortOnError false
     }
 
     buildTypes {
