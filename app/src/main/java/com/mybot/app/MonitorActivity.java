@@ -4,14 +4,15 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Build;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -32,6 +33,8 @@ public class MonitorActivity extends AppCompatActivity {
     private LogAdapter adapter;
     private BroadcastReceiver receiver;
     private TextView countView;
+    private TextView bridgeDot;
+    private TextView bridgeStatus;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,13 +54,60 @@ public class MonitorActivity extends AppCompatActivity {
         updateCount();
         topBar.addView(countView);
 
-        // Status indicator bar
+        // Bridge status bar
+        LinearLayout bridgeBar = new LinearLayout(this);
+        bridgeBar.setOrientation(LinearLayout.HORIZONTAL);
+        bridgeBar.setGravity(Gravity.CENTER_VERTICAL);
+        bridgeBar.setBackgroundColor(UIHelper.BG_CARD);
+        int bp = UIHelper.dp(this, 16);
+        bridgeBar.setPadding(bp, UIHelper.dp(this, 10), bp, UIHelper.dp(this, 10));
+
+        TextView bridgeLabel = new TextView(this);
+        bridgeLabel.setText("AI Bridge: ");
+        bridgeLabel.setTextSize(12);
+        bridgeLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+
+        bridgeDot = new TextView(this);
+        bridgeDot.setBackground(UIHelper.roundRect(UIHelper.TEXT_HINT, 20, this));
+        LinearLayout.LayoutParams bdLp = new LinearLayout.LayoutParams(
+                UIHelper.dp(this, 8), UIHelper.dp(this, 8));
+        bdLp.setMargins(0, 0, UIHelper.dp(this, 6), 0);
+        bridgeDot.setLayoutParams(bdLp);
+
+        bridgeStatus = new TextView(this);
+        bridgeStatus.setText("未測試");
+        bridgeStatus.setTextSize(12);
+        bridgeStatus.setTextColor(UIHelper.TEXT_HINT);
+        bridgeStatus.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        Button testBtn = new Button(this);
+        testBtn.setText("測試");
+        testBtn.setTextColor(UIHelper.ACCENT_BLUE);
+        testBtn.setTextSize(12);
+        testBtn.setAllCaps(false);
+        testBtn.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        testBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_BLUE, 8, 1, this));
+        testBtn.setStateListAnimator(null);
+        testBtn.setElevation(0);
+        int tbp = UIHelper.dp(this, 10);
+        testBtn.setPadding(tbp, 0, tbp, 0);
+        testBtn.setMinimumWidth(0);
+        testBtn.setMinWidth(0);
+        testBtn.setOnClickListener(v -> testBridge());
+
+        bridgeBar.addView(bridgeLabel);
+        bridgeBar.addView(bridgeDot);
+        bridgeBar.addView(bridgeStatus);
+        bridgeBar.addView(testBtn);
+
+        // Notification listener status
         LinearLayout statusBar = new LinearLayout(this);
         statusBar.setOrientation(LinearLayout.HORIZONTAL);
         statusBar.setGravity(Gravity.CENTER_VERTICAL);
-        statusBar.setBackgroundColor(UIHelper.BG_CARD);
+        statusBar.setBackgroundColor(UIHelper.BG_CARD_ALT);
         int sp = UIHelper.dp(this, 16);
-        statusBar.setPadding(sp, UIHelper.dp(this, 10), sp, UIHelper.dp(this, 10));
+        statusBar.setPadding(sp, UIHelper.dp(this, 8), sp, UIHelper.dp(this, 8));
 
         TextView dot = new TextView(this);
         dot.setBackground(UIHelper.roundRect(UIHelper.ACCENT_GREEN, 20, this));
@@ -67,8 +117,8 @@ public class MonitorActivity extends AppCompatActivity {
         dot.setLayoutParams(dotLp);
 
         TextView statusText = new TextView(this);
-        statusText.setText("即時監聽中 - 攔截到的通知與簡訊會顯示在下方");
-        statusText.setTextSize(12);
+        statusText.setText("通知監聽中 - 攔截到的訊息會顯示在下方");
+        statusText.setTextSize(11);
         statusText.setTextColor(UIHelper.TEXT_SECONDARY);
 
         statusBar.addView(dot);
@@ -96,8 +146,9 @@ public class MonitorActivity extends AppCompatActivity {
         listView.setEmptyView(emptyView);
 
         root.addView(topBar, 0);
-        root.addView(statusBar, 1);
-        root.addView(listView, 2, new LinearLayout.LayoutParams(
+        root.addView(bridgeBar, 1);
+        root.addView(statusBar, 2);
+        root.addView(listView, 3, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
@@ -109,6 +160,27 @@ public class MonitorActivity extends AppCompatActivity {
                 updateCount();
             }
         };
+
+        // Auto test bridge on open
+        testBridge();
+    }
+
+    private void testBridge() {
+        bridgeStatus.setText("連線中...");
+        bridgeStatus.setTextColor(UIHelper.TEXT_HINT);
+        bridgeDot.setBackground(UIHelper.roundRect(UIHelper.TEXT_HINT, 20, this));
+
+        BridgeClient.healthCheck((online, message) -> {
+            if (online) {
+                bridgeDot.setBackground(UIHelper.roundRect(UIHelper.ACCENT_GREEN, 20, this));
+                bridgeStatus.setText(message);
+                bridgeStatus.setTextColor(UIHelper.ACCENT_GREEN);
+            } else {
+                bridgeDot.setBackground(UIHelper.roundRect(UIHelper.ACCENT_RED, 20, this));
+                bridgeStatus.setText(message);
+                bridgeStatus.setTextColor(UIHelper.ACCENT_RED);
+            }
+        });
     }
 
     private void updateCount() {
@@ -193,12 +265,15 @@ public class MonitorActivity extends AppCompatActivity {
 
             // Row 3: AI result
             LinearLayout aiRow = new LinearLayout(MonitorActivity.this);
-            aiRow.setOrientation(LinearLayout.HORIZONTAL);
-            aiRow.setGravity(Gravity.CENTER_VERTICAL);
+            aiRow.setOrientation(LinearLayout.VERTICAL);
             aiRow.setBackground(UIHelper.roundRect(UIHelper.BG_CARD_ALT, 8, MonitorActivity.this));
             int aiPad = UIHelper.dp(MonitorActivity.this, 10);
             aiRow.setPadding(aiPad, UIHelper.dp(MonitorActivity.this, 6),
                     aiPad, UIHelper.dp(MonitorActivity.this, 6));
+
+            LinearLayout aiTopRow = new LinearLayout(MonitorActivity.this);
+            aiTopRow.setOrientation(LinearLayout.HORIZONTAL);
+            aiTopRow.setGravity(Gravity.CENTER_VERTICAL);
 
             TextView aiIcon = new TextView(MonitorActivity.this);
             aiIcon.setTextSize(11);
@@ -216,8 +291,13 @@ public class MonitorActivity extends AppCompatActivity {
             } else if (log.offline) {
                 aiIcon.setText("AI");
                 aiIcon.setTextColor(UIHelper.ACCENT_ORANGE);
-                aiText.setText("Bridge 離線");
+                String offlineText = "Bridge 離線";
+                if (log.errorMsg != null && !log.errorMsg.isEmpty()) {
+                    offlineText += " - " + log.errorMsg;
+                }
+                aiText.setText(offlineText);
                 aiText.setTextColor(UIHelper.ACCENT_ORANGE);
+                aiText.setMaxLines(3);
             } else if (log.isExpense) {
                 aiIcon.setText("$");
                 aiIcon.setTextColor(UIHelper.ACCENT_RED);
@@ -232,8 +312,9 @@ public class MonitorActivity extends AppCompatActivity {
                 aiText.setTextColor(UIHelper.TEXT_SECONDARY);
             }
 
-            aiRow.addView(aiIcon);
-            aiRow.addView(aiText);
+            aiTopRow.addView(aiIcon);
+            aiTopRow.addView(aiText);
+            aiRow.addView(aiTopRow);
 
             card.addView(row1);
             card.addView(contentView);

@@ -30,10 +30,7 @@ public class SmsReceiver extends BroadcastReceiver {
             String sender = smsMessage.getDisplayOriginatingAddress();
             String body = smsMessage.getDisplayMessageBody();
 
-            String message = "[簡訊] 來自 " + sender + ": " + body;
-            NotificationHelper.sendNotification(context, "Mybot - 簡訊監聽", message);
-
-            // Log and analyze
+            // Log and analyze (no push notification for non-expense)
             NotificationLog log = new NotificationLog(sender, "簡訊", body, "簡訊");
             MonitorActivity.logs.add(log);
             context.sendBroadcast(new Intent(MonitorActivity.ACTION_NEW_LOG));

@@ -44,10 +44,7 @@ public class NotificationService extends NotificationListenerService {
             }
         }
 
-        String message = "[通知] " + appName + ": " + title + " - " + content;
-        NotificationHelper.sendNotification(this, "Mybot - 通知監聯", message);
-
-        // Log and analyze
+        // Log and analyze (no push notification for non-expense)
         NotificationLog log = new NotificationLog(appName, title, content, "通知");
         MonitorActivity.logs.add(log);
         sendBroadcast(new Intent(MonitorActivity.ACTION_NEW_LOG));

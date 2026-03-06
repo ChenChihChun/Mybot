@@ -17,6 +17,7 @@ public class NotificationLog {
     public String description;
     public double confidence;
     public boolean offline;
+    public String errorMsg;
 
     public NotificationLog(String sourceApp, String title, String content, String source) {
         this.timestamp = System.currentTimeMillis();
