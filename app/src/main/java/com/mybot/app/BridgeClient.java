@@ -24,6 +24,70 @@ public class BridgeClient {
         void onResult(NotificationLog log);
     }
 
+    public interface CategorizeCallback {
+        void onResult(String category, boolean offline);
+    }
+
+    public static void categorize(String merchant, String description, double amount, CategorizeCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "categorize_expense");
+                body.put("merchant", merchant);
+                body.put("description", description);
+                body.put("amount", amount);
+
+                String response = postJson(BASE_URL + "/analyze", body.toString());
+                if (response != null) {
+                    JSONObject json = new JSONObject(response);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject result = json.getJSONObject("result");
+                        String category = result.optString("category", "");
+                        mainHandler.post(() -> callback.onResult(category, false));
+                        return;
+                    }
+                }
+                mainHandler.post(() -> callback.onResult("", true));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onResult("", true));
+            }
+        });
+    }
+
+    private static String postJson(String urlStr, String jsonBody) {
+        try {
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(30000);
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(jsonBody.getBytes(StandardCharsets.UTF_8));
+            }
+
+            int code = conn.getResponseCode();
+            if (code == 200) {
+                StringBuilder sb = new StringBuilder();
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        sb.append(line);
+                    }
+                }
+                conn.disconnect();
+                return sb.toString();
+            }
+            conn.disconnect();
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
     public static void analyze(NotificationLog log, AnalyzeCallback callback) {
         executor.execute(() -> {
             try {
@@ -34,30 +98,9 @@ public class BridgeClient {
                 body.put("title", log.title);
                 body.put("content", log.content);
 
-                URL url = new URL(BASE_URL + "/analyze");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(30000);
-                conn.setDoOutput(true);
-
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(body.toString().getBytes(StandardCharsets.UTF_8));
-                }
-
-                int code = conn.getResponseCode();
-                if (code == 200) {
-                    StringBuilder sb = new StringBuilder();
-                    try (BufferedReader br = new BufferedReader(
-                            new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-                        String line;
-                        while ((line = br.readLine()) != null) {
-                            sb.append(line);
-                        }
-                    }
-
-                    JSONObject json = new JSONObject(sb.toString());
+                String response = postJson(BASE_URL + "/analyze", body.toString());
+                if (response != null) {
+                    JSONObject json = new JSONObject(response);
                     if (json.optBoolean("success", false)) {
                         JSONObject result = json.getJSONObject("result");
                         log.isExpense = result.optBoolean("is_expense", false);
@@ -74,7 +117,6 @@ public class BridgeClient {
                     log.analyzed = true;
                     log.offline = true;
                 }
-                conn.disconnect();
             } catch (Exception e) {
                 log.analyzed = true;
                 log.offline = true;
