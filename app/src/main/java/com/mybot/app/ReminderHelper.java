@@ -1,0 +1,90 @@
+package com.mybot.app;
+
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+
+import java.util.Calendar;
+
+public class ReminderHelper {
+
+    private static final String PREFS_NAME = "mybot_reminder";
+    private static final String KEY_ENABLED = "enabled";
+    private static final String KEY_HOUR = "hour";
+    private static final String KEY_MINUTE = "minute";
+    private static final int REQUEST_CODE = 8888;
+
+    public static void scheduleReminder(Context context, int hour, int minute) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit()
+                .putBoolean(KEY_ENABLED, true)
+                .putInt(KEY_HOUR, hour)
+                .putInt(KEY_MINUTE, minute)
+                .apply();
+
+        setAlarm(context, hour, minute);
+    }
+
+    public static void cancelReminder(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putBoolean(KEY_ENABLED, false).apply();
+
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        PendingIntent pi = getPendingIntent(context);
+        if (am != null) {
+            am.cancel(pi);
+        }
+    }
+
+    public static void restoreIfEnabled(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        if (prefs.getBoolean(KEY_ENABLED, false)) {
+            int hour = prefs.getInt(KEY_HOUR, 21);
+            int minute = prefs.getInt(KEY_MINUTE, 0);
+            setAlarm(context, hour, minute);
+        }
+    }
+
+    public static boolean isEnabled(Context context) {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(KEY_ENABLED, false);
+    }
+
+    public static int getHour(Context context) {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getInt(KEY_HOUR, 21);
+    }
+
+    public static int getMinute(Context context) {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getInt(KEY_MINUTE, 0);
+    }
+
+    private static void setAlarm(Context context, int hour, int minute) {
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, hour);
+        cal.set(Calendar.MINUTE, minute);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+
+        // If the time already passed today, schedule for tomorrow
+        if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+
+        PendingIntent pi = getPendingIntent(context);
+        am.setRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(),
+                AlarmManager.INTERVAL_DAY, pi);
+    }
+
+    private static PendingIntent getPendingIntent(Context context) {
+        Intent intent = new Intent(context, ReminderReceiver.class);
+        return PendingIntent.getBroadcast(context, REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+}

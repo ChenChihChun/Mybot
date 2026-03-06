@@ -32,7 +32,7 @@ public class SmsReceiver extends BroadcastReceiver {
 
             // Log and analyze (no push notification for non-expense)
             NotificationLog log = new NotificationLog(sender, "簡訊", body, "簡訊");
-            MonitorActivity.logs.add(log);
+            MonitorActivity.addLog(log);
             context.sendBroadcast(new Intent(MonitorActivity.ACTION_NEW_LOG));
 
             BridgeClient.analyze(log, result -> {

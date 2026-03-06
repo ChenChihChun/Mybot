@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 public class ExpenseDbHelper extends SQLiteOpenHelper {
@@ -109,6 +110,92 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         }
         cursor.close();
         return cats;
+    }
+
+    public List<Expense> queryByDateRange(long startMs, long endMs) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.query(TABLE, null,
+                COL_CREATED_AT + " >= ? AND " + COL_CREATED_AT + " < ?",
+                new String[]{String.valueOf(startMs), String.valueOf(endMs)},
+                null, null, COL_CREATED_AT + " DESC");
+
+        List<Expense> list = new ArrayList<>();
+        while (cursor.moveToNext()) {
+            Expense e = new Expense();
+            e.id = cursor.getLong(cursor.getColumnIndexOrThrow(COL_ID));
+            e.amount = cursor.getDouble(cursor.getColumnIndexOrThrow(COL_AMOUNT));
+            e.currency = cursor.getString(cursor.getColumnIndexOrThrow(COL_CURRENCY));
+            e.category = cursor.getString(cursor.getColumnIndexOrThrow(COL_CATEGORY));
+            e.merchant = cursor.getString(cursor.getColumnIndexOrThrow(COL_MERCHANT));
+            e.description = cursor.getString(cursor.getColumnIndexOrThrow(COL_DESCRIPTION));
+            e.source = cursor.getString(cursor.getColumnIndexOrThrow(COL_SOURCE));
+            e.createdAt = cursor.getLong(cursor.getColumnIndexOrThrow(COL_CREATED_AT));
+            list.add(e);
+        }
+        cursor.close();
+        return list;
+    }
+
+    public List<CategorySum> sumByCategory(long startMs, long endMs) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.rawQuery(
+                "SELECT " + COL_CATEGORY + ", SUM(" + COL_AMOUNT + "), COUNT(*) FROM " + TABLE
+                        + " WHERE " + COL_CREATED_AT + " >= ? AND " + COL_CREATED_AT + " < ?"
+                        + " GROUP BY " + COL_CATEGORY + " ORDER BY SUM(" + COL_AMOUNT + ") DESC",
+                new String[]{String.valueOf(startMs), String.valueOf(endMs)});
+
+        List<CategorySum> list = new ArrayList<>();
+        while (cursor.moveToNext()) {
+            CategorySum cs = new CategorySum();
+            cs.category = cursor.getString(0);
+            if (cs.category == null || cs.category.isEmpty()) cs.category = "未分類";
+            cs.total = cursor.getDouble(1);
+            cs.count = cursor.getInt(2);
+            list.add(cs);
+        }
+        cursor.close();
+        return list;
+    }
+
+    public double sumByDateRange(long startMs, long endMs) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.rawQuery(
+                "SELECT COALESCE(SUM(" + COL_AMOUNT + "), 0) FROM " + TABLE
+                        + " WHERE " + COL_CREATED_AT + " >= ? AND " + COL_CREATED_AT + " < ?",
+                new String[]{String.valueOf(startMs), String.valueOf(endMs)});
+        double sum = 0;
+        if (cursor.moveToFirst()) sum = cursor.getDouble(0);
+        cursor.close();
+        return sum;
+    }
+
+    public int countByDateRange(long startMs, long endMs) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.rawQuery(
+                "SELECT COUNT(*) FROM " + TABLE
+                        + " WHERE " + COL_CREATED_AT + " >= ? AND " + COL_CREATED_AT + " < ?",
+                new String[]{String.valueOf(startMs), String.valueOf(endMs)});
+        int count = 0;
+        if (cursor.moveToFirst()) count = cursor.getInt(0);
+        cursor.close();
+        return count;
+    }
+
+    public boolean hasExpenseToday() {
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        long startOfDay = cal.getTimeInMillis();
+        long endOfDay = startOfDay + 86400000L;
+        return countByDateRange(startOfDay, endOfDay) > 0;
+    }
+
+    public static class CategorySum {
+        public String category;
+        public double total;
+        public int count;
     }
 
     public static class Expense {

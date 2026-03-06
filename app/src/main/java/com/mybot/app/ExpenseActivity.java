@@ -55,6 +55,24 @@ public class ExpenseActivity extends AppCompatActivity {
         int btnPad = UIHelper.dp(this, 12);
         addBtn.setPadding(btnPad, 0, btnPad, 0);
         addBtn.setOnClickListener(v -> startActivity(new Intent(this, AddExpenseActivity.class)));
+
+        Button reportBtn = new Button(this);
+        reportBtn.setText("報表");
+        reportBtn.setTextColor(UIHelper.ACCENT_GREEN);
+        reportBtn.setTextSize(14);
+        reportBtn.setAllCaps(false);
+        reportBtn.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        reportBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_GREEN, 10, 1, this));
+        reportBtn.setStateListAnimator(null);
+        reportBtn.setElevation(0);
+        reportBtn.setPadding(btnPad, 0, btnPad, 0);
+        LinearLayout.LayoutParams reportLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        reportLp.setMargins(UIHelper.dp(this, 8), 0, 0, 0);
+        reportBtn.setLayoutParams(reportLp);
+        reportBtn.setOnClickListener(v -> startActivity(new Intent(this, ReportActivity.class)));
+
+        topBar.addView(reportBtn);
         topBar.addView(addBtn);
 
         // Filter bar

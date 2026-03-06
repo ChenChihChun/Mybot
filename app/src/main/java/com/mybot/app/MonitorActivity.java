@@ -29,6 +29,14 @@ public class MonitorActivity extends AppCompatActivity {
 
     public static final String ACTION_NEW_LOG = "com.mybot.app.NEW_LOG";
     public static final List<NotificationLog> logs = new ArrayList<>();
+    private static final int MAX_LOGS = 50;
+
+    public static void addLog(NotificationLog log) {
+        logs.add(log);
+        while (logs.size() > MAX_LOGS) {
+            logs.remove(0);
+        }
+    }
 
     private LogAdapter adapter;
     private BroadcastReceiver receiver;

@@ -46,7 +46,7 @@ public class NotificationService extends NotificationListenerService {
 
         // Log and analyze (no push notification for non-expense)
         NotificationLog log = new NotificationLog(appName, title, content, "通知");
-        MonitorActivity.logs.add(log);
+        MonitorActivity.addLog(log);
         sendBroadcast(new Intent(MonitorActivity.ACTION_NEW_LOG));
 
         String rawText = title + " " + content;

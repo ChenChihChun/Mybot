@@ -1,5 +1,6 @@
 package com.mybot.app;
 
+import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -13,6 +14,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -28,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
 
         NotificationHelper.createNotificationChannel(this);
         requestPermissions();
+        ReminderHelper.restoreIfEnabled(this);
 
         getWindow().setStatusBarColor(Color.parseColor("#0A1520"));
 
@@ -124,8 +127,14 @@ public class MainActivity extends AppCompatActivity {
         Button btnExpenses = UIHelper.cardButton(this, "消費紀錄", "查看所有消費明細", UIHelper.ACCENT_RED);
         btnExpenses.setOnClickListener(v -> startActivity(new Intent(this, ExpenseActivity.class)));
 
+        Button btnReport = UIHelper.cardButton(this, "消費報表", "年報 / 季報 / 月報", UIHelper.ACCENT_PURPLE);
+        btnReport.setOnClickListener(v -> startActivity(new Intent(this, ReportActivity.class)));
+
         Button btnMonitor = UIHelper.cardButton(this, "監聽狀態", "即時通知與簡訊 Log", UIHelper.ACCENT_BLUE);
         btnMonitor.setOnClickListener(v -> startActivity(new Intent(this, MonitorActivity.class)));
+
+        Button btnReminder = UIHelper.cardButton(this, "記帳提醒", "每日定時提醒記帳", UIHelper.ACCENT_GREEN);
+        btnReminder.setOnClickListener(v -> showReminderSettings());
 
         Button btnPermission = UIHelper.cardButton(this, "通知存取權限", "開啟系統設定", UIHelper.ACCENT_ORANGE);
         btnPermission.setOnClickListener(v -> {
@@ -134,24 +143,61 @@ public class MainActivity extends AppCompatActivity {
 
         menuSection.addView(menuLabel);
         menuSection.addView(btnExpenses);
+        menuSection.addView(btnReport);
         menuSection.addView(btnMonitor);
+        menuSection.addView(btnReminder);
         menuSection.addView(btnPermission);
 
         // Version footer
         TextView version = new TextView(this);
-        version.setText("v2.0");
+        version.setText("v2.1");
         version.setTextSize(12);
         version.setTextColor(UIHelper.TEXT_HINT);
         version.setGravity(Gravity.CENTER);
         version.setPadding(0, UIHelper.dp(this, 16), 0, UIHelper.dp(this, 16));
 
+        ScrollView menuScroll = new ScrollView(this);
+        menuScroll.addView(menuSection);
+
         root.addView(topSection);
         root.addView(statusCard);
-        root.addView(menuSection, new LinearLayout.LayoutParams(
+        root.addView(menuScroll, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         root.addView(version);
 
         setContentView(root);
+    }
+
+    private void showReminderSettings() {
+        boolean enabled = ReminderHelper.isEnabled(this);
+        int hour = ReminderHelper.getHour(this);
+        int minute = ReminderHelper.getMinute(this);
+
+        if (enabled) {
+            // Already enabled — show dialog to change time or disable
+            android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+            builder.setTitle("記帳提醒");
+            builder.setMessage(String.format("目前提醒時間: %02d:%02d\n\n選擇操作：", hour, minute));
+            builder.setPositiveButton("修改時間", (d, w) -> pickReminderTime());
+            builder.setNegativeButton("關閉提醒", (d, w) -> {
+                ReminderHelper.cancelReminder(this);
+                Toast.makeText(this, "已關閉每日提醒", Toast.LENGTH_SHORT).show();
+            });
+            builder.setNeutralButton("取消", null);
+            builder.show();
+        } else {
+            pickReminderTime();
+        }
+    }
+
+    private void pickReminderTime() {
+        int hour = ReminderHelper.getHour(this);
+        int minute = ReminderHelper.getMinute(this);
+        new TimePickerDialog(this, (view, h, m) -> {
+            ReminderHelper.scheduleReminder(this, h, m);
+            Toast.makeText(this, String.format("已設定每日 %02d:%02d 提醒記帳", h, m),
+                    Toast.LENGTH_SHORT).show();
+        }, hour, minute, true).show();
     }
 
     private void requestPermissions() {

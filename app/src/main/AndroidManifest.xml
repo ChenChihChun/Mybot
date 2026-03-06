@@ -35,6 +35,9 @@
         <!-- Monitor Activity -->
         <activity android:name=".MonitorActivity" android:exported="false" />
 
+        <!-- Report Activity -->
+        <activity android:name=".ReportActivity" android:exported="false" />
+
         <!-- Notification Listener Service -->
         <service
             android:name=".NotificationService"
@@ -64,6 +67,11 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
+
+        <!-- Daily Reminder Receiver -->
+        <receiver
+            android:name=".ReminderReceiver"
+            android:exported="false" />
 
     </application>
 

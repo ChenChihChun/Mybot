@@ -14,6 +14,8 @@ public class BootReceiver extends BroadcastReceiver {
             // Create notification channel on boot
             NotificationHelper.createNotificationChannel(context);
             NotificationHelper.sendNotification(context, "Mybot", "Mybot 已隨開機啟動");
+            // Restore daily reminder alarm
+            ReminderHelper.restoreIfEnabled(context);
         }
     }
 }
