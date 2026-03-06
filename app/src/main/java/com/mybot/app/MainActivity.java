@@ -48,9 +48,23 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        Button btnExpenses = new Button(this);
+        btnExpenses.setText("消費紀錄");
+        btnExpenses.setOnClickListener(v -> {
+            startActivity(new Intent(this, ExpenseActivity.class));
+        });
+
+        Button btnMonitor = new Button(this);
+        btnMonitor.setText("監聽狀態");
+        btnMonitor.setOnClickListener(v -> {
+            startActivity(new Intent(this, MonitorActivity.class));
+        });
+
         layout.addView(title);
         layout.addView(status);
         layout.addView(btnNotification);
+        layout.addView(btnExpenses);
+        layout.addView(btnMonitor);
 
         setContentView(layout);
     }
