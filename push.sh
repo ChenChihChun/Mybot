@@ -1,5 +1,6 @@
 #!/bin/bash
 cd ~/githup/Mybot
+MSG="${*:-update}"
 git add -A
-git commit -m "${1:-update}"
+git commit -m "$MSG"
 git push origin main
