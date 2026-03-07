@@ -292,23 +292,28 @@ public class BridgeClient {
         executor.execute(() -> {
             AppLog.i("Bridge", "analyzeStock: infoLen=" + stockInfo.length());
             try {
+                String today = new java.text.SimpleDateFormat("yyyy-MM-dd (E)", java.util.Locale.TAIWAN)
+                        .format(new java.util.Date());
+
                 JSONObject body = new JSONObject();
                 body.put("task", "analyze_stock");
-                body.put("prompt", "你是一位專業的台股分析師，擁有豐富的台股與國際市場知識。\n\n"
+                body.put("web_search", true);
+                body.put("prompt", "你是一位專業的台股分析師。今天是 " + today + "。\n\n"
                         + "【即時數據與技術指標】\n"
                         + stockInfo + "\n\n"
-                        + "請根據以上數據，結合你對該公司、產業趨勢、以及近期國際市場局勢"
-                        + "（美股、費半、AI概念股、地緣政治、總經環境等）的了解，"
-                        + "提供投資分析評語（約300-500字），包含：\n"
-                        + "1. 消息面：該公司近期重要動態、營收表現、產業趨勢\n"
-                        + "2. 國際局勢影響：美股/費半走勢、AI產業動態對該股的影響\n"
+                        + "【重要指示】\n"
+                        + "1. 請先上網搜尋該股票最新新聞、國際局勢（美股、費半、地緣政治如中東/美中等）、產業動態\n"
+                        + "2. 絕對不要捏造或編造新聞事件，所有提及的新聞必須是你實際搜尋到的\n"
+                        + "3. 如果搜尋不到某方面資訊，請直接跳過該部分，不要虛構\n\n"
+                        + "請提供投資分析評語（約300-500字），包含：\n"
+                        + "1. 最新消息面：該公司近期真實新聞動態、營收數據（需引用來源或日期）\n"
+                        + "2. 國際局勢影響：目前真實的國際情勢（戰爭、貿易、央行政策等）對該股的影響\n"
                         + "3. 技術面分析：根據提供的均線、RSI 指標解讀多空訊號\n"
-                        + "4. 籌碼面觀察：外資/投信可能動向\n"
-                        + "5. 短中期展望與投資建議（偏多/偏空/觀望）\n\n"
-                        + "直接回覆純文字分析即可，不要使用任何工具，不要回傳 JSON。"
+                        + "4. 短中期展望與投資建議（偏多/偏空/觀望）\n\n"
+                        + "回覆純文字分析即可，不要回傳 JSON。"
                         + "注意：這僅供參考，不構成投資建議。");
 
-                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 60000);
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 120000);
                 String response = result[0];
                 String error = result[1];
 
@@ -340,9 +345,27 @@ public class BridgeClient {
     private static String extractAnalysis(String response) {
         try {
             JSONObject json = new JSONObject(response);
-            if (!json.optBoolean("success", false)) return null;
 
+            // Check for tool_use failure (Bridge returns stop_reason without success flag)
             Object resultObj = json.opt("result");
+            if (resultObj instanceof JSONObject) {
+                JSONObject r = (JSONObject) resultObj;
+                String stopReason = r.optString("stop_reason", "");
+                if ("tool_use".equals(stopReason) || "error_max_turns".equals(r.optString("subtype", ""))) {
+                    AppLog.w("Bridge", "AI回應為 tool_use/error_max_turns，未產出分析文字");
+                    return null;
+                }
+            }
+
+            if (!json.optBoolean("success", false)) {
+                // Some Bridge responses might not have success flag but still have text
+                if (resultObj != null) {
+                    String text = extractText(resultObj);
+                    if (text != null && text.length() > 50) return text;
+                }
+                return null;
+            }
+
             if (resultObj == null) return null;
 
             return extractText(resultObj);

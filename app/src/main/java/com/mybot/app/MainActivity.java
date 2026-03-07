@@ -176,32 +176,32 @@ public class MainActivity extends AppCompatActivity {
         content.addView(row2);
 
         // Row 3
-        content.addView(UIHelper.sectionHeader(this, "TOOLS"));
-
         LinearLayout row3 = gridRow();
-        LinearLayout cardCapture = UIHelper.featureCard(this,
-                "\uD83D\uDCF7", "截圖分析消費", "懸浮按鈕·AI 辨識", UIHelper.ACCENT_RED, 35);
-        cardCapture.setOnClickListener(v -> toggleFloatingCapture());
-
         LinearLayout cardStock = UIHelper.featureCard(this,
                 "\uD83D\uDCC8", "台股追蹤", "即時行情·技術分析", UIHelper.ACCENT_ORANGE, 40);
         cardStock.setOnClickListener(v -> startActivity(new Intent(this, StockActivity.class)));
 
-        row3.addView(cardCapture, gridCellLp(0));
-        row3.addView(cardStock, gridCellLp(UIHelper.dp(this, 10)));
+        // Spacer for single-card row alignment
+        View stockSpacer = new View(this);
+
+        row3.addView(cardStock, gridCellLp(0));
+        row3.addView(stockSpacer, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row3);
 
-        // Row 4
+        // ── Tools ──
+        content.addView(UIHelper.sectionHeader(this, "TOOLS"));
+
         LinearLayout row4 = gridRow();
+        LinearLayout cardCapture = UIHelper.featureCard(this,
+                "\uD83D\uDCF7", "截圖分析消費", "懸浮按鈕·AI 辨識", UIHelper.ACCENT_RED, 35);
+        cardCapture.setOnClickListener(v -> toggleFloatingCapture());
+
         LinearLayout cardLog = UIHelper.featureCard(this,
                 "\uD83D\uDCCB", "系統日誌", "操作記錄·除錯資訊", UIHelper.TEXT_SECONDARY, 30);
         cardLog.setOnClickListener(v -> startActivity(new Intent(this, LogActivity.class)));
 
-        // Spacer for alignment
-        View spacer = new View(this);
-
-        row4.addView(cardLog, gridCellLp(0));
-        row4.addView(spacer, gridCellLp(UIHelper.dp(this, 10)));
+        row4.addView(cardCapture, gridCellLp(0));
+        row4.addView(cardLog, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row4);
 
         // ── Version footer ──
