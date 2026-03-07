@@ -204,6 +204,18 @@ public class MainActivity extends AppCompatActivity {
         row4f.addView(cardWater, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row4f);
 
+        // Row 5
+        LinearLayout row5f = gridRow();
+        LinearLayout cardMusic = UIHelper.featureCard(this,
+                "\uD83C\uDFB5", "\u97F3\u6A02\u7BA1\u7406", "YouTube\u00B7\u5206\u985E\u00B7\u64AD\u653E", UIHelper.ACCENT_ORANGE, 40);
+        cardMusic.setOnClickListener(v -> startActivity(new Intent(this, MusicActivity.class)));
+
+        View musicSpacer = new View(this);
+
+        row5f.addView(cardMusic, gridCellLp(0));
+        row5f.addView(musicSpacer, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row5f);
+
         // ── Tools ──
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));
 

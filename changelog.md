@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.30 (2026-03-08)
+- **New Feature: Music Manager (音樂管理)**
+  - Added `YouTubeClient.java` — YouTube Data API v3 HTTP client with playlist/video CRUD, search, pagination support
+  - Added `MusicDbHelper.java` — SQLite DB (mybot_music.db) for songs and categories with favorites, categorization
+  - Added `MusicActivity.java` — Main music manager UI with filter chips (all/favorites/categories), song cards with thumbnails, sync from YouTube playlists, search, paste URL, sequential playback, category management
+  - Added `MusicShareReceiver.java` — Transparent activity handling YouTube share intents (ACTION_SEND text/plain), extracts video ID, saves to local DB with category selection
+  - Modified `GoogleAuthHelper.java` — Added YOUTUBE_SCOPE (youtube.force-ssl), added to all GSO builders (sign-in, silent refresh, sign-out)
+  - Modified `MainActivity.java` — Added 🎵音樂管理 card in new Row 5 under FEATURES
+  - Modified `AndroidManifest.xml` — Registered MusicActivity (exported=false) and MusicShareReceiver (exported=true with SEND intent-filter)
+  - Modified `app/build.gradle` — versionCode 52, versionName 3.30
+
 ## v3.29 (2026-03-08)
 - **New Feature: Invoice Scanner (發票掃描記帳)**
   - Added `InvoiceActivity.java` — Camera/gallery image capture, AI analysis via Bridge vision, editable result fields, save to expense DB

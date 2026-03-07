@@ -73,6 +73,21 @@
         <!-- Invoice Activity -->
         <activity android:name=".InvoiceActivity" android:exported="false" />
 
+        <!-- Music Activity -->
+        <activity android:name=".MusicActivity" android:exported="false" />
+
+        <!-- Music Share Receiver (handles YouTube share intents) -->
+        <activity
+            android:name=".MusicShareReceiver"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
 

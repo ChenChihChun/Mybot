@@ -22,6 +22,7 @@ public class GoogleAuthHelper {
 
     public static final int RC_SIGN_IN = 9001;
     private static final String CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
+    private static final String YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl";
     private static final String PREFS_NAME = "calendar_prefs";
     private static final String KEY_WEB_CLIENT_ID = "web_client_id";
     private static final String KEY_DEFAULT_CALENDAR = "default_calendar_id";
@@ -73,7 +74,7 @@ public class GoogleAuthHelper {
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
                 .requestServerAuthCode(webClientId)
-                .requestScopes(new Scope(CALENDAR_SCOPE))
+                .requestScopes(new Scope(CALENDAR_SCOPE), new Scope(YOUTUBE_SCOPE))
                 .build();
         GoogleSignInClient client = GoogleSignIn.getClient(ctx, gso);
         return client.getSignInIntent();
@@ -109,7 +110,7 @@ public class GoogleAuthHelper {
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
                 .requestServerAuthCode(webClientId)
-                .requestScopes(new Scope(CALENDAR_SCOPE))
+                .requestScopes(new Scope(CALENDAR_SCOPE), new Scope(YOUTUBE_SCOPE))
                 .build();
         GoogleSignInClient client = GoogleSignIn.getClient(ctx, gso);
         client.silentSignIn().addOnCompleteListener(task -> {
@@ -209,7 +210,7 @@ public class GoogleAuthHelper {
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
                 .requestServerAuthCode(webClientId)
-                .requestScopes(new Scope(CALENDAR_SCOPE))
+                .requestScopes(new Scope(CALENDAR_SCOPE), new Scope(YOUTUBE_SCOPE))
                 .build();
         GoogleSignIn.getClient(ctx, gso).signOut()
                 .addOnCompleteListener(task -> {
