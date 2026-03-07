@@ -39,6 +39,7 @@ public class MusicShareReceiver extends AppCompatActivity {
 
         String videoId = extractVideoIdFromText(sharedText);
         if (videoId == null) {
+            AppLog.w("Music", "分享內容無法識別YouTube連結: " + sharedText);
             Toast.makeText(this, "\u7121\u6CD5\u8B58\u5225 YouTube \u9023\u7D50", Toast.LENGTH_SHORT).show();
             finish();
             return;
@@ -46,6 +47,7 @@ public class MusicShareReceiver extends AppCompatActivity {
 
         // Extract title from shared text (YouTube shares "Title - URL" format)
         String sharedTitle = extractTitleFromText(sharedText);
+        AppLog.i("Music", "收到YouTube分享: videoId=" + videoId + " title=" + sharedTitle);
 
         showSaveDialog(videoId, sharedTitle);
     }
@@ -114,6 +116,7 @@ public class MusicShareReceiver extends AppCompatActivity {
                             long id = db.insertOrUpdateSong(v.videoId, v.title, v.channelTitle,
                                     v.thumbnailUrl, null, null);
                             if (categoryId > 0) db.setSongCategory(id, categoryId);
+                            AppLog.i("Music", "分享新增歌曲: " + v.title + " (" + v.videoId + ")");
                             Toast.makeText(this, "\u5DF2\u65B0\u589E: " + v.title, Toast.LENGTH_SHORT).show();
                         } else {
                             saveFallback(videoId, fallbackTitle, categoryId);
@@ -135,6 +138,7 @@ public class MusicShareReceiver extends AppCompatActivity {
         String title = fallbackTitle != null ? fallbackTitle : "YouTube Video";
         long id = db.insertOrUpdateSong(videoId, title, "", "", null, null);
         if (categoryId > 0) db.setSongCategory(id, categoryId);
+        AppLog.i("Music", "分享新增歌曲(fallback): " + title + " (" + videoId + ")");
         Toast.makeText(this, "\u5DF2\u65B0\u589E: " + title, Toast.LENGTH_SHORT).show();
     }
 

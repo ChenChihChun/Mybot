@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.36 (2026-03-08)
+- **Enhancement: Music Manager — Add AppLog Logging**
+  - Modified `MusicActivity.java` — Added AppLog calls for: sync start/complete, token failure, channel selection, channel resolve (success/fail), playlist loading errors, video playback, song deletion
+  - Modified `MusicShareReceiver.java` — Added AppLog calls for: share received (videoId + title), unrecognized share content, song saved (API + fallback)
+  - Modified `app/build.gradle` — versionCode 58, versionName 3.36
+
 ## v3.35 (2026-03-08)
 - **Enhancement: Music Manager — Font Size Setting**
   - Modified `MusicActivity.java` — Added ⚙ settings button in top bar; font size setting dialog (小/中/大) stored in SharedPreferences; song card title/channel/badge text sizes adjust dynamically (small: 14/11/10, medium: 17/13/12, large: 20/15/14); default changed from small to medium

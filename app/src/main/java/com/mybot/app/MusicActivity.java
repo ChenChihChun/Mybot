@@ -388,6 +388,7 @@ public class MusicActivity extends AppCompatActivity {
     }
 
     private void playInYouTube(String videoId) {
+        AppLog.i("Music", "播放影片: " + videoId);
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:" + videoId));
         if (intent.resolveActivity(getPackageManager()) == null) {
             intent = new Intent(Intent.ACTION_VIEW,
@@ -422,9 +423,11 @@ public class MusicActivity extends AppCompatActivity {
             Toast.makeText(this, "\u8ACB\u5148\u5728 Google \u65E5\u66C6\u529F\u80FD\u4E2D\u767B\u5165 Google \u5E33\u865F", Toast.LENGTH_LONG).show();
             return;
         }
+        AppLog.i("Music", "開始同步YouTube");
         Toast.makeText(this, "\u6B63\u5728\u540C\u6B65...", Toast.LENGTH_SHORT).show();
         GoogleAuthHelper.getCachedOrFreshToken(this, (token, error) -> {
             if (token == null) {
+                AppLog.e("Music", "取得Token失敗: " + error);
                 Toast.makeText(this, "\u53D6\u5F97 Token \u5931\u6557: " + error, Toast.LENGTH_LONG).show();
                 return;
             }
@@ -490,12 +493,15 @@ public class MusicActivity extends AppCompatActivity {
                     if (token == null) return;
 
                     // Resolve @handle or channel ID
+                    AppLog.i("Music", "手動輸入頻道: " + inputVal);
                     YouTubeClient.resolveChannel(token, inputVal, (channels, err) -> {
                         if (channels == null || channels.isEmpty()) {
+                            AppLog.e("Music", "找不到頻道: " + inputVal + " err=" + err);
                             Toast.makeText(this, "\u627E\u4E0D\u5230\u8A72\u983B\u9053: " + (err != null ? err : inputVal), Toast.LENGTH_LONG).show();
                             return;
                         }
                         YouTubeClient.ChannelInfo ch = channels.get(0);
+                        AppLog.i("Music", "頻道解析成功: " + ch.title + " (" + ch.id + ")");
                         getPrefs().edit()
                                 .putString(KEY_CHANNEL_ID, ch.id)
                                 .putString(KEY_CHANNEL_TITLE, ch.title)
@@ -510,6 +516,7 @@ public class MusicActivity extends AppCompatActivity {
     }
 
     private void saveChannel(YouTubeClient.ChannelInfo channel) {
+        AppLog.i("Music", "選擇頻道: " + channel.title + " (" + channel.id + ")");
         getPrefs().edit()
                 .putString(KEY_CHANNEL_ID, channel.id)
                 .putString(KEY_CHANNEL_TITLE, channel.title)
@@ -537,12 +544,15 @@ public class MusicActivity extends AppCompatActivity {
     }
 
     private void loadPlaylistsForChannel(String token, String channelId) {
+        AppLog.i("Music", "載入頻道播放清單: " + channelId);
         YouTubeClient.listPlaylists(token, channelId, (playlists, err) -> {
             if (err != null) {
+                AppLog.e("Music", "取得播放清單失敗: " + err);
                 Toast.makeText(this, "\u53D6\u5F97\u64AD\u653E\u6E05\u55AE\u5931\u6557: " + err, Toast.LENGTH_LONG).show();
                 return;
             }
             if (playlists == null || playlists.isEmpty()) {
+                AppLog.w("Music", "頻道無播放清單: " + channelId);
                 Toast.makeText(this, "\u8A72\u983B\u9053\u627E\u4E0D\u5230\u64AD\u653E\u6E05\u55AE", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -606,6 +616,7 @@ public class MusicActivity extends AppCompatActivity {
                 }
                 remaining[0]--;
                 if (remaining[0] <= 0) {
+                    AppLog.i("Music", "同步完成: 匯入" + totalImported[0] + "首歌曲");
                     Toast.makeText(this, "\u540C\u6B65\u5B8C\u6210\uFF1A\u532F\u5165 " + totalImported[0] + " \u9996\u6B4C\u66F2", Toast.LENGTH_SHORT).show();
                     refreshSongList();
                 }
@@ -762,6 +773,7 @@ public class MusicActivity extends AppCompatActivity {
                                     .setTitle("\u78BA\u5B9A\u522A\u9664\uFF1F")
                                     .setMessage(song.title)
                                     .setPositiveButton("\u522A\u9664", (dd, ww) -> {
+                                        AppLog.i("Music", "刪除歌曲: " + song.title);
                                         db.deleteSong(song.id);
                                         refreshSongList();
                                     })
