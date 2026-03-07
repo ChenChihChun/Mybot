@@ -56,6 +56,10 @@
         <!-- Stock Activity -->
         <activity android:name=".StockActivity" android:exported="false" />
 
+        <!-- Countdown Activities -->
+        <activity android:name=".CountdownActivity" android:exported="false" />
+        <activity android:name=".AddCountdownActivity" android:exported="false" />
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
 

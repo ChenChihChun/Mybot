@@ -181,11 +181,12 @@ public class MainActivity extends AppCompatActivity {
                 "\uD83D\uDCC8", "台股追蹤", "即時行情·技術分析", UIHelper.ACCENT_ORANGE, 40);
         cardStock.setOnClickListener(v -> startActivity(new Intent(this, StockActivity.class)));
 
-        // Spacer for single-card row alignment
-        View stockSpacer = new View(this);
+        LinearLayout cardCountdown = UIHelper.featureCard(this,
+                "\u23F3", "\u5012\u6578\u65E5", "\u91CD\u8981\u65E5\u671F\u5012\u6578", UIHelper.ACCENT_BLUE, 40);
+        cardCountdown.setOnClickListener(v -> startActivity(new Intent(this, CountdownActivity.class)));
 
         row3.addView(cardStock, gridCellLp(0));
-        row3.addView(stockSpacer, gridCellLp(UIHelper.dp(this, 10)));
+        row3.addView(cardCountdown, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row3);
 
         // ── Tools ──
