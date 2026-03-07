@@ -28,10 +28,6 @@ public class BridgeClient {
         return lastError;
     }
 
-    public interface AnalyzeCallback {
-        void onResult(NotificationLog log);
-    }
-
     public interface CategorizeCallback {
         void onResult(String category, boolean offline);
     }
@@ -107,53 +103,6 @@ public class BridgeClient {
                 AppLog.e("Bridge", "categorize異常: " + lastError);
                 mainHandler.post(() -> callback.onResult("", true));
             }
-        });
-    }
-
-    public static void analyze(NotificationLog log, AnalyzeCallback callback) {
-        executor.execute(() -> {
-            AppLog.i("Bridge", "analyze: app=" + log.sourceApp + " title=" + log.title);
-            try {
-                JSONObject body = new JSONObject();
-                body.put("task", "analyze_notification");
-                body.put("source", log.source);
-                body.put("app", log.sourceApp);
-                body.put("title", log.title);
-                body.put("content", log.content);
-
-                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString());
-                String response = result[0];
-                String error = result[1];
-
-                if (response != null) {
-                    JSONObject json = new JSONObject(response);
-                    if (json.optBoolean("success", false)) {
-                        JSONObject r = json.getJSONObject("result");
-                        log.isExpense = r.optBoolean("is_expense", false);
-                        log.amount = r.optDouble("amount", 0);
-                        log.currency = r.optString("currency", "TWD");
-                        log.category = r.optString("category", "");
-                        log.merchant = r.optString("merchant", "");
-                        log.description = r.optString("description", "");
-                        log.confidence = r.optDouble("confidence", 0);
-                    }
-                    log.analyzed = true;
-                    log.offline = false;
-                    AppLog.i("Bridge", "analyze完成: expense=" + log.isExpense
-                            + (log.isExpense ? " amount=" + log.amount + " " + log.currency : ""));
-                } else {
-                    log.analyzed = true;
-                    log.offline = true;
-                    log.errorMsg = error;
-                    AppLog.e("Bridge", "analyze失敗: " + error);
-                }
-            } catch (Exception e) {
-                log.analyzed = true;
-                log.offline = true;
-                log.errorMsg = e.getClass().getSimpleName() + ": " + e.getMessage();
-                AppLog.e("Bridge", "analyze異常: " + log.errorMsg);
-            }
-            mainHandler.post(() -> callback.onResult(log));
         });
     }
 
