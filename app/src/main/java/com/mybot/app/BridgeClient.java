@@ -285,32 +285,15 @@ public class BridgeClient {
                 String error = result[1];
 
                 if (response != null) {
-                    JSONObject json = new JSONObject(response);
-                    if (json.optBoolean("success", false)) {
-                        // result could be a string or a JSONObject
-                        Object resultObj = json.opt("result");
-                        String analysis = "";
-                        if (resultObj instanceof String) {
-                            analysis = (String) resultObj;
-                        } else if (resultObj instanceof JSONObject) {
-                            JSONObject r = (JSONObject) resultObj;
-                            // Try common field names
-                            analysis = r.optString("response", "");
-                            if (analysis.isEmpty()) analysis = r.optString("text", "");
-                            if (analysis.isEmpty()) analysis = r.optString("content", "");
-                            if (analysis.isEmpty()) analysis = r.optString("answer", "");
-                            if (analysis.isEmpty()) analysis = r.optString("message", "");
-                            if (analysis.isEmpty()) analysis = r.toString();
-                        } else if (resultObj != null) {
-                            analysis = resultObj.toString();
-                        }
-                        final String finalAnalysis = analysis;
-                        mainHandler.post(() -> callback.onResult(finalAnalysis, false, null));
-                        return;
+                    // Extract analysis text from response with maximum flexibility
+                    String analysis = extractAnalysis(response);
+                    if (analysis != null && !analysis.isEmpty()) {
+                        mainHandler.post(() -> callback.onResult(analysis, false, null));
+                    } else {
+                        // Show raw response for debugging
+                        String raw = response.length() > 500 ? response.substring(0, 500) + "..." : response;
+                        mainHandler.post(() -> callback.onResult(null, false, "無法解析回應:\n" + raw));
                     }
-                    // success=false, not offline — show the error detail
-                    String detail = json.optString("error", json.toString());
-                    mainHandler.post(() -> callback.onResult(null, false, detail));
                     return;
                 }
                 lastError = error;
@@ -321,6 +304,50 @@ public class BridgeClient {
                 mainHandler.post(() -> callback.onResult(null, true, err));
             }
         });
+    }
+
+    private static String extractAnalysis(String response) {
+        try {
+            JSONObject json = new JSONObject(response);
+            if (!json.optBoolean("success", false)) return null;
+
+            Object resultObj = json.opt("result");
+            if (resultObj == null) return null;
+
+            // Case 1: result is a plain string
+            if (resultObj instanceof String) {
+                return (String) resultObj;
+            }
+
+            // Case 2: result is a JSONObject — search all string fields
+            if (resultObj instanceof JSONObject) {
+                JSONObject r = (JSONObject) resultObj;
+                // Try known field names first
+                String[] keys = {"response", "text", "content", "answer", "message",
+                        "analysis", "reply", "output", "data", "result"};
+                for (String key : keys) {
+                    String val = r.optString(key, "");
+                    if (!val.isEmpty() && val.length() > 10) return val;
+                }
+                // Fallback: find the longest string value in the object
+                String longest = "";
+                java.util.Iterator<String> it = r.keys();
+                while (it.hasNext()) {
+                    String key = it.next();
+                    Object val = r.opt(key);
+                    if (val instanceof String && ((String) val).length() > longest.length()) {
+                        longest = (String) val;
+                    }
+                }
+                if (!longest.isEmpty()) return longest;
+                return r.toString();
+            }
+
+            // Case 3: anything else
+            return resultObj.toString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static String[] postJsonWithError(String urlStr, String jsonBody) {
