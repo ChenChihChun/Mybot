@@ -115,7 +115,8 @@ public class CalendarActivity extends AppCompatActivity {
             if (token != null) {
                 loadCalendarsAndEvents(token);
             } else {
-                showError("Token 取得失敗: " + error);
+                // Token failed — force re-login
+                GoogleAuthHelper.signOut(this, (s, e) -> showSignInButton());
             }
         });
     }
@@ -559,11 +560,17 @@ public class CalendarActivity extends AppCompatActivity {
                 .setPositiveButton("儲存", (d, w) -> {
                     String webId = inputId.getText().toString().trim();
                     String secret = inputSecret.getText().toString().trim();
+                    String oldId = GoogleAuthHelper.getWebClientId(this);
                     GoogleAuthHelper.saveWebClientId(this, webId);
                     getSharedPreferences("calendar_prefs", MODE_PRIVATE).edit()
                             .putString("web_client_secret", secret).apply();
                     Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
-                    checkSignInAndLoad();
+                    // Client ID changed — sign out old session first
+                    if (!webId.equals(oldId) && GoogleAuthHelper.isSignedIn(this)) {
+                        GoogleAuthHelper.signOut(this, (s, e) -> checkSignInAndLoad());
+                    } else {
+                        checkSignInAndLoad();
+                    }
                 })
                 .setNegativeButton("取消", null)
                 .show();
