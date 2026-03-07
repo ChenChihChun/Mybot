@@ -358,6 +358,48 @@ public class YouTubeClient {
         });
     }
 
+    public static void resolveChannel(String accessToken, String input, ChannelListCallback callback) {
+        executor.execute(() -> {
+            try {
+                String url;
+                if (input.startsWith("@")) {
+                    String handle = input.substring(1);
+                    url = BASE + "/channels?part=snippet&forHandle=" + URLEncoder.encode(handle, "UTF-8");
+                } else if (input.startsWith("UC") || input.startsWith("HC")) {
+                    url = BASE + "/channels?part=snippet&id=" + URLEncoder.encode(input, "UTF-8");
+                } else {
+                    // Try as forHandle without @
+                    url = BASE + "/channels?part=snippet&forHandle=" + URLEncoder.encode(input, "UTF-8");
+                }
+                String response = httpGet(url, accessToken);
+                JSONObject json = new JSONObject(response);
+                JSONArray items = json.optJSONArray("items");
+                List<ChannelInfo> list = new ArrayList<>();
+                if (items != null) {
+                    for (int i = 0; i < items.length(); i++) {
+                        JSONObject item = items.getJSONObject(i);
+                        JSONObject snippet = item.getJSONObject("snippet");
+                        String thumbUrl = "";
+                        JSONObject thumbs = snippet.optJSONObject("thumbnails");
+                        if (thumbs != null) {
+                            JSONObject def = thumbs.optJSONObject("default");
+                            if (def != null) thumbUrl = def.optString("url", "");
+                        }
+                        list.add(new ChannelInfo(
+                                item.getString("id"),
+                                snippet.optString("title", ""),
+                                thumbUrl
+                        ));
+                    }
+                }
+                mainHandler.post(() -> callback.onResult(list, null));
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
     public static void getChannelInfo(String accessToken, String channelId, ChannelListCallback callback) {
         executor.execute(() -> {
             try {

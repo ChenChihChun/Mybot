@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.33 (2026-03-08)
+- **Enhancement: Music Manager — Support @handle Input for Channel Resolution**
+  - Modified `YouTubeClient.java` — Added `resolveChannel()` method that auto-detects input format: `@handle` uses `forHandle` param, `UC...` uses `id` param, plain text tries `forHandle`; returns resolved channel ID + title
+  - Modified `MusicActivity.java` — Manual channel input now supports `@username` format (e.g. `@a12555a`); updated hint text and input placeholder; confirm handler uses `resolveChannel()` instead of raw `getChannelInfo()`
+  - Modified `app/build.gradle` — versionCode 55, versionName 3.33
+
 ## v3.32 (2026-03-08)
 - **Enhancement: Music Manager — Manual Channel ID Input for Legacy YouTube Accounts**
   - Modified `YouTubeClient.java` — Added `getChannelInfo(token, channelId, callback)` to fetch channel title by ID

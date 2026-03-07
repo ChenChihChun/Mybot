@@ -458,42 +458,38 @@ public class MusicActivity extends AppCompatActivity {
         container.setPadding(pad, pad, pad, 0);
 
         TextView hint = new TextView(this);
-        hint.setText("YouTube App \u2192 \u5207\u63DB\u5230\u820A\u5E33\u865F \u2192 \u8A2D\u5B9A \u2192 \u9EDE\u5E33\u865F\u540D\u7A31 \u2192 \u8907\u88FD\u300C\u983B\u9053 ID\u300D\n\u683C\u5F0F: UC...");
+        hint.setText("\u652F\u63F4\u5169\u7A2E\u683C\u5F0F:\n\u2022 \u983B\u9053 ID: UC...\n\u2022 \u5E33\u865F\u4EE3\u865F: @username");
         hint.setTextSize(12);
         hint.setTextColor(UIHelper.TEXT_HINT);
         hint.setPadding(0, 0, 0, UIHelper.dp(this, 12));
         container.addView(hint);
 
-        EditText input = UIHelper.styledInput(this, "\u983B\u9053 ID (UC...)");
+        EditText input = UIHelper.styledInput(this, "\u983B\u9053 ID (UC...) \u6216 @username");
         container.addView(input);
 
         new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
                 .setTitle("\u624B\u52D5\u8F38\u5165\u983B\u9053 ID")
                 .setView(container)
                 .setPositiveButton("\u78BA\u5B9A", (d, w) -> {
-                    String channelId = input.getText().toString().trim();
-                    if (channelId.isEmpty()) return;
-                    // Save with channel ID as title temporarily, then try to fetch real name
-                    getPrefs().edit()
-                            .putString(KEY_CHANNEL_ID, channelId)
-                            .putString(KEY_CHANNEL_TITLE, channelId)
-                            .apply();
-                    if (token != null) {
-                        // Try to get channel title
-                        YouTubeClient.getChannelInfo(token, channelId, (channels, err) -> {
-                            if (channels != null && !channels.isEmpty()) {
-                                getPrefs().edit()
-                                        .putString(KEY_CHANNEL_TITLE, channels.get(0).title)
-                                        .apply();
-                            }
-                            buildUI();
-                            refreshChips();
-                            loadPlaylistsForChannel(token, channelId);
-                        });
-                    } else {
+                    String inputVal = input.getText().toString().trim();
+                    if (inputVal.isEmpty()) return;
+                    if (token == null) return;
+
+                    // Resolve @handle or channel ID
+                    YouTubeClient.resolveChannel(token, inputVal, (channels, err) -> {
+                        if (channels == null || channels.isEmpty()) {
+                            Toast.makeText(this, "\u627E\u4E0D\u5230\u8A72\u983B\u9053: " + (err != null ? err : inputVal), Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        YouTubeClient.ChannelInfo ch = channels.get(0);
+                        getPrefs().edit()
+                                .putString(KEY_CHANNEL_ID, ch.id)
+                                .putString(KEY_CHANNEL_TITLE, ch.title)
+                                .apply();
                         buildUI();
                         refreshChips();
-                    }
+                        loadPlaylistsForChannel(token, ch.id);
+                    });
                 })
                 .setNegativeButton("\u53D6\u6D88", null)
                 .show();
