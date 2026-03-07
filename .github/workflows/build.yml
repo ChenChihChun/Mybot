@@ -86,3 +86,17 @@ jobs:
           name: mybot-v${{ steps.version.outputs.name }}-build${{ github.run_number }}
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.name }}-c${{ steps.version.outputs.code }}
+          name: Mybot v${{ steps.version.outputs.name }}
+          body: |
+            **Version**: v${{ steps.version.outputs.name }} (code ${{ steps.version.outputs.code }})
+            **Build**: #${{ github.run_number }}
+            **Commit**: ${{ github.sha }}
+          files: app/build/outputs/apk/debug/app-debug.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

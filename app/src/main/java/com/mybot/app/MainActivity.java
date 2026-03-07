@@ -174,14 +174,49 @@ public class MainActivity extends AppCompatActivity {
         row3.addView(cardPerm, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row3);
 
-        // ── Version footer ──
+        // ── Version footer with update check ──
+        LinearLayout versionRow = new LinearLayout(this);
+        versionRow.setOrientation(LinearLayout.HORIZONTAL);
+        versionRow.setGravity(Gravity.CENTER);
+        versionRow.setPadding(0, UIHelper.dp(this, 20), 0, UIHelper.dp(this, 16));
+
         TextView version = new TextView(this);
-        version.setText("v2.5");
+        // Use PackageInfo to get real version at runtime
+        version.setText("v" + UpdateChecker.getCurrentVersionName(this));
         version.setTextSize(11);
         version.setTextColor(UIHelper.TEXT_HINT);
-        version.setGravity(Gravity.CENTER);
-        version.setPadding(0, UIHelper.dp(this, 20), 0, UIHelper.dp(this, 16));
-        content.addView(version);
+
+        TextView updateBtn = new TextView(this);
+        updateBtn.setText("  檢查更新");
+        updateBtn.setTextSize(11);
+        updateBtn.setTextColor(UIHelper.ACCENT_BLUE);
+        updateBtn.setOnClickListener(v -> {
+            updateBtn.setText("  檢查中...");
+            updateBtn.setTextColor(UIHelper.TEXT_HINT);
+            UpdateChecker.checkForUpdate(this, (hasUpdate, latestVer, latestCode, url, notes, error) -> {
+                updateBtn.setText("  檢查更新");
+                updateBtn.setTextColor(UIHelper.ACCENT_BLUE);
+                if (hasUpdate) {
+                    UpdateChecker.showUpdateDialog(this, latestVer, latestCode, url, notes);
+                } else if (error != null) {
+                    android.widget.Toast.makeText(this, "檢查失敗: " + error,
+                            android.widget.Toast.LENGTH_SHORT).show();
+                } else {
+                    UpdateChecker.showNoUpdateDialog(this);
+                }
+            });
+        });
+
+        versionRow.addView(version);
+        versionRow.addView(updateBtn);
+        content.addView(versionRow);
+
+        // Auto check update silently
+        UpdateChecker.checkForUpdate(this, (hasUpdate, latestVer, latestCode, url, notes, error) -> {
+            if (hasUpdate) {
+                UpdateChecker.showUpdateDialog(this, latestVer, latestCode, url, notes);
+            }
+        });
 
         scrollView.addView(content);
 
