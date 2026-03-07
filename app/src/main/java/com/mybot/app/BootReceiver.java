@@ -11,15 +11,19 @@ public class BootReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         if (Intent.ACTION_BOOT_COMPLETED.equals(action)
                 || "android.intent.action.QUICKBOOT_POWERON".equals(action)) {
-            // Create notification channel on boot
             NotificationHelper.createNotificationChannel(context);
             NotificationHelper.sendNotification(context, "Mybot", "Mybot 已隨開機啟動");
-            // Restore daily reminder alarm
-            ReminderHelper.restoreIfEnabled(context);
-            // Restore TODO deadline check
-            ReminderHelper.scheduleTodoCheck(context);
-            // Restore fitness reminder
-            ReminderHelper.restoreFitnessIfEnabled(context);
+            restoreAlarms(context);
+        } else if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
+            NotificationHelper.createNotificationChannel(context);
+            NotificationHelper.sendNotification(context, "Mybot", "Mybot 已更新，提醒已恢復");
+            restoreAlarms(context);
         }
+    }
+
+    private void restoreAlarms(Context context) {
+        ReminderHelper.restoreIfEnabled(context);
+        ReminderHelper.scheduleTodoCheck(context);
+        ReminderHelper.restoreFitnessIfEnabled(context);
     }
 }
