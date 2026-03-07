@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.31 (2026-03-08)
+- **Enhancement: Music Manager — YouTube Brand Account / Channel Switcher**
+  - Modified `YouTubeClient.java` — Added `ChannelInfo` class, `listMyChannels()` method (channels?mine=true), renamed playlist listing to `listPlaylists(token, channelId, callback)` using `channelId` param instead of `mine=true`
+  - Modified `MusicActivity.java` — Sync flow now lists all YouTube channels (including brand accounts) and lets user pick which one; saves selected channel in SharedPreferences; shows channel indicator bar with "切換頻道" button; subsequent syncs use saved channel directly
+  - Modified `app/build.gradle` — versionCode 53, versionName 3.31
+
 ## v3.30 (2026-03-08)
 - **New Feature: Music Manager (音樂管理)**
   - Added `YouTubeClient.java` — YouTube Data API v3 HTTP client with playlist/video CRUD, search, pagination support

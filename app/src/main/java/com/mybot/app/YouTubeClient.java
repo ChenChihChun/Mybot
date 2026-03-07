@@ -63,6 +63,22 @@ public class YouTubeClient {
         }
     }
 
+    public static class ChannelInfo {
+        public String id;
+        public String title;
+        public String thumbnailUrl;
+
+        public ChannelInfo(String id, String title, String thumbnailUrl) {
+            this.id = id;
+            this.title = title;
+            this.thumbnailUrl = thumbnailUrl;
+        }
+    }
+
+    public interface ChannelListCallback {
+        void onResult(List<ChannelInfo> channels, String error);
+    }
+
     public interface PlaylistListCallback {
         void onResult(List<PlaylistInfo> playlists, String error);
     }
@@ -75,10 +91,54 @@ public class YouTubeClient {
         void onResult(boolean success, String error);
     }
 
-    public static void listMyPlaylists(String accessToken, PlaylistListCallback callback) {
+    public static void listMyChannels(String accessToken, ChannelListCallback callback) {
         executor.execute(() -> {
             try {
-                String url = BASE + "/playlists?part=snippet,contentDetails&mine=true&maxResults=50";
+                // mine=true returns channels the authenticated user owns/manages (including brand accounts)
+                String url = BASE + "/channels?part=snippet,contentDetails&mine=true&maxResults=50";
+                String response = httpGet(url, accessToken);
+                JSONObject json = new JSONObject(response);
+                JSONArray items = json.optJSONArray("items");
+                List<ChannelInfo> list = new ArrayList<>();
+                if (items != null) {
+                    for (int i = 0; i < items.length(); i++) {
+                        JSONObject item = items.getJSONObject(i);
+                        JSONObject snippet = item.getJSONObject("snippet");
+                        String thumbUrl = "";
+                        JSONObject thumbs = snippet.optJSONObject("thumbnails");
+                        if (thumbs != null) {
+                            JSONObject def = thumbs.optJSONObject("default");
+                            if (def != null) thumbUrl = def.optString("url", "");
+                        }
+                        list.add(new ChannelInfo(
+                                item.getString("id"),
+                                snippet.optString("title", ""),
+                                thumbUrl
+                        ));
+                    }
+                }
+                mainHandler.post(() -> callback.onResult(list, null));
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
+    public static void listMyPlaylists(String accessToken, PlaylistListCallback callback) {
+        listPlaylists(accessToken, null, callback);
+    }
+
+    public static void listPlaylists(String accessToken, String channelId, PlaylistListCallback callback) {
+        executor.execute(() -> {
+            try {
+                String url;
+                if (channelId != null && !channelId.isEmpty()) {
+                    url = BASE + "/playlists?part=snippet,contentDetails&channelId="
+                            + URLEncoder.encode(channelId, "UTF-8") + "&maxResults=50";
+                } else {
+                    url = BASE + "/playlists?part=snippet,contentDetails&mine=true&maxResults=50";
+                }
                 String response = httpGet(url, accessToken);
                 JSONObject json = new JSONObject(response);
                 JSONArray items = json.optJSONArray("items");

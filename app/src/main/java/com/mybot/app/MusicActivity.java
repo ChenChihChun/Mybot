@@ -27,6 +27,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.InputStream;
 import java.net.URL;
+import android.content.SharedPreferences;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,9 +38,14 @@ import java.util.concurrent.Executors;
 
 public class MusicActivity extends AppCompatActivity {
 
+    private static final String PREFS_NAME = "music_prefs";
+    private static final String KEY_CHANNEL_ID = "youtube_channel_id";
+    private static final String KEY_CHANNEL_TITLE = "youtube_channel_title";
+
     private MusicDbHelper db;
     private LinearLayout songListContainer;
     private LinearLayout chipContainer;
+    private TextView channelLabel;
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Map<String, Bitmap> thumbCache = new HashMap<>();
@@ -113,6 +120,34 @@ public class MusicActivity extends AppCompatActivity {
         topBar.addView(syncBtn);
         topBar.addView(addBtn);
 
+        // ── Channel indicator (built here, added to root later) ──
+        LinearLayout channelRow = null;
+        String savedChannelTitle = getPrefs().getString(KEY_CHANNEL_TITLE, "");
+        if (!savedChannelTitle.isEmpty()) {
+            channelRow = new LinearLayout(this);
+            channelRow.setOrientation(LinearLayout.HORIZONTAL);
+            channelRow.setGravity(Gravity.CENTER_VERTICAL);
+            channelRow.setBackgroundColor(UIHelper.BG_CARD);
+            int crp = UIHelper.dp(this, 16);
+            channelRow.setPadding(crp, UIHelper.dp(this, 6), crp, UIHelper.dp(this, 6));
+
+            channelLabel = new TextView(this);
+            channelLabel.setText("\uD83D\uDCFA " + savedChannelTitle);
+            channelLabel.setTextSize(12);
+            channelLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+            LinearLayout.LayoutParams clLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+            channelLabel.setLayoutParams(clLp);
+
+            TextView switchBtn = new TextView(this);
+            switchBtn.setText("\u5207\u63DB\u983B\u9053");
+            switchBtn.setTextSize(12);
+            switchBtn.setTextColor(UIHelper.ACCENT_BLUE);
+            switchBtn.setOnClickListener(v -> showChannelPicker());
+
+            channelRow.addView(channelLabel);
+            channelRow.addView(switchBtn);
+        }
+
         // ── Filter chips ──
         HorizontalScrollView chipScroll = new HorizontalScrollView(this);
         chipScroll.setHorizontalScrollBarEnabled(false);
@@ -158,6 +193,7 @@ public class MusicActivity extends AppCompatActivity {
         frame.addView(playAllBtn, fabLp);
 
         root.addView(topBar);
+        if (channelRow != null) root.addView(channelRow);
         root.addView(chipScroll);
         root.addView(frame, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
@@ -378,18 +414,95 @@ public class MusicActivity extends AppCompatActivity {
                 Toast.makeText(this, "\u53D6\u5F97 Token \u5931\u6557: " + error, Toast.LENGTH_LONG).show();
                 return;
             }
-            YouTubeClient.listMyPlaylists(token, (playlists, err) -> {
-                if (err != null) {
-                    Toast.makeText(this, "\u53D6\u5F97\u64AD\u653E\u6E05\u55AE\u5931\u6557: " + err, Toast.LENGTH_LONG).show();
+            String savedChannelId = getPrefs().getString(KEY_CHANNEL_ID, "");
+            if (!savedChannelId.isEmpty()) {
+                loadPlaylistsForChannel(token, savedChannelId);
+            } else {
+                // First time: pick a channel
+                pickChannelThenSync(token);
+            }
+        });
+    }
+
+    private void pickChannelThenSync(String token) {
+        YouTubeClient.listMyChannels(token, (channels, err) -> {
+            if (err != null) {
+                Toast.makeText(this, "\u53D6\u5F97\u983B\u9053\u5931\u6557: " + err, Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (channels == null || channels.isEmpty()) {
+                Toast.makeText(this, "\u627E\u4E0D\u5230 YouTube \u983B\u9053", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (channels.size() == 1) {
+                saveChannel(channels.get(0));
+                loadPlaylistsForChannel(token, channels.get(0).id);
+            } else {
+                showChannelSelectionDialog(token, channels);
+            }
+        });
+    }
+
+    private void showChannelSelectionDialog(String token, List<YouTubeClient.ChannelInfo> channels) {
+        String[] names = new String[channels.size()];
+        for (int i = 0; i < channels.size(); i++) {
+            names[i] = channels.get(i).title;
+        }
+        new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
+                .setTitle("\u9078\u64C7 YouTube \u983B\u9053")
+                .setItems(names, (d, which) -> {
+                    saveChannel(channels.get(which));
+                    loadPlaylistsForChannel(token, channels.get(which).id);
+                })
+                .show();
+    }
+
+    private void saveChannel(YouTubeClient.ChannelInfo channel) {
+        getPrefs().edit()
+                .putString(KEY_CHANNEL_ID, channel.id)
+                .putString(KEY_CHANNEL_TITLE, channel.title)
+                .apply();
+        // Rebuild UI to show channel indicator
+        buildUI();
+        refreshChips();
+    }
+
+    private void showChannelPicker() {
+        if (!GoogleAuthHelper.isSignedIn(this)) {
+            Toast.makeText(this, "\u8ACB\u5148\u767B\u5165 Google \u5E33\u865F", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        GoogleAuthHelper.getCachedOrFreshToken(this, (token, error) -> {
+            if (token == null) {
+                Toast.makeText(this, "\u53D6\u5F97 Token \u5931\u6557", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            YouTubeClient.listMyChannels(token, (channels, err) -> {
+                if (err != null || channels == null || channels.isEmpty()) {
+                    Toast.makeText(this, "\u53D6\u5F97\u983B\u9053\u5931\u6557", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                if (playlists == null || playlists.isEmpty()) {
-                    Toast.makeText(this, "\u627E\u4E0D\u5230 YouTube \u64AD\u653E\u6E05\u55AE", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                showPlaylistSelectionDialog(token, playlists);
+                showChannelSelectionDialog(token, channels);
             });
         });
+    }
+
+    private void loadPlaylistsForChannel(String token, String channelId) {
+        YouTubeClient.listPlaylists(token, channelId, (playlists, err) -> {
+            if (err != null) {
+                Toast.makeText(this, "\u53D6\u5F97\u64AD\u653E\u6E05\u55AE\u5931\u6557: " + err, Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (playlists == null || playlists.isEmpty()) {
+                Toast.makeText(this, "\u8A72\u983B\u9053\u627E\u4E0D\u5230\u64AD\u653E\u6E05\u55AE", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            showPlaylistSelectionDialog(token, playlists);
+        });
+    }
+
+    private SharedPreferences getPrefs() {
+        return getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
     }
 
     private void showPlaylistSelectionDialog(String token, List<YouTubeClient.PlaylistInfo> playlists) {
