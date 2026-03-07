@@ -191,6 +191,49 @@ public class BridgeClient {
         });
     }
 
+    public interface InvoiceCallback {
+        void onResult(String responseJson, boolean offline, String error);
+    }
+
+    public static void analyzeInvoice(String base64Image, InvoiceCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "analyzeInvoice: imageSize=" + (base64Image != null ? base64Image.length() : 0));
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "analyze_invoice");
+                body.put("image_base64", base64Image);
+                body.put("prompt", "\u8ACB\u5206\u6790\u9019\u5F35\u767C\u7968/\u6536\u64DA\u5716\u7247\u3002"
+                        + "\u5982\u679C\u662F\u767C\u7968\u6216\u6D88\u8CBB\u6536\u64DA\uFF0C\u8ACB\u56DE\u50B3 JSON\uFF1A"
+                        + "{\"is_invoice\": true, \"merchant\": \"\u5546\u5BB6\u540D\u7A31\", "
+                        + "\"date\": \"YYYY-MM-DD\", \"items\": \"\u54C1\u9805\u660E\u7D30\", "
+                        + "\"total\": \u6578\u5B57, \"currency\": \"TWD\", "
+                        + "\"payment_method\": \"\u4ED8\u6B3E\u65B9\u5F0F\", "
+                        + "\"invoice_number\": \"\u767C\u7968\u865F\u78BC\", "
+                        + "\"category\": \"\u985E\u5225\"}\u3002"
+                        + "\u5982\u679C\u4E0D\u662F\u767C\u7968\uFF1A{\"is_invoice\": false}\u3002"
+                        + "\u985E\u5225\u8ACB\u5F9E\u4EE5\u4E0B\u9078\u64C7\uFF1A\u9910\u98F2\u3001\u4EA4\u901A\u3001\u8CFC\u7269\u3001\u5A1B\u6A02\u3001\u91AB\u7642\u3001\u6559\u80B2\u3001\u751F\u6D3B\u3001\u5176\u4ED6\u3002");
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 60000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    AppLog.i("Bridge", "invoice\u5206\u6790\u5B8C\u6210");
+                    mainHandler.post(() -> callback.onResult(response, false, null));
+                } else {
+                    lastError = error;
+                    AppLog.e("Bridge", "invoice\u5206\u6790\u5931\u6557: " + error);
+                    mainHandler.post(() -> callback.onResult(null, true, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                AppLog.e("Bridge", "invoice\u7570\u5E38: " + err);
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
     public interface CalendarParseCallback {
         void onResult(String responseJson, boolean offline, String error);
     }

@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.29 (2026-03-08)
+- **New Feature: Invoice Scanner (發票掃描記帳)**
+  - Added `InvoiceActivity.java` — Camera/gallery image capture, AI analysis via Bridge vision, editable result fields, save to expense DB
+  - Modified `BridgeClient.java` — Added analyzeInvoice() with InvoiceCallback and invoice-specific prompt
+  - Modified `bridge.py` — Added analyze_invoice task routing to vision with 60s timeout
+  - Modified `MainActivity.java` — Added 🧾發票掃描記帳 card in TOOLS section new row
+  - Modified `AndroidManifest.xml` — Registered InvoiceActivity, added CAMERA permission + camera feature (required=false)
+  - Modified `file_paths.xml` — Added cache-path for camera photo FileProvider
+  - Modified `app/build.gradle` — versionCode 51, versionName 3.29
+
 ## v3.28 (2026-03-08)
 - **New Feature: Water Reminder (喝水提醒)**
   - Added `WaterDbHelper.java` — SQLite DB for water logs, SharedPreferences for settings (goal, interval, hours)

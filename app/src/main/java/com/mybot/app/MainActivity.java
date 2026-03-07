@@ -220,6 +220,17 @@ public class MainActivity extends AppCompatActivity {
         row4.addView(cardLog, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row4);
 
+        LinearLayout row5 = gridRow();
+        LinearLayout cardInvoice = UIHelper.featureCard(this,
+                "\uD83E\uDDFE", "\u767C\u7968\u6383\u63CF\u8A18\u5E33", "\u62CD\u7167/\u76F8\u7C3F\u00B7AI \u8FA8\u8B58", UIHelper.ACCENT_ORANGE, 35);
+        cardInvoice.setOnClickListener(v -> startActivity(new Intent(this, InvoiceActivity.class)));
+
+        View invoiceSpacer = new View(this);
+
+        row5.addView(cardInvoice, gridCellLp(0));
+        row5.addView(invoiceSpacer, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row5);
+
         // ── Version footer ──
         LinearLayout versionRow = new LinearLayout(this);
         versionRow.setOrientation(LinearLayout.HORIZONTAL);
