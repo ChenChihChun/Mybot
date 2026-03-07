@@ -189,6 +189,18 @@ public class MainActivity extends AppCompatActivity {
         row3.addView(cardCountdown, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row3);
 
+        // Row 4
+        LinearLayout row4f = gridRow();
+        LinearLayout cardHabit = UIHelper.featureCard(this,
+                "\uD83D\uDCCA", "\u7FD2\u6163\u8FFD\u8E64", "\u6BCF\u65E5\u6253\u5361\u00B7\u9023\u7E8C\u7D00\u9304", UIHelper.ACCENT_PURPLE, 40);
+        cardHabit.setOnClickListener(v -> startActivity(new Intent(this, HabitActivity.class)));
+
+        View habitSpacer = new View(this);
+
+        row4f.addView(cardHabit, gridCellLp(0));
+        row4f.addView(habitSpacer, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row4f);
+
         // ── Tools ──
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));
 

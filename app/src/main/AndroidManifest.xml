@@ -60,6 +60,10 @@
         <activity android:name=".CountdownActivity" android:exported="false" />
         <activity android:name=".AddCountdownActivity" android:exported="false" />
 
+        <!-- Habit Activities -->
+        <activity android:name=".HabitActivity" android:exported="false" />
+        <activity android:name=".AddHabitActivity" android:exported="false" />
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
 
