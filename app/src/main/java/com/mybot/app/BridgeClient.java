@@ -289,14 +289,15 @@ public class BridgeClient {
                 String error = result[1];
 
                 if (response != null) {
-                    // Extract analysis text from response with maximum flexibility
                     String analysis = extractAnalysis(response);
                     if (analysis != null && !analysis.isEmpty()) {
+                        // Log for debug
+                        android.util.Log.d("BridgeClient", "AI analysis length=" + analysis.length());
                         mainHandler.post(() -> callback.onResult(analysis, false, null));
                     } else {
                         // Show raw response for debugging
-                        String raw = response.length() > 500 ? response.substring(0, 500) + "..." : response;
-                        mainHandler.post(() -> callback.onResult(null, false, "無法解析回應:\n" + raw));
+                        String raw = response.length() > 1000 ? response.substring(0, 1000) + "..." : response;
+                        mainHandler.post(() -> callback.onResult("【DEBUG 原始回應】\n" + raw, false, null));
                     }
                     return;
                 }
@@ -318,40 +319,59 @@ public class BridgeClient {
             Object resultObj = json.opt("result");
             if (resultObj == null) return null;
 
-            // Case 1: result is a plain string
-            if (resultObj instanceof String) {
-                return (String) resultObj;
-            }
-
-            // Case 2: result is a JSONObject — search all string fields
-            if (resultObj instanceof JSONObject) {
-                JSONObject r = (JSONObject) resultObj;
-                // Try known field names first
-                String[] keys = {"response", "text", "content", "answer", "message",
-                        "analysis", "reply", "output", "data", "result"};
-                for (String key : keys) {
-                    String val = r.optString(key, "");
-                    if (!val.isEmpty() && val.length() > 10) return val;
-                }
-                // Fallback: find the longest string value in the object
-                String longest = "";
-                java.util.Iterator<String> it = r.keys();
-                while (it.hasNext()) {
-                    String key = it.next();
-                    Object val = r.opt(key);
-                    if (val instanceof String && ((String) val).length() > longest.length()) {
-                        longest = (String) val;
-                    }
-                }
-                if (!longest.isEmpty()) return longest;
-                return r.toString();
-            }
-
-            // Case 3: anything else
-            return resultObj.toString();
+            return extractText(resultObj);
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static String extractText(Object obj) {
+        if (obj == null) return null;
+
+        // Plain string
+        if (obj instanceof String) {
+            String s = (String) obj;
+            return s.isEmpty() ? null : s;
+        }
+
+        // JSONArray — find longest string element or recurse
+        if (obj instanceof JSONArray) {
+            JSONArray arr = (JSONArray) obj;
+            String longest = "";
+            for (int i = 0; i < arr.length(); i++) {
+                String val = extractText(arr.opt(i));
+                if (val != null && val.length() > longest.length()) longest = val;
+            }
+            return longest.isEmpty() ? null : longest;
+        }
+
+        // JSONObject — search known keys, then all values
+        if (obj instanceof JSONObject) {
+            JSONObject r = (JSONObject) obj;
+
+            // Try known field names (shallow string first)
+            String[] keys = {"response", "text", "content", "answer", "message",
+                    "analysis", "reply", "output", "data", "result", "choices"};
+            for (String key : keys) {
+                Object val = r.opt(key);
+                if (val == null) continue;
+                String extracted = extractText(val);
+                if (extracted != null && extracted.length() > 20) return extracted;
+            }
+
+            // Fallback: find the longest string in any field (recursive)
+            String longest = "";
+            java.util.Iterator<String> it = r.keys();
+            while (it.hasNext()) {
+                String key = it.next();
+                String val = extractText(r.opt(key));
+                if (val != null && val.length() > longest.length()) longest = val;
+            }
+            return longest.isEmpty() ? null : longest;
+        }
+
+        // Number, Boolean, etc
+        return null;
     }
 
     private static String[] postJsonWithError(String urlStr, String jsonBody) {
