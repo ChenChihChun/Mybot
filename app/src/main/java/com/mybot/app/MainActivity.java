@@ -7,6 +7,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.net.Uri;
 import android.provider.Settings;
 import android.view.Gravity;
@@ -23,11 +25,26 @@ import androidx.core.content.ContextCompat;
 public class MainActivity extends AppCompatActivity {
 
     private static final int PERMISSION_CODE = 100;
+    private static final long HEALTH_CHECK_INTERVAL = 30_000; // 30 seconds
+
     private View bridgeDot;
+    private TextView bridgeText;
+    private Handler healthHandler;
+    private boolean lastOnline = true; // track state change for push notification
+
+    private final Runnable healthCheckRunnable = new Runnable() {
+        @Override
+        public void run() {
+            checkBridgeHealth();
+            healthHandler.postDelayed(this, HEALTH_CHECK_INTERVAL);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        healthHandler = new Handler(Looper.getMainLooper());
 
         NotificationHelper.createNotificationChannel(this);
         requestPermissions();
@@ -48,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
         topSection.setPadding(p, UIHelper.dp(this, 16), p, UIHelper.dp(this, 14));
         topSection.setElevation(UIHelper.dp(this, 4));
 
-        // Compact hero: icon + text + bridge dot
+        // Compact hero: icon + text + bridge status
         LinearLayout heroRow = new LinearLayout(this);
         heroRow.setOrientation(LinearLayout.HORIZONTAL);
         heroRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -87,20 +104,32 @@ public class MainActivity extends AppCompatActivity {
         textCol.addView(title);
         textCol.addView(subtitle);
 
-        // Bridge status dot (right side)
-        int dotSize = UIHelper.dp(this, 14);
+        // Bridge status: dot + text (right side)
+        LinearLayout bridgeStatus = new LinearLayout(this);
+        bridgeStatus.setOrientation(LinearLayout.HORIZONTAL);
+        bridgeStatus.setGravity(Gravity.CENTER_VERTICAL);
+
+        int dotSize = UIHelper.dp(this, 10);
         bridgeDot = new View(this);
         GradientDrawable dotBg = new GradientDrawable();
         dotBg.setShape(GradientDrawable.OVAL);
         dotBg.setColor(UIHelper.TEXT_HINT); // grey initially
         bridgeDot.setBackground(dotBg);
         LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(dotSize, dotSize);
-        dotLp.setMargins(UIHelper.dp(this, 12), 0, 0, 0);
+        dotLp.setMargins(0, 0, UIHelper.dp(this, 5), 0);
         bridgeDot.setLayoutParams(dotLp);
+
+        bridgeText = new TextView(this);
+        bridgeText.setText("檢查中");
+        bridgeText.setTextSize(11);
+        bridgeText.setTextColor(UIHelper.TEXT_HINT);
+
+        bridgeStatus.addView(bridgeDot);
+        bridgeStatus.addView(bridgeText);
 
         heroRow.addView(iconCircle);
         heroRow.addView(textCol);
-        heroRow.addView(bridgeDot);
+        heroRow.addView(bridgeStatus);
         topSection.addView(heroRow);
 
         // ── Scrollable content ──
@@ -115,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
         // ── Feature grid ──
         content.addView(UIHelper.sectionHeader(this, "FEATURES"));
 
-        // Row 1: 消費紀錄 + 待辦事項
+        // Row 1
         LinearLayout row1 = gridRow();
         LinearLayout cardExpense = UIHelper.featureCard(this,
                 "\uD83D\uDCB0", "消費紀錄", "消費明細·報表·提醒", UIHelper.ACCENT_RED, 40);
@@ -129,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
         row1.addView(cardTodo, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row1);
 
-        // Row 2: Google 日曆 + 健身教練
+        // Row 2
         LinearLayout row2 = gridRow();
         LinearLayout cardCalendar = UIHelper.featureCard(this,
                 "\uD83D\uDCC5", "Google 日曆", "AI 行事曆管理", UIHelper.ACCENT_BLUE, 40);
@@ -143,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
         row2.addView(cardFitness, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row2);
 
-        // Row 3: 截圖分析消費
+        // Row 3
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));
 
         LinearLayout row3 = gridRow();
@@ -152,12 +181,11 @@ public class MainActivity extends AppCompatActivity {
         cardCapture.setOnClickListener(v -> toggleFloatingCapture());
 
         row3.addView(cardCapture, gridCellLp(0));
-        // Empty spacer for grid alignment
         View spacer = new View(this);
         row3.addView(spacer, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row3);
 
-        // ── Version footer with update check ──
+        // ── Version footer ──
         LinearLayout versionRow = new LinearLayout(this);
         versionRow.setOrientation(LinearLayout.HORIZONTAL);
         versionRow.setGravity(Gravity.CENTER);
@@ -207,15 +235,42 @@ public class MainActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
+    }
 
-        // Check Bridge health and update dot
-        checkBridgeHealth();
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Start periodic health check
+        healthHandler.removeCallbacks(healthCheckRunnable);
+        healthCheckRunnable.run(); // run immediately, then every 30s
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Stop periodic check when not visible
+        healthHandler.removeCallbacks(healthCheckRunnable);
     }
 
     private void checkBridgeHealth() {
         BridgeClient.healthCheck((online, message) -> {
             GradientDrawable dotBg = (GradientDrawable) bridgeDot.getBackground();
-            dotBg.setColor(online ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED);
+            if (online) {
+                dotBg.setColor(UIHelper.ACCENT_GREEN);
+                bridgeText.setText("正常");
+                bridgeText.setTextColor(UIHelper.ACCENT_GREEN);
+            } else {
+                dotBg.setColor(UIHelper.ACCENT_RED);
+                bridgeText.setText("離線");
+                bridgeText.setTextColor(UIHelper.ACCENT_RED);
+            }
+
+            // Push notification when status changes to offline
+            if (!online && lastOnline) {
+                NotificationHelper.sendNotification(this,
+                        "Mybot - Bridge 離線", "AI Bridge 無法連線: " + message);
+            }
+            lastOnline = online;
         });
     }
 
