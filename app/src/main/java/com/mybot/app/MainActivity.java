@@ -10,7 +10,6 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -37,59 +36,58 @@ public class MainActivity extends AppCompatActivity {
 
         LinearLayout root = UIHelper.pageRoot(this);
 
-        // Top section - hero area
+        // ── Hero area ──
         LinearLayout topSection = new LinearLayout(this);
         topSection.setOrientation(LinearLayout.VERTICAL);
         topSection.setGravity(Gravity.CENTER);
         topSection.setBackgroundColor(UIHelper.BG_TOP_BAR);
         int p = UIHelper.dp(this, 24);
-        topSection.setPadding(p, UIHelper.dp(this, 40), p, UIHelper.dp(this, 32));
+        topSection.setPadding(p, UIHelper.dp(this, 36), p, UIHelper.dp(this, 28));
         topSection.setElevation(UIHelper.dp(this, 4));
 
-        // App icon circle
+        // App icon — large gradient circle
         TextView iconCircle = new TextView(this);
-        iconCircle.setText("M");
-        iconCircle.setTextSize(32);
-        iconCircle.setTextColor(Color.WHITE);
-        iconCircle.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        iconCircle.setText("\uD83E\uDD16"); // robot emoji
+        iconCircle.setTextSize(40);
         iconCircle.setGravity(Gravity.CENTER);
-        iconCircle.setBackground(UIHelper.roundRect(UIHelper.ACCENT_GREEN, 22, this));
-        iconCircle.setElevation(UIHelper.dp(this, 4));
+        iconCircle.setBackground(UIHelper.roundRect(Color.parseColor("#1B3A4B"), 24, this));
+        iconCircle.setElevation(UIHelper.dp(this, 6));
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(
-                UIHelper.dp(this, 72), UIHelper.dp(this, 72));
+                UIHelper.dp(this, 80), UIHelper.dp(this, 80));
         iconLp.gravity = Gravity.CENTER;
-        iconLp.setMargins(0, 0, 0, UIHelper.dp(this, 16));
+        iconLp.setMargins(0, 0, 0, UIHelper.dp(this, 14));
         iconCircle.setLayoutParams(iconLp);
 
         TextView title = new TextView(this);
         title.setText("Mybot");
-        title.setTextSize(30);
+        title.setTextSize(32);
         title.setTextColor(UIHelper.TEXT_PRIMARY);
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         title.setGravity(Gravity.CENTER);
-        title.setLetterSpacing(0.05f);
+        title.setLetterSpacing(0.06f);
 
         TextView subtitle = new TextView(this);
         subtitle.setText("Smart Notification Assistant");
         subtitle.setTextSize(13);
         subtitle.setTextColor(UIHelper.TEXT_SECONDARY);
         subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, UIHelper.dp(this, 6), 0, 0);
-        subtitle.setLetterSpacing(0.03f);
+        subtitle.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+        subtitle.setLetterSpacing(0.04f);
 
         topSection.addView(iconCircle);
         topSection.addView(title);
         topSection.addView(subtitle);
 
-        // Scrollable content
+        // ── Scrollable content ──
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
 
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(p, UIHelper.dp(this, 20), p, p);
+        int cp = UIHelper.dp(this, 16);
+        content.setPadding(cp, UIHelper.dp(this, 16), cp, cp);
 
-        // Status card
+        // ── Status card ──
         LinearLayout statusCard = UIHelper.card(this);
 
         LinearLayout statusRow = new LinearLayout(this);
@@ -113,51 +111,70 @@ public class MainActivity extends AppCompatActivity {
         statusRow.addView(statusText);
 
         TextView statusHint = new TextView(this);
-        statusHint.setText("請確認已開啟通知存取權限");
-        statusHint.setTextSize(13);
+        statusHint.setText("通知與簡訊監聽已啟動，AI 自動分析運行中");
+        statusHint.setTextSize(12);
         statusHint.setTextColor(UIHelper.TEXT_SECONDARY);
-        statusHint.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        statusHint.setPadding(0, UIHelper.dp(this, 6), 0, 0);
 
         statusCard.addView(statusRow);
         statusCard.addView(statusHint);
-
-        // Menu section
         content.addView(statusCard);
-        content.addView(UIHelper.sectionHeader(this, "MENU"));
 
-        Button btnExpenses = UIHelper.cardButton(this, "消費紀錄", "查看所有消費明細", UIHelper.ACCENT_RED);
-        btnExpenses.setOnClickListener(v -> startActivity(new Intent(this, ExpenseActivity.class)));
+        // ── Feature grid ──
+        content.addView(UIHelper.sectionHeader(this, "FEATURES"));
 
-        Button btnTodo = UIHelper.cardButton(this, "待辦事項", "TO DO 時間管理", UIHelper.ACCENT_GREEN);
-        btnTodo.setOnClickListener(v -> startActivity(new Intent(this, TodoActivity.class)));
+        // Row 1: 消費紀錄 + 待辦事項
+        LinearLayout row1 = gridRow();
+        LinearLayout cardExpense = UIHelper.featureCard(this,
+                "\uD83D\uDCB0", "消費紀錄", "消費明細·報表·提醒", UIHelper.ACCENT_RED, 40);
+        cardExpense.setOnClickListener(v -> startActivity(new Intent(this, ExpenseActivity.class)));
 
-        Button btnCalendar = UIHelper.cardButton(this, "Google 日曆", "AI 智慧行事曆管理", UIHelper.ACCENT_BLUE);
-        btnCalendar.setOnClickListener(v -> startActivity(new Intent(this, CalendarActivity.class)));
+        LinearLayout cardTodo = UIHelper.featureCard(this,
+                "\u2705", "待辦事項", "TODO·時間管理", UIHelper.ACCENT_GREEN, 40);
+        cardTodo.setOnClickListener(v -> startActivity(new Intent(this, TodoActivity.class)));
 
-        Button btnFitness = UIHelper.cardButton(this, "健身教練", "AI 居家運動計畫", UIHelper.ACCENT_PURPLE);
-        btnFitness.setOnClickListener(v -> startActivity(new Intent(this, FitnessActivity.class)));
+        row1.addView(cardExpense, gridCellLp(0));
+        row1.addView(cardTodo, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row1);
 
-        Button btnMonitor = UIHelper.cardButton(this, "監聽狀態", "即時通知與簡訊 Log", UIHelper.ACCENT_BLUE);
-        btnMonitor.setOnClickListener(v -> startActivity(new Intent(this, MonitorActivity.class)));
+        // Row 2: Google 日曆 + 健身教練
+        LinearLayout row2 = gridRow();
+        LinearLayout cardCalendar = UIHelper.featureCard(this,
+                "\uD83D\uDCC5", "Google 日曆", "AI 行事曆管理", UIHelper.ACCENT_BLUE, 40);
+        cardCalendar.setOnClickListener(v -> startActivity(new Intent(this, CalendarActivity.class)));
 
-        Button btnPermission = UIHelper.cardButton(this, "通知存取權限", "開啟系統設定", UIHelper.ACCENT_ORANGE);
-        btnPermission.setOnClickListener(v ->
+        LinearLayout cardFitness = UIHelper.featureCard(this,
+                "\uD83D\uDCAA", "健身教練", "AI 居家運動計畫", UIHelper.ACCENT_PURPLE, 40);
+        cardFitness.setOnClickListener(v -> startActivity(new Intent(this, FitnessActivity.class)));
+
+        row2.addView(cardCalendar, gridCellLp(0));
+        row2.addView(cardFitness, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row2);
+
+        // Row 3: 監聽狀態 + 通知權限
+        content.addView(UIHelper.sectionHeader(this, "SYSTEM"));
+
+        LinearLayout row3 = gridRow();
+        LinearLayout cardMonitor = UIHelper.featureCard(this,
+                "\uD83D\uDCE1", "監聽狀態", "通知·簡訊 Log", UIHelper.ACCENT_BLUE, 30);
+        cardMonitor.setOnClickListener(v -> startActivity(new Intent(this, MonitorActivity.class)));
+
+        LinearLayout cardPerm = UIHelper.featureCard(this,
+                "\u2699\uFE0F", "通知權限", "開啟系統設定", UIHelper.ACCENT_ORANGE, 30);
+        cardPerm.setOnClickListener(v ->
                 startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)));
 
-        content.addView(btnExpenses);
-        content.addView(btnTodo);
-        content.addView(btnCalendar);
-        content.addView(btnFitness);
-        content.addView(btnMonitor);
-        content.addView(btnPermission);
+        row3.addView(cardMonitor, gridCellLp(0));
+        row3.addView(cardPerm, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row3);
 
-        // Version footer
+        // ── Version footer ──
         TextView version = new TextView(this);
         version.setText("v2.4");
         version.setTextSize(11);
         version.setTextColor(UIHelper.TEXT_HINT);
         version.setGravity(Gravity.CENTER);
-        version.setPadding(0, UIHelper.dp(this, 24), 0, UIHelper.dp(this, 16));
+        version.setPadding(0, UIHelper.dp(this, 20), 0, UIHelper.dp(this, 16));
         content.addView(version);
 
         scrollView.addView(content);
@@ -167,6 +184,22 @@ public class MainActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
+    }
+
+    private LinearLayout gridRow() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 5), 0, UIHelper.dp(this, 5));
+        row.setLayoutParams(lp);
+        return row;
+    }
+
+    private LinearLayout.LayoutParams gridCellLp(int leftMargin) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        lp.setMargins(leftMargin, 0, 0, 0);
+        return lp;
     }
 
     private void requestPermissions() {

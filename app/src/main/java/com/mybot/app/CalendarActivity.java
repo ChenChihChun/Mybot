@@ -31,10 +31,10 @@ public class CalendarActivity extends AppCompatActivity {
     private static final int RC_SIGN_IN = GoogleAuthHelper.RC_SIGN_IN;
 
     private LinearLayout contentLayout;
-    private TextView statusText;
     private Calendar currentMonth;
     private List<GoogleCalendarClient.CalendarInfo> calendars = new ArrayList<>();
     private List<GoogleCalendarClient.EventInfo> events = new ArrayList<>();
+    private TextView cacheStatusText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,16 +47,18 @@ public class CalendarActivity extends AppCompatActivity {
         // Top bar
         LinearLayout topBar = UIHelper.topBar(this, "Google 日曆");
 
+        Button btnRefresh = UIHelper.smallButton(this, "刷新", UIHelper.ACCENT_BLUE);
         Button btnSettings = UIHelper.smallButton(this, "設定", UIHelper.ACCENT_ORANGE);
-        btnSettings.setOnClickListener(v -> showSettingsDialog());
-
         Button btnAdd = UIHelper.smallButton(this, "AI 新增", UIHelper.ACCENT_GREEN);
         LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, UIHelper.dp(this, 36));
         btnLp.setMargins(UIHelper.dp(this, 8), 0, 0, 0);
+        btnRefresh.setLayoutParams(btnLp);
         btnSettings.setLayoutParams(btnLp);
         btnAdd.setLayoutParams(btnLp);
 
+        btnRefresh.setOnClickListener(v -> forceRefresh());
+        btnSettings.setOnClickListener(v -> showSettingsDialog());
         btnAdd.setOnClickListener(v -> {
             if (!GoogleAuthHelper.isSignedIn(this)) {
                 Toast.makeText(this, "請先登入 Google 帳號", Toast.LENGTH_SHORT).show();
@@ -65,6 +67,7 @@ public class CalendarActivity extends AppCompatActivity {
             startActivity(new Intent(this, AddCalendarEventActivity.class));
         });
 
+        topBar.addView(btnRefresh);
         topBar.addView(btnSettings);
         topBar.addView(btnAdd);
 
@@ -91,8 +94,23 @@ public class CalendarActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (GoogleAuthHelper.isSignedIn(this) && !calendars.isEmpty()) {
-            loadEvents();
+        if (!GoogleAuthHelper.isSignedIn(this)) return;
+
+        String monthKey = CalendarCache.monthKey(currentMonth);
+
+        // Has cache — show it immediately
+        if (CalendarCache.hasCalendars()) {
+            calendars = CalendarCache.getCalendars();
+        }
+        if (CalendarCache.hasEvents(monthKey)) {
+            events = CalendarCache.getEvents(monthKey);
+            renderUI();
+            // If stale, refresh silently in background
+            if (!CalendarCache.isEventsValid(monthKey)) {
+                refreshEventsBackground(monthKey);
+            }
+        } else if (!calendars.isEmpty()) {
+            loadEvents(false);
         }
     }
 
@@ -110,14 +128,73 @@ public class CalendarActivity extends AppCompatActivity {
             return;
         }
 
+        // Try cache first
+        if (CalendarCache.hasCalendars() && CalendarCache.hasEvents(CalendarCache.monthKey(currentMonth))) {
+            calendars = CalendarCache.getCalendars();
+            events = CalendarCache.getEvents(CalendarCache.monthKey(currentMonth));
+            renderUI();
+            // Background refresh if stale
+            if (!CalendarCache.isCalendarsValid() || !CalendarCache.isEventsValid(CalendarCache.monthKey(currentMonth))) {
+                refreshAllBackground();
+            }
+            return;
+        }
+
+        // No cache — full load
         showLoading("載入日曆中...");
         GoogleAuthHelper.getCachedOrFreshToken(this, (token, error) -> {
             if (token != null) {
                 loadCalendarsAndEvents(token);
             } else {
-                // Token failed — force re-login
                 GoogleAuthHelper.signOut(this, (s, e) -> showSignInButton());
             }
+        });
+    }
+
+    private void forceRefresh() {
+        if (!GoogleAuthHelper.isSignedIn(this)) {
+            Toast.makeText(this, "尚未登入", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        CalendarCache.invalidateAllEvents();
+        showLoading("重新載入中...");
+        GoogleAuthHelper.getCachedOrFreshToken(this, (token, error) -> {
+            if (token != null) {
+                loadCalendarsAndEvents(token);
+            } else {
+                showError("Token 失敗: " + error);
+            }
+        });
+    }
+
+    private void refreshAllBackground() {
+        GoogleAuthHelper.getCachedOrFreshToken(this, (token, error) -> {
+            if (token == null) return;
+            GoogleCalendarClient.listCalendars(token, (cals, err) -> {
+                if (cals != null) {
+                    CalendarCache.putCalendars(cals);
+                    calendars = cals;
+                }
+                refreshEventsBackground(CalendarCache.monthKey(currentMonth));
+            });
+        });
+    }
+
+    private void refreshEventsBackground(String monthKey) {
+        GoogleAuthHelper.getCachedOrFreshToken(this, (token, error) -> {
+            if (token == null) return;
+
+            String[] range = getMonthRange(currentMonth);
+            GoogleCalendarClient.listAllEvents(token, calendars, range[0], range[1], (evts, err) -> {
+                if (evts != null) {
+                    CalendarCache.putEvents(monthKey, evts);
+                    // Only update UI if still on same month
+                    if (monthKey.equals(CalendarCache.monthKey(currentMonth))) {
+                        events = evts;
+                        renderUI();
+                    }
+                }
+            });
         });
     }
 
@@ -182,6 +259,7 @@ public class CalendarActivity extends AppCompatActivity {
             GoogleAuthHelper.handleSignInResult(data, (success, error) -> {
                 if (success) {
                     Toast.makeText(this, "登入成功", Toast.LENGTH_SHORT).show();
+                    CalendarCache.clearAll();
                     checkSignInAndLoad();
                 } else {
                     Toast.makeText(this, "登入失敗: " + error, Toast.LENGTH_LONG).show();
@@ -221,49 +299,70 @@ public class CalendarActivity extends AppCompatActivity {
         GoogleCalendarClient.listCalendars(token, (cals, error) -> {
             if (cals != null) {
                 calendars = cals;
-                loadEvents();
+                CalendarCache.putCalendars(cals);
+                loadEvents(true);
             } else {
                 showError("載入日曆失敗: " + error);
             }
         });
     }
 
-    private void loadEvents() {
-        showLoading("載入事件中...");
+    private void loadEvents(boolean showLoadingUI) {
+        if (showLoadingUI) showLoading("載入事件中...");
 
+        String monthKey = CalendarCache.monthKey(currentMonth);
+
+        // Check cache first (for month switch)
+        if (CalendarCache.isEventsValid(monthKey)) {
+            events = CalendarCache.getEvents(monthKey);
+            renderUI();
+            return;
+        }
+
+        // Has stale cache — show it while refreshing
+        if (CalendarCache.hasEvents(monthKey)) {
+            events = CalendarCache.getEvents(monthKey);
+            renderUI();
+            refreshEventsBackground(monthKey);
+            return;
+        }
+
+        // No cache at all — must load
         GoogleAuthHelper.getCachedOrFreshToken(this, (token, error) -> {
             if (token == null) {
                 showError("Token 失敗: " + error);
                 return;
             }
 
-            // Get events for current month
-            Calendar start = (Calendar) currentMonth.clone();
-            start.set(Calendar.DAY_OF_MONTH, 1);
-            start.set(Calendar.HOUR_OF_DAY, 0);
-            start.set(Calendar.MINUTE, 0);
-            start.set(Calendar.SECOND, 0);
-
-            Calendar end = (Calendar) currentMonth.clone();
-            end.set(Calendar.DAY_OF_MONTH, end.getActualMaximum(Calendar.DAY_OF_MONTH));
-            end.set(Calendar.HOUR_OF_DAY, 23);
-            end.set(Calendar.MINUTE, 59);
-            end.set(Calendar.SECOND, 59);
-
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
-            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-            String timeMin = sdf.format(start.getTime());
-            String timeMax = sdf.format(end.getTime());
-
-            GoogleCalendarClient.listAllEvents(token, calendars, timeMin, timeMax, (evts, err) -> {
+            String[] range = getMonthRange(currentMonth);
+            GoogleCalendarClient.listAllEvents(token, calendars, range[0], range[1], (evts, err) -> {
                 if (evts != null) {
                     events = evts;
+                    CalendarCache.putEvents(monthKey, evts);
                     renderUI();
                 } else {
                     showError("載入事件失敗: " + err);
                 }
             });
         });
+    }
+
+    private String[] getMonthRange(Calendar month) {
+        Calendar start = (Calendar) month.clone();
+        start.set(Calendar.DAY_OF_MONTH, 1);
+        start.set(Calendar.HOUR_OF_DAY, 0);
+        start.set(Calendar.MINUTE, 0);
+        start.set(Calendar.SECOND, 0);
+
+        Calendar end = (Calendar) month.clone();
+        end.set(Calendar.DAY_OF_MONTH, end.getActualMaximum(Calendar.DAY_OF_MONTH));
+        end.set(Calendar.HOUR_OF_DAY, 23);
+        end.set(Calendar.MINUTE, 59);
+        end.set(Calendar.SECOND, 59);
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return new String[]{sdf.format(start.getTime()), sdf.format(end.getTime())};
     }
 
     private void renderUI() {
@@ -278,7 +377,7 @@ public class CalendarActivity extends AppCompatActivity {
         Button btnPrev = UIHelper.smallButton(this, "<", UIHelper.TEXT_SECONDARY);
         btnPrev.setOnClickListener(v -> {
             currentMonth.add(Calendar.MONTH, -1);
-            loadEvents();
+            loadEvents(false);
         });
 
         SimpleDateFormat monthFmt = new SimpleDateFormat("yyyy 年 MM 月", Locale.TAIWAN);
@@ -293,7 +392,7 @@ public class CalendarActivity extends AppCompatActivity {
         Button btnNext = UIHelper.smallButton(this, ">", UIHelper.TEXT_SECONDARY);
         btnNext.setOnClickListener(v -> {
             currentMonth.add(Calendar.MONTH, 1);
-            loadEvents();
+            loadEvents(false);
         });
 
         navRow.addView(btnPrev);
@@ -340,6 +439,25 @@ public class CalendarActivity extends AppCompatActivity {
         calInfo.setPadding(0, UIHelper.dp(this, 4), 0, 0);
         acctCard.addView(calInfo);
 
+        // Cache status
+        String monthKey = CalendarCache.monthKey(currentMonth);
+        long age = CalendarCache.getEventsAge(monthKey);
+        String cacheInfo;
+        if (age < 0) {
+            cacheInfo = "未快取";
+        } else if (age < 60000) {
+            cacheInfo = "快取: " + (age / 1000) + " 秒前";
+        } else {
+            cacheInfo = "快取: " + (age / 60000) + " 分鐘前";
+        }
+        cacheStatusText = new TextView(this);
+        cacheStatusText.setText(cacheInfo);
+        cacheStatusText.setTextSize(11);
+        cacheStatusText.setTextColor(CalendarCache.isEventsValid(monthKey) ?
+                UIHelper.ACCENT_GREEN : UIHelper.ACCENT_ORANGE);
+        cacheStatusText.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+        acctCard.addView(cacheStatusText);
+
         contentLayout.addView(acctCard);
 
         // Events list
@@ -360,7 +478,6 @@ public class CalendarActivity extends AppCompatActivity {
                 String dateStr = formatDateHeader(ev.startTime);
                 if (!dateStr.equals(lastDate)) {
                     lastDate = dateStr;
-                    // Date header
                     TextView dateHeader = new TextView(this);
                     dateHeader.setText(dateStr);
                     dateHeader.setTextSize(13);
@@ -378,12 +495,10 @@ public class CalendarActivity extends AppCompatActivity {
     private LinearLayout createEventCard(GoogleCalendarClient.EventInfo ev) {
         LinearLayout card = UIHelper.card(this);
 
-        // Time + Title row
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
 
-        // Time badge
         String timeStr = ev.allDay ? "全天" : formatTime(ev.startTime);
         TextView timeBadge = UIHelper.statusBadge(this, timeStr, UIHelper.ACCENT_BLUE);
         LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(
@@ -402,7 +517,6 @@ public class CalendarActivity extends AppCompatActivity {
         titleRow.addView(titleTv);
         card.addView(titleRow);
 
-        // Details
         if (!ev.allDay && ev.endTime != null) {
             TextView duration = new TextView(this);
             duration.setText(formatTime(ev.startTime) + " - " + formatTime(ev.endTime));
@@ -531,6 +645,32 @@ public class CalendarActivity extends AppCompatActivity {
             }
         }
 
+        // Cache management
+        TextView labelCache = new TextView(this);
+        labelCache.setText("快取管理");
+        labelCache.setTextSize(14);
+        labelCache.setTextColor(UIHelper.TEXT_PRIMARY);
+        labelCache.setPadding(0, UIHelper.dp(this, 16), 0, UIHelper.dp(this, 4));
+        layout.addView(labelCache);
+
+        Button btnClearCache = new Button(this);
+        btnClearCache.setText("清除所有快取");
+        btnClearCache.setTextColor(UIHelper.ACCENT_ORANGE);
+        btnClearCache.setTextSize(14);
+        btnClearCache.setAllCaps(false);
+        btnClearCache.setBackground(UIHelper.roundRectStroke(
+                Color.TRANSPARENT, UIHelper.ACCENT_ORANGE, 10, 1, this));
+        btnClearCache.setStateListAnimator(null);
+        LinearLayout.LayoutParams cacheLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, UIHelper.dp(this, 44));
+        cacheLp.setMargins(0, UIHelper.dp(this, 4), 0, 0);
+        btnClearCache.setLayoutParams(cacheLp);
+        btnClearCache.setOnClickListener(v -> {
+            CalendarCache.clearAll();
+            Toast.makeText(this, "快取已清除", Toast.LENGTH_SHORT).show();
+        });
+        layout.addView(btnClearCache);
+
         // Sign out button
         if (GoogleAuthHelper.isSignedIn(this)) {
             Button btnSignOut = new Button(this);
@@ -543,10 +683,11 @@ public class CalendarActivity extends AppCompatActivity {
             btnSignOut.setStateListAnimator(null);
             LinearLayout.LayoutParams solp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, UIHelper.dp(this, 44));
-            solp.setMargins(0, UIHelper.dp(this, 16), 0, 0);
+            solp.setMargins(0, UIHelper.dp(this, 12), 0, 0);
             btnSignOut.setLayoutParams(solp);
             btnSignOut.setOnClickListener(v -> {
                 GoogleAuthHelper.signOut(this, (success, err) -> {
+                    CalendarCache.clearAll();
                     Toast.makeText(this, "已登出", Toast.LENGTH_SHORT).show();
                     checkSignInAndLoad();
                 });
@@ -565,8 +706,8 @@ public class CalendarActivity extends AppCompatActivity {
                     getSharedPreferences("calendar_prefs", MODE_PRIVATE).edit()
                             .putString("web_client_secret", secret).apply();
                     Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
-                    // Client ID changed — sign out old session first
                     if (!webId.equals(oldId) && GoogleAuthHelper.isSignedIn(this)) {
+                        CalendarCache.clearAll();
                         GoogleAuthHelper.signOut(this, (s, e) -> checkSignInAndLoad());
                     } else {
                         checkSignInAndLoad();

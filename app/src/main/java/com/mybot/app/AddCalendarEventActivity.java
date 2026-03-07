@@ -404,6 +404,7 @@ public class AddCalendarEventActivity extends AppCompatActivity {
                                 if (failed[0] > 0) msg += "，" + failed[0] + " 個失敗";
                                 Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
                                 if (saved[0] > 0) {
+                                    CalendarCache.invalidateAllEvents();
                                     finish();
                                 }
                             }

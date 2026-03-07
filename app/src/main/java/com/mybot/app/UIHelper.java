@@ -231,6 +231,69 @@ public class UIHelper {
         return tv;
     }
 
+    /**
+     * Feature card with large icon circle, title, and subtitle.
+     * Used for main menu grid items.
+     */
+    public static LinearLayout featureCard(Context ctx, String icon, String title, String subtitle,
+                                            int accentColor, int iconBgAlpha) {
+        LinearLayout card = new LinearLayout(ctx);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER);
+        card.setBackground(roundRect(BG_CARD, 20, ctx));
+        card.setElevation(dp(ctx, 4));
+        int pad = dp(ctx, 16);
+        card.setPadding(pad, dp(ctx, 20), pad, dp(ctx, 18));
+        card.setClickable(true);
+        card.setFocusable(true);
+
+        // Icon circle with semi-transparent accent background
+        TextView iconView = new TextView(ctx);
+        iconView.setText(icon);
+        iconView.setTextSize(30);
+        iconView.setGravity(Gravity.CENTER);
+        // Create a lighter version of the accent color for the icon background
+        int bgColor = Color.argb(iconBgAlpha,
+                Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor));
+        iconView.setBackground(roundRect(bgColor, 20, ctx));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(
+                dp(ctx, 60), dp(ctx, 60));
+        iconLp.gravity = Gravity.CENTER;
+        iconLp.setMargins(0, 0, 0, dp(ctx, 12));
+        iconView.setLayoutParams(iconLp);
+
+        // Title
+        TextView titleView = new TextView(ctx);
+        titleView.setText(title);
+        titleView.setTextSize(15);
+        titleView.setTextColor(TEXT_PRIMARY);
+        titleView.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        titleView.setGravity(Gravity.CENTER);
+
+        // Subtitle
+        TextView subtitleView = new TextView(ctx);
+        subtitleView.setText(subtitle);
+        subtitleView.setTextSize(11);
+        subtitleView.setTextColor(TEXT_HINT);
+        subtitleView.setGravity(Gravity.CENTER);
+        subtitleView.setPadding(0, dp(ctx, 4), 0, 0);
+
+        // Accent bottom line
+        View bottomLine = new View(ctx);
+        bottomLine.setBackgroundColor(accentColor);
+        LinearLayout.LayoutParams lineLp = new LinearLayout.LayoutParams(dp(ctx, 30), dp(ctx, 3));
+        lineLp.gravity = Gravity.CENTER;
+        lineLp.setMargins(0, dp(ctx, 12), 0, 0);
+        bottomLine.setLayoutParams(lineLp);
+
+        card.addView(iconView);
+        card.addView(titleView);
+        card.addView(subtitleView);
+        card.addView(bottomLine);
+
+        return card;
+    }
+
     public static Button smallButton(Context ctx, String text, int color) {
         Button btn = new Button(ctx);
         btn.setText(text);
