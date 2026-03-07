@@ -56,6 +56,27 @@ public class StockData {
         }
     }
 
+    public static List<CandleBar> toHeikinAshi(List<CandleBar> candles) {
+        List<CandleBar> ha = new ArrayList<>();
+        if (candles == null || candles.isEmpty()) return ha;
+
+        for (int i = 0; i < candles.size(); i++) {
+            CandleBar c = candles.get(i);
+            double haClose = (c.open + c.high + c.low + c.close) / 4.0;
+            double haOpen;
+            if (i == 0) {
+                haOpen = (c.open + c.close) / 2.0;
+            } else {
+                CandleBar prev = ha.get(i - 1);
+                haOpen = (prev.open + prev.close) / 2.0;
+            }
+            double haHigh = Math.max(c.high, Math.max(haOpen, haClose));
+            double haLow = Math.min(c.low, Math.min(haOpen, haClose));
+            ha.add(new CandleBar(c.startTime, haOpen, haHigh, haLow, haClose, c.volume));
+        }
+        return ha;
+    }
+
     public static List<CandleBar> aggregateCandles(List<TickRecord> ticks, int intervalMinutes) {
         List<CandleBar> candles = new ArrayList<>();
         if (ticks == null || ticks.isEmpty()) return candles;

@@ -544,15 +544,18 @@ public class StockActivity extends AppCompatActivity {
             return;
         }
 
-        double[] ma5 = StockData.calcMA(candles, 5);
-        double[] ma10 = StockData.calcMA(candles, 10);
-        double[] ma20 = StockData.calcMA(candles, 20);
-        double[][] bband = StockData.calcBollinger(candles, 20, 2.0);
-        double[] rsi5 = StockData.calcRSI(candles, 5);
-        double[] rsi10 = StockData.calcRSI(candles, 10);
-        double[] rsi14 = StockData.calcRSI(candles, 14);
+        // Convert to Heikin-Ashi
+        List<StockData.CandleBar> haCandles = StockData.toHeikinAshi(candles);
 
-        chartView.setData(candles, ma5, ma10, ma20, bband, rsi5, rsi10, rsi14, price);
+        double[] ma5 = StockData.calcMA(haCandles, 5);
+        double[] ma10 = StockData.calcMA(haCandles, 10);
+        double[] ma20 = StockData.calcMA(haCandles, 20);
+        double[][] bband = StockData.calcBollinger(haCandles, 20, 2.0);
+        double[] rsi5 = StockData.calcRSI(haCandles, 5);
+        double[] rsi10 = StockData.calcRSI(haCandles, 10);
+        double[] rsi14 = StockData.calcRSI(haCandles, 14);
+
+        chartView.setData(haCandles, ma5, ma10, ma20, bband, rsi5, rsi10, rsi14, price);
     }
 
     private boolean isHistoricalPeriod() {
