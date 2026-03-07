@@ -170,7 +170,7 @@ public class BridgeClient {
                         + "video_keyword 是用來搜尋 YouTube 教學影片的關鍵字。"
                         + "每天安排4-6個動作，包含熱身和收操。根據用戶的目標和等級調整強度。");
 
-                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString());
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 130000);
                 String response = result[0];
                 String error = result[1];
 
@@ -188,17 +188,21 @@ public class BridgeClient {
         });
     }
 
+    private static String[] postJsonWithError(String urlStr, String jsonBody) {
+        return postJsonWithError(urlStr, jsonBody, 30000);
+    }
+
     /**
      * Returns [responseBody, errorMessage]. responseBody is null on failure.
      */
-    private static String[] postJsonWithError(String urlStr, String jsonBody) {
+    private static String[] postJsonWithError(String urlStr, String jsonBody, int readTimeoutMs) {
         try {
             URL url = new URL(urlStr);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(30000);
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(readTimeoutMs);
             conn.setDoOutput(true);
 
             try (OutputStream os = conn.getOutputStream()) {
