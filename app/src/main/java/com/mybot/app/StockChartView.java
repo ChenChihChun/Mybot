@@ -19,7 +19,7 @@ public class StockChartView extends View {
     private List<StockData.CandleBar> candles;
     private double[] ma5, ma10, ma20;
     private double[][] bollinger; // [upper, middle, lower]
-    private double[] rsi14, rsi5, rsi10;
+    private double[] rsi5, rsi10;
     private double currentPrice = 0;
 
     // Visibility toggles
@@ -43,7 +43,6 @@ public class StockChartView extends View {
     private final Paint paintMa20 = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintBBand = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintBBandFill = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint paintRsi14 = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintRsi5 = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintRsi10 = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintGrid = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -59,7 +58,6 @@ public class StockChartView extends View {
     private static final int COLOR_MA10 = Color.parseColor("#FFA726");
     private static final int COLOR_MA20 = Color.parseColor("#AB47BC");
     private static final int COLOR_BBAND = Color.parseColor("#80DEEA");
-    private static final int COLOR_RSI14 = Color.parseColor("#FFD54F");
     private static final int COLOR_RSI5 = Color.parseColor("#4FC3F7");
     private static final int COLOR_RSI10 = Color.parseColor("#FFA726");
     private static final int COLOR_GRID = Color.parseColor("#1E3040");
@@ -120,10 +118,6 @@ public class StockChartView extends View {
         paintBBandFill.setColor(Color.argb(25, 128, 222, 234));
         paintBBandFill.setStyle(Paint.Style.FILL);
 
-        paintRsi14.setColor(COLOR_RSI14);
-        paintRsi14.setStyle(Paint.Style.STROKE);
-        paintRsi14.setStrokeWidth(1.5f * density);
-
         paintRsi5.setColor(COLOR_RSI5);
         paintRsi5.setStyle(Paint.Style.STROKE);
         paintRsi5.setStrokeWidth(1.5f * density);
@@ -158,7 +152,7 @@ public class StockChartView extends View {
     }
 
     public void setData(List<StockData.CandleBar> candles, double[] ma5, double[] ma10, double[] ma20,
-                        double[][] bollinger, double[] rsi5, double[] rsi10, double[] rsi14, double currentPrice) {
+                        double[][] bollinger, double[] rsi5, double[] rsi10, double currentPrice) {
         this.candles = candles;
         this.ma5 = ma5;
         this.ma10 = ma10;
@@ -166,7 +160,6 @@ public class StockChartView extends View {
         this.bollinger = bollinger;
         this.rsi5 = rsi5;
         this.rsi10 = rsi10;
-        this.rsi14 = rsi14;
         this.currentPrice = currentPrice;
         invalidate();
     }
@@ -415,7 +408,6 @@ public class StockChartView extends View {
         if (showRSI) {
             drawRsiLine(canvas, rsi5, margin, candleWidth, rsiTop, rsiHeight, count, paintRsi5);
             drawRsiLine(canvas, rsi10, margin, candleWidth, rsiTop, rsiHeight, count, paintRsi10);
-            drawRsiLine(canvas, rsi14, margin, candleWidth, rsiTop, rsiHeight, count, paintRsi14);
         }
 
         canvas.restore(); // restore translate
@@ -468,9 +460,6 @@ public class StockChartView extends View {
             rsiLabelX += 38 * density;
             paintText.setColor(COLOR_RSI10);
             canvas.drawText("RSI10", rsiLabelX, rsiTop + 12 * density, paintText);
-            rsiLabelX += 42 * density;
-            paintText.setColor(COLOR_RSI14);
-            canvas.drawText("RSI14", rsiLabelX, rsiTop + 12 * density, paintText);
             paintText.setColor(COLOR_TEXT);
             paintText.setTextSize(10 * density);
         }

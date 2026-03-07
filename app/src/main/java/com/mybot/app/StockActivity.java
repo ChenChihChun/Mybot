@@ -57,7 +57,7 @@ public class StockActivity extends AppCompatActivity {
     private TextView statusText;
     private TextView tvName, tvPrice, tvChange, tvOpen, tvHigh, tvLow, tvPrevClose, tvVolume;
 
-    private String currentPeriod = "1m"; // 1m, 5m, 15m, day, week, month
+    private String currentPeriod = "day"; // 1m, 5m, 15m, day, week, month
     private List<StockData.CandleBar> historicalCandles = null;
     private boolean loadingHistory = false;
 
@@ -72,6 +72,7 @@ public class StockActivity extends AppCompatActivity {
             selectedCode = watchlist.get(0);
             refreshChips();
             loadAiAnalysis(selectedCode);
+            loadHistoricalData();
         }
     }
 
@@ -432,6 +433,7 @@ public class StockActivity extends AppCompatActivity {
                             quoteMap.remove(code);
                             getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                                     .edit().remove(KEY_AI_PREFIX + code).apply();
+                            StockCache.getInstance(StockActivity.this).remove(code);
                             if (code.equals(selectedCode)) {
                                 selectedCode = watchlist.isEmpty() ? null : watchlist.get(0);
                                 historicalCandles = null;
@@ -514,7 +516,7 @@ public class StockActivity extends AppCompatActivity {
 
         if (isHistoricalPeriod()) {
             if (historicalCandles == null || historicalCandles.isEmpty()) {
-                chartView.setData(null, null, null, null, null, null, null, null, 0);
+                chartView.setData(null, null, null, null, null, null, null, 0);
                 return;
             }
             if ("week".equals(currentPeriod)) {
@@ -527,7 +529,7 @@ public class StockActivity extends AppCompatActivity {
         } else {
             List<StockData.TickRecord> ticks = tickMap.get(selectedCode);
             if (ticks == null || ticks.isEmpty()) {
-                chartView.setData(null, null, null, null, null, null, null, null, 0);
+                chartView.setData(null, null, null, null, null, null, null, 0);
                 return;
             }
             int interval;
@@ -540,7 +542,7 @@ public class StockActivity extends AppCompatActivity {
         }
 
         if (candles == null || candles.isEmpty()) {
-            chartView.setData(null, null, null, null, null, null, null, null, 0);
+            chartView.setData(null, null, null, null, null, null, null, 0);
             return;
         }
 
@@ -553,9 +555,8 @@ public class StockActivity extends AppCompatActivity {
         double[][] bband = StockData.calcBollinger(haCandles, 20, 2.0);
         double[] rsi5 = StockData.calcRSI(haCandles, 5);
         double[] rsi10 = StockData.calcRSI(haCandles, 10);
-        double[] rsi14 = StockData.calcRSI(haCandles, 14);
 
-        chartView.setData(haCandles, ma5, ma10, ma20, bband, rsi5, rsi10, rsi14, price);
+        chartView.setData(haCandles, ma5, ma10, ma20, bband, rsi5, rsi10, price);
     }
 
     private boolean isHistoricalPeriod() {
@@ -627,18 +628,43 @@ public class StockActivity extends AppCompatActivity {
 
     private void loadHistoricalData() {
         if (selectedCode == null || loadingHistory) return;
+
+        int months = "month".equals(currentPeriod) ? 12 : 6;
+
+        // Try cache first
+        StockCache cache = StockCache.getInstance(this);
+        if (cache.isFresh(selectedCode, months)) {
+            List<StockData.CandleBar> cached = cache.load(selectedCode);
+            if (cached != null && !cached.isEmpty()) {
+                historicalCandles = cached;
+                updateChart();
+                updateStatus();
+                return;
+            }
+        }
+
         loadingHistory = true;
         statusText.setText("載入歷史資料...");
 
-        int months = "month".equals(currentPeriod) ? 12 : 6;
-        StockClient.fetchMultiMonthHistory(selectedCode, months, (candles, error) -> {
+        final String code = selectedCode;
+        final int m = months;
+        StockClient.fetchMultiMonthHistory(code, m, (candles, error) -> {
             loadingHistory = false;
             if (candles != null && !candles.isEmpty()) {
                 historicalCandles = candles;
+                StockCache.getInstance(this).save(code, candles, m);
                 updateChart();
                 updateStatus();
             } else {
-                statusText.setText("歷史資料載入失敗" + (error != null ? ": " + error : ""));
+                // Fallback: try stale cache
+                List<StockData.CandleBar> stale = StockCache.getInstance(this).load(code);
+                if (stale != null && !stale.isEmpty()) {
+                    historicalCandles = stale;
+                    updateChart();
+                    statusText.setText("使用快取資料（更新失敗）");
+                } else {
+                    statusText.setText("歷史資料載入失敗" + (error != null ? ": " + error : ""));
+                }
             }
         });
     }
