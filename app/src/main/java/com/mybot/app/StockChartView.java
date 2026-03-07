@@ -19,7 +19,7 @@ public class StockChartView extends View {
     private List<StockData.CandleBar> candles;
     private double[] ma5, ma10, ma20;
     private double[][] bollinger; // [upper, middle, lower]
-    private double[] rsi;
+    private double[] rsi14, rsi5, rsi10;
     private double currentPrice = 0;
 
     // Visibility toggles
@@ -43,7 +43,9 @@ public class StockChartView extends View {
     private final Paint paintMa20 = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintBBand = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintBBandFill = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint paintRsi = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintRsi14 = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintRsi5 = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintRsi10 = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintGrid = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintText = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintPriceLine = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -51,13 +53,15 @@ public class StockChartView extends View {
     private final Paint paintVolDown = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintRefLine = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    private static final int COLOR_UP = Color.parseColor("#66BB6A");
-    private static final int COLOR_DOWN = Color.parseColor("#EF5350");
+    private static final int COLOR_UP = Color.parseColor("#EF5350");    // 紅漲
+    private static final int COLOR_DOWN = Color.parseColor("#66BB6A");  // 綠跌
     private static final int COLOR_MA5 = Color.parseColor("#4FC3F7");
     private static final int COLOR_MA10 = Color.parseColor("#FFA726");
     private static final int COLOR_MA20 = Color.parseColor("#AB47BC");
     private static final int COLOR_BBAND = Color.parseColor("#80DEEA");
-    private static final int COLOR_RSI = Color.parseColor("#FFD54F");
+    private static final int COLOR_RSI14 = Color.parseColor("#FFD54F");
+    private static final int COLOR_RSI5 = Color.parseColor("#4FC3F7");
+    private static final int COLOR_RSI10 = Color.parseColor("#FFA726");
     private static final int COLOR_GRID = Color.parseColor("#1E3040");
     private static final int COLOR_TEXT = Color.parseColor("#90A4AE");
     private static final int COLOR_PRICE_LINE = Color.parseColor("#4FC3F7");
@@ -116,9 +120,17 @@ public class StockChartView extends View {
         paintBBandFill.setColor(Color.argb(25, 128, 222, 234));
         paintBBandFill.setStyle(Paint.Style.FILL);
 
-        paintRsi.setColor(COLOR_RSI);
-        paintRsi.setStyle(Paint.Style.STROKE);
-        paintRsi.setStrokeWidth(1.5f * density);
+        paintRsi14.setColor(COLOR_RSI14);
+        paintRsi14.setStyle(Paint.Style.STROKE);
+        paintRsi14.setStrokeWidth(1.5f * density);
+
+        paintRsi5.setColor(COLOR_RSI5);
+        paintRsi5.setStyle(Paint.Style.STROKE);
+        paintRsi5.setStrokeWidth(1.5f * density);
+
+        paintRsi10.setColor(COLOR_RSI10);
+        paintRsi10.setStyle(Paint.Style.STROKE);
+        paintRsi10.setStrokeWidth(1.5f * density);
 
         paintGrid.setColor(COLOR_GRID);
         paintGrid.setStyle(Paint.Style.STROKE);
@@ -132,9 +144,9 @@ public class StockChartView extends View {
         paintPriceLine.setStrokeWidth(1f * density);
         paintPriceLine.setPathEffect(new DashPathEffect(new float[]{6 * density, 4 * density}, 0));
 
-        paintVolUp.setColor(Color.argb(180, 102, 187, 106));
+        paintVolUp.setColor(Color.argb(180, 239, 83, 80));    // 紅漲
         paintVolUp.setStyle(Paint.Style.FILL);
-        paintVolDown.setColor(Color.argb(180, 239, 83, 80));
+        paintVolDown.setColor(Color.argb(180, 102, 187, 106));  // 綠跌
         paintVolDown.setStyle(Paint.Style.FILL);
 
         paintRefLine.setColor(Color.parseColor("#2E4050"));
@@ -146,13 +158,15 @@ public class StockChartView extends View {
     }
 
     public void setData(List<StockData.CandleBar> candles, double[] ma5, double[] ma10, double[] ma20,
-                        double[][] bollinger, double[] rsi, double currentPrice) {
+                        double[][] bollinger, double[] rsi5, double[] rsi10, double[] rsi14, double currentPrice) {
         this.candles = candles;
         this.ma5 = ma5;
         this.ma10 = ma10;
         this.ma20 = ma20;
         this.bollinger = bollinger;
-        this.rsi = rsi;
+        this.rsi5 = rsi5;
+        this.rsi10 = rsi10;
+        this.rsi14 = rsi14;
         this.currentPrice = currentPrice;
         invalidate();
     }
@@ -397,18 +411,11 @@ public class StockChartView extends View {
             }
         }
 
-        // RSI line (scaled)
-        if (showRSI && rsi != null) {
-            Path rsiPath = new Path();
-            boolean started = false;
-            for (int i = 0; i < count && i < rsi.length; i++) {
-                if (Double.isNaN(rsi[i])) continue;
-                float x = margin + candleWidth * i + candleWidth / 2;
-                float y = rsiTop + rsiHeight * (float) (100 - rsi[i]) / 100f;
-                if (!started) { rsiPath.moveTo(x, y); started = true; }
-                else rsiPath.lineTo(x, y);
-            }
-            canvas.drawPath(rsiPath, paintRsi);
+        // RSI lines (scaled)
+        if (showRSI) {
+            drawRsiLine(canvas, rsi5, margin, candleWidth, rsiTop, rsiHeight, count, paintRsi5);
+            drawRsiLine(canvas, rsi10, margin, candleWidth, rsiTop, rsiHeight, count, paintRsi10);
+            drawRsiLine(canvas, rsi14, margin, candleWidth, rsiTop, rsiHeight, count, paintRsi14);
         }
 
         canvas.restore(); // restore translate
@@ -453,10 +460,17 @@ public class StockChartView extends View {
             canvas.drawText("30", w - rightMargin + 4 * density, y30 + 3 * density, paintText);
             paintText.setTextSize(10 * density);
 
-            // RSI label
+            // RSI labels
             paintText.setTextSize(9 * density);
-            paintText.setColor(COLOR_RSI);
-            canvas.drawText("RSI(14)", margin + 4 * density, rsiTop + 12 * density, paintText);
+            float rsiLabelX = margin + 4 * density;
+            paintText.setColor(COLOR_RSI5);
+            canvas.drawText("RSI5", rsiLabelX, rsiTop + 12 * density, paintText);
+            rsiLabelX += 38 * density;
+            paintText.setColor(COLOR_RSI10);
+            canvas.drawText("RSI10", rsiLabelX, rsiTop + 12 * density, paintText);
+            rsiLabelX += 42 * density;
+            paintText.setColor(COLOR_RSI14);
+            canvas.drawText("RSI14", rsiLabelX, rsiTop + 12 * density, paintText);
             paintText.setColor(COLOR_TEXT);
             paintText.setTextSize(10 * density);
         }
@@ -492,6 +506,21 @@ public class StockChartView extends View {
             paintText.setColor(COLOR_TEXT);
             paintText.setTextSize(10 * density);
         }
+    }
+
+    private void drawRsiLine(Canvas canvas, double[] data, float margin, float candleWidth,
+                             float rsiTop, float rsiHeight, int count, Paint paint) {
+        if (data == null) return;
+        Path path = new Path();
+        boolean started = false;
+        for (int i = 0; i < count && i < data.length; i++) {
+            if (Double.isNaN(data[i])) continue;
+            float x = margin + candleWidth * i + candleWidth / 2;
+            float y = rsiTop + rsiHeight * (float) (100 - data[i]) / 100f;
+            if (!started) { path.moveTo(x, y); started = true; }
+            else path.lineTo(x, y);
+        }
+        canvas.drawPath(path, paint);
     }
 
     private void drawLine(Canvas canvas, double[] values, float margin, float candleWidth,

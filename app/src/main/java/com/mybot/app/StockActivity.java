@@ -514,7 +514,7 @@ public class StockActivity extends AppCompatActivity {
 
         if (isHistoricalPeriod()) {
             if (historicalCandles == null || historicalCandles.isEmpty()) {
-                chartView.setData(null, null, null, null, null, null, 0);
+                chartView.setData(null, null, null, null, null, null, null, null, 0);
                 return;
             }
             if ("week".equals(currentPeriod)) {
@@ -527,7 +527,7 @@ public class StockActivity extends AppCompatActivity {
         } else {
             List<StockData.TickRecord> ticks = tickMap.get(selectedCode);
             if (ticks == null || ticks.isEmpty()) {
-                chartView.setData(null, null, null, null, null, null, 0);
+                chartView.setData(null, null, null, null, null, null, null, null, 0);
                 return;
             }
             int interval;
@@ -540,7 +540,7 @@ public class StockActivity extends AppCompatActivity {
         }
 
         if (candles == null || candles.isEmpty()) {
-            chartView.setData(null, null, null, null, null, null, 0);
+            chartView.setData(null, null, null, null, null, null, null, null, 0);
             return;
         }
 
@@ -548,9 +548,11 @@ public class StockActivity extends AppCompatActivity {
         double[] ma10 = StockData.calcMA(candles, 10);
         double[] ma20 = StockData.calcMA(candles, 20);
         double[][] bband = StockData.calcBollinger(candles, 20, 2.0);
-        double[] rsi = StockData.calcRSI(candles, 14);
+        double[] rsi5 = StockData.calcRSI(candles, 5);
+        double[] rsi10 = StockData.calcRSI(candles, 10);
+        double[] rsi14 = StockData.calcRSI(candles, 14);
 
-        chartView.setData(candles, ma5, ma10, ma20, bband, rsi, price);
+        chartView.setData(candles, ma5, ma10, ma20, bband, rsi5, rsi10, rsi14, price);
     }
 
     private boolean isHistoricalPeriod() {
