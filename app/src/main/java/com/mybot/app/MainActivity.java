@@ -54,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
         ReminderHelper.restoreIfEnabled(this);
         ReminderHelper.scheduleTodoCheck(this);
         ReminderHelper.restoreFitnessIfEnabled(this);
+        ReminderHelper.restoreWaterIfEnabled(this);
 
         getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
 
@@ -195,10 +196,12 @@ public class MainActivity extends AppCompatActivity {
                 "\uD83D\uDCCA", "\u7FD2\u6163\u8FFD\u8E64", "\u6BCF\u65E5\u6253\u5361\u00B7\u9023\u7E8C\u7D00\u9304", UIHelper.ACCENT_PURPLE, 40);
         cardHabit.setOnClickListener(v -> startActivity(new Intent(this, HabitActivity.class)));
 
-        View habitSpacer = new View(this);
+        LinearLayout cardWater = UIHelper.featureCard(this,
+                "\uD83D\uDCA7", "\u559D\u6C34\u63D0\u9192", "\u6BCF\u65E5\u98F2\u6C34\u00B7\u5B9A\u6642\u63D0\u9192", UIHelper.ACCENT_BLUE, 40);
+        cardWater.setOnClickListener(v -> startActivity(new Intent(this, WaterActivity.class)));
 
         row4f.addView(cardHabit, gridCellLp(0));
-        row4f.addView(habitSpacer, gridCellLp(UIHelper.dp(this, 10)));
+        row4f.addView(cardWater, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row4f);
 
         // ── Tools ──

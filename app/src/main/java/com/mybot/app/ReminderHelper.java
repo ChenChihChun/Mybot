@@ -152,6 +152,42 @@ public class ReminderHelper {
                 .getInt(KEY_MINUTE, 0);
     }
 
+    // --- Water reminder ---
+    private static final String WATER_PREFS = "mybot_water_settings";
+    private static final int WATER_REQUEST_CODE = 8900;
+
+    public static void scheduleWaterReminder(Context context) {
+        WaterDbHelper.setRemindEnabled(context, true);
+        int intervalMin = WaterDbHelper.getRemindInterval(context);
+
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Intent intent = new Intent(context, WaterReminderReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, WATER_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        long intervalMs = intervalMin * 60 * 1000L;
+        long triggerAt = System.currentTimeMillis() + intervalMs;
+
+        am.setRepeating(AlarmManager.RTC_WAKEUP, triggerAt, intervalMs, pi);
+    }
+
+    public static void cancelWaterReminder(Context context) {
+        WaterDbHelper.setRemindEnabled(context, false);
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, WaterReminderReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, WATER_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        if (am != null) am.cancel(pi);
+    }
+
+    public static void restoreWaterIfEnabled(Context context) {
+        if (WaterDbHelper.isRemindEnabled(context)) {
+            scheduleWaterReminder(context);
+        }
+    }
+
     // --- TODO daily check (runs at 09:00 daily) ---
     private static final int TODO_REQUEST_CODE = 8877;
 

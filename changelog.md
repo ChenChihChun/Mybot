@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.28 (2026-03-08)
+- **New Feature: Water Reminder (喝水提醒)**
+  - Added `WaterDbHelper.java` — SQLite DB for water logs, SharedPreferences for settings (goal, interval, hours)
+  - Added `WaterActivity.java` — Progress card with motivational text, quick-add buttons, 7-day bar chart, today's log list, settings dialog
+  - Added `WaterReminderReceiver.java` — Periodic notification with active hours check and goal-reached skip
+  - Modified `ReminderHelper.java` — Added scheduleWaterReminder, cancelWaterReminder, restoreWaterIfEnabled
+  - Modified `BootReceiver.java` — Added restoreWaterIfEnabled in restoreAlarms()
+  - Modified `MainActivity.java` — Added 💧喝水提醒 in Row 4 right cell, added water reminder restore in onCreate
+  - Modified `AndroidManifest.xml` — Registered WaterActivity, WaterReminderReceiver
+  - Modified `app/build.gradle` — versionCode 50, versionName 3.28
+
 ## v3.27 (2026-03-08)
 - **New Feature: Habit Tracker (習慣追蹤)**
   - Added `HabitDbHelper.java` — SQLite DB with habits + habit_logs tables, streak/completion tracking

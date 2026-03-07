@@ -64,6 +64,9 @@
         <activity android:name=".HabitActivity" android:exported="false" />
         <activity android:name=".AddHabitActivity" android:exported="false" />
 
+        <!-- Water Activity -->
+        <activity android:name=".WaterActivity" android:exported="false" />
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
 
@@ -116,6 +119,11 @@
         <!-- Fitness Reminder Receiver -->
         <receiver
             android:name=".FitnessReminderReceiver"
+            android:exported="false" />
+
+        <!-- Water Reminder Receiver -->
+        <receiver
+            android:name=".WaterReminderReceiver"
             android:exported="false" />
 
     </application>
