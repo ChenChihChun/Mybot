@@ -260,6 +260,56 @@ public class BridgeClient {
         });
     }
 
+    public interface StockAnalysisCallback {
+        void onResult(String analysis, boolean offline, String error);
+    }
+
+    public static void analyzeStock(String stockInfo, StockAnalysisCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "analyze_stock");
+                body.put("stock_info", stockInfo);
+                body.put("prompt", "你是一位專業的台股分析師。根據以下股票即時數據和技術指標，"
+                        + "請提供簡潔的投資分析評語（約200-300字），包含：\n"
+                        + "1. 當前股價表現評估\n"
+                        + "2. 技術面分析（均線、RSI等指標解讀）\n"
+                        + "3. 結合國際市場背景的趨勢判斷\n"
+                        + "4. 未來短中期展望與成長性評估\n"
+                        + "5. 投資建議（偏多/偏空/觀望）\n\n"
+                        + "請直接回覆純文字分析，不要回傳 JSON。"
+                        + "注意：這僅供參考，不構成投資建議。");
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 60000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    JSONObject json = new JSONObject(response);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject r = json.getJSONObject("result");
+                        // Try different possible fields for the text response
+                        String analysis = r.optString("response", "");
+                        if (analysis.isEmpty()) analysis = r.optString("text", "");
+                        if (analysis.isEmpty()) analysis = r.optString("content", "");
+                        if (analysis.isEmpty()) analysis = r.toString();
+                        final String finalAnalysis = analysis;
+                        mainHandler.post(() -> callback.onResult(finalAnalysis, false, null));
+                        return;
+                    }
+                    mainHandler.post(() -> callback.onResult(null, false, "Bridge 回傳 success=false"));
+                    return;
+                }
+                lastError = error;
+                mainHandler.post(() -> callback.onResult(null, true, error));
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
     private static String[] postJsonWithError(String urlStr, String jsonBody) {
         return postJsonWithError(urlStr, jsonBody, 30000);
     }

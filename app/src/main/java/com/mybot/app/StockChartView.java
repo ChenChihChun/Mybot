@@ -8,6 +8,8 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 
 import java.util.List;
@@ -19,6 +21,20 @@ public class StockChartView extends View {
     private double[][] bollinger; // [upper, middle, lower]
     private double[] rsi;
     private double currentPrice = 0;
+
+    // Visibility toggles
+    public boolean showMA = true;
+    public boolean showBBand = true;
+    public boolean showRSI = true;
+    public boolean showVol = true;
+
+    // Zoom & pan
+    private float scaleFactor = 1.0f;
+    private float translateX = 0f;
+    private ScaleGestureDetector scaleDetector;
+    private float lastTouchX;
+    private boolean isDragging = false;
+    private int activePointerId = -1;
 
     private final Paint paintUp = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintDown = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -60,6 +76,21 @@ public class StockChartView extends View {
 
     private void init() {
         density = getResources().getDisplayMetrics().density;
+
+        scaleDetector = new ScaleGestureDetector(getContext(), new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            @Override
+            public boolean onScale(ScaleGestureDetector detector) {
+                float oldScale = scaleFactor;
+                scaleFactor *= detector.getScaleFactor();
+                scaleFactor = Math.max(1.0f, Math.min(scaleFactor, 5.0f));
+                // Adjust translateX to zoom around focus point
+                float focusX = detector.getFocusX();
+                translateX = focusX - (focusX - translateX) * (scaleFactor / oldScale);
+                clampTranslateX();
+                invalidate();
+                return true;
+            }
+        });
 
         paintUp.setColor(COLOR_UP);
         paintUp.setStyle(Paint.Style.FILL);
@@ -126,6 +157,92 @@ public class StockChartView extends View {
         invalidate();
     }
 
+    public void resetZoom() {
+        scaleFactor = 1.0f;
+        translateX = 0f;
+        invalidate();
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        scaleDetector.onTouchEvent(event);
+
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                activePointerId = event.getPointerId(0);
+                lastTouchX = event.getX();
+                isDragging = false;
+                // Request parent to not intercept touch (for ScrollView)
+                getParent().requestDisallowInterceptTouchEvent(true);
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                if (scaleDetector.isInProgress()) break;
+                int pointerIndex = event.findPointerIndex(activePointerId);
+                if (pointerIndex < 0) break;
+                float x = event.getX(pointerIndex);
+                float dx = x - lastTouchX;
+                if (Math.abs(dx) > 3 * density) isDragging = true;
+                if (isDragging && scaleFactor > 1.0f) {
+                    translateX += dx;
+                    clampTranslateX();
+                    invalidate();
+                }
+                lastTouchX = x;
+                break;
+
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                activePointerId = -1;
+                isDragging = false;
+                getParent().requestDisallowInterceptTouchEvent(false);
+                break;
+
+            case MotionEvent.ACTION_POINTER_UP:
+                int actionIndex = event.getActionIndex();
+                if (event.getPointerId(actionIndex) == activePointerId) {
+                    int newIndex = actionIndex == 0 ? 1 : 0;
+                    if (newIndex < event.getPointerCount()) {
+                        activePointerId = event.getPointerId(newIndex);
+                        lastTouchX = event.getX(newIndex);
+                    }
+                }
+                break;
+        }
+        return true;
+    }
+
+    private void clampTranslateX() {
+        float w = getWidth();
+        float rightMargin = 55 * density;
+        float margin = 8 * density;
+        float chartW = w - margin - rightMargin;
+        float scaledW = chartW * scaleFactor;
+        float minTx = -(scaledW - chartW);
+        float maxTx = 0;
+        if (translateX < minTx) translateX = minTx;
+        if (translateX > maxTx) translateX = maxTx;
+    }
+
+    // Calculate region heights based on which panels are visible
+    private float getKHeightRatio() {
+        if (showVol && showRSI) return 0.55f;
+        if (showVol || showRSI) return 0.70f;
+        return 0.95f;
+    }
+
+    private float getVolHeightRatio() {
+        if (!showVol) return 0f;
+        if (showRSI) return 0.20f;
+        return 0.25f;
+    }
+
+    private float getRsiHeightRatio() {
+        if (!showRSI) return 0f;
+        if (showVol) return 0.20f;
+        return 0.25f;
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -144,21 +261,28 @@ public class StockChartView extends View {
         float rightMargin = 55 * density;
         float chartW = w - margin - rightMargin;
 
-        // Regions
+        // Dynamic region sizing
+        float gap = 8 * density;
+        float usableH = h - margin * 2;
+        float kRatio = getKHeightRatio();
+        float volRatio = getVolHeightRatio();
+        float rsiRatio = getRsiHeightRatio();
+
         float kTop = margin;
-        float kHeight = h * 0.55f;
+        float kHeight = usableH * kRatio;
         float kBottom = kTop + kHeight;
 
-        float volTop = kBottom + 8 * density;
-        float volHeight = h * 0.20f;
+        float volTop = kBottom + (showVol ? gap : 0);
+        float volHeight = usableH * volRatio;
         float volBottom = volTop + volHeight;
 
-        float rsiTop = volBottom + 8 * density;
-        float rsiHeight = h - rsiTop - margin;
+        float rsiTop = (showVol ? volBottom : kBottom) + (showRSI ? gap : 0);
+        float rsiHeight = usableH * rsiRatio;
         float rsiBottom = rsiTop + rsiHeight;
 
         int count = candles.size();
-        float candleWidth = chartW / Math.max(count, 1);
+        float scaledChartW = chartW * scaleFactor;
+        float candleWidth = scaledChartW / Math.max(count, 1);
         float bodyWidth = Math.max(candleWidth * 0.6f, 2 * density);
 
         // Find price range
@@ -169,8 +293,7 @@ public class StockChartView extends View {
             maxPrice = Math.max(maxPrice, c.high);
             maxVol = Math.max(maxVol, c.volume);
         }
-        // Include bollinger bands in range
-        if (bollinger != null) {
+        if (showBBand && bollinger != null) {
             for (int i = 0; i < count; i++) {
                 if (!Double.isNaN(bollinger[0][i])) maxPrice = Math.max(maxPrice, bollinger[0][i]);
                 if (!Double.isNaN(bollinger[2][i])) minPrice = Math.min(minPrice, bollinger[2][i]);
@@ -183,16 +306,30 @@ public class StockChartView extends View {
         double priceRange = maxPrice - minPrice;
         if (priceRange <= 0) priceRange = 1;
 
-        // Draw grid lines for K area
+        // Clip chart area
+        canvas.save();
+        canvas.clipRect(margin, 0, w - rightMargin, h);
+
+        // Apply zoom/pan transform for candle area
+        canvas.save();
+        canvas.translate(translateX, 0);
+
+        // Draw grid lines for K area (unscaled X, so draw before translate — actually draw after clip)
+        // We'll draw grid outside the translate
+        canvas.restore(); // restore translate for grid
+
+        // Draw grid lines
         for (int i = 0; i <= 3; i++) {
             float y = kTop + kHeight * i / 3f;
             canvas.drawLine(margin, y, w - rightMargin, y, paintGrid);
-            double price = maxPrice - priceRange * i / 3;
-            canvas.drawText(formatPrice(price), w - rightMargin + 4 * density, y + 4 * density, paintText);
         }
 
+        // Re-apply translate for scaled content
+        canvas.save();
+        canvas.translate(translateX, 0);
+
         // Draw Bollinger bands fill
-        if (bollinger != null) {
+        if (showBBand && bollinger != null) {
             Path fillPath = new Path();
             boolean started = false;
             for (int i = 0; i < count; i++) {
@@ -210,16 +347,16 @@ public class StockChartView extends View {
             }
             fillPath.close();
             canvas.drawPath(fillPath, paintBBandFill);
-
-            // Draw band lines
             drawLine(canvas, bollinger[0], margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintBBand);
             drawLine(canvas, bollinger[2], margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintBBand);
         }
 
         // Draw MA lines
-        if (ma5 != null) drawLine(canvas, ma5, margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintMa5);
-        if (ma10 != null) drawLine(canvas, ma10, margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintMa10);
-        if (ma20 != null) drawLine(canvas, ma20, margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintMa20);
+        if (showMA) {
+            if (ma5 != null) drawLine(canvas, ma5, margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintMa5);
+            if (ma10 != null) drawLine(canvas, ma10, margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintMa10);
+            if (ma20 != null) drawLine(canvas, ma20, margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintMa20);
+        }
 
         // Draw candles
         for (int i = 0; i < count; i++) {
@@ -233,9 +370,7 @@ public class StockChartView extends View {
             float yHigh = kTop + (float) ((maxPrice - c.high) / priceRange * kHeight);
             float yLow = kTop + (float) ((maxPrice - c.low) / priceRange * kHeight);
 
-            // Wick
             canvas.drawLine(x, yHigh, x, yLow, paint);
-            // Body
             float top = Math.min(yOpen, yClose);
             float bottom = Math.max(yOpen, yClose);
             if (bottom - top < 1) bottom = top + 1;
@@ -250,24 +385,8 @@ public class StockChartView extends View {
             }
         }
 
-        // Current price dashed line
-        if (currentPrice > 0 && currentPrice >= minPrice && currentPrice <= maxPrice) {
-            float yPrice = kTop + (float) ((maxPrice - currentPrice) / priceRange * kHeight);
-            Path dashPath = new Path();
-            dashPath.moveTo(margin, yPrice);
-            dashPath.lineTo(w - rightMargin, yPrice);
-            canvas.drawPath(dashPath, paintPriceLine);
-            // Price label
-            Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            labelPaint.setColor(COLOR_PRICE_LINE);
-            labelPaint.setTextSize(10 * density);
-            canvas.drawText(formatPrice(currentPrice), w - rightMargin + 4 * density, yPrice + 4 * density, labelPaint);
-        }
-
         // Volume bars
-        canvas.drawLine(margin, volTop, w - rightMargin, volTop, paintGrid);
-        canvas.drawLine(margin, volBottom, w - rightMargin, volBottom, paintGrid);
-        if (maxVol > 0) {
+        if (showVol && maxVol > 0) {
             for (int i = 0; i < count; i++) {
                 StockData.CandleBar c = candles.get(i);
                 boolean up = c.close >= c.open;
@@ -278,20 +397,8 @@ public class StockChartView extends View {
             }
         }
 
-        // RSI
-        canvas.drawLine(margin, rsiTop, w - rightMargin, rsiTop, paintGrid);
-        canvas.drawLine(margin, rsiBottom, w - rightMargin, rsiBottom, paintGrid);
-        // RSI 30/70 reference lines
-        float y70 = rsiTop + rsiHeight * (100 - 70) / 100f;
-        float y30 = rsiTop + rsiHeight * (100 - 30) / 100f;
-        canvas.drawLine(margin, y70, w - rightMargin, y70, paintRefLine);
-        canvas.drawLine(margin, y30, w - rightMargin, y30, paintRefLine);
-        paintText.setTextSize(9 * density);
-        canvas.drawText("70", w - rightMargin + 4 * density, y70 + 3 * density, paintText);
-        canvas.drawText("30", w - rightMargin + 4 * density, y30 + 3 * density, paintText);
-        paintText.setTextSize(10 * density);
-
-        if (rsi != null) {
+        // RSI line (scaled)
+        if (showRSI && rsi != null) {
             Path rsiPath = new Path();
             boolean started = false;
             for (int i = 0; i < count && i < rsi.length; i++) {
@@ -304,30 +411,87 @@ public class StockChartView extends View {
             canvas.drawPath(rsiPath, paintRsi);
         }
 
+        canvas.restore(); // restore translate
+        canvas.restore(); // restore clip
+
+        // Draw price labels (right margin, not clipped/translated)
+        for (int i = 0; i <= 3; i++) {
+            float y = kTop + kHeight * i / 3f;
+            double price = maxPrice - priceRange * i / 3;
+            canvas.drawText(formatPrice(price), w - rightMargin + 4 * density, y + 4 * density, paintText);
+        }
+
+        // Current price dashed line (full width, not translated)
+        if (currentPrice > 0 && currentPrice >= minPrice && currentPrice <= maxPrice) {
+            float yPrice = kTop + (float) ((maxPrice - currentPrice) / priceRange * kHeight);
+            Path dashPath = new Path();
+            dashPath.moveTo(margin, yPrice);
+            dashPath.lineTo(w - rightMargin, yPrice);
+            canvas.drawPath(dashPath, paintPriceLine);
+            Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            labelPaint.setColor(COLOR_PRICE_LINE);
+            labelPaint.setTextSize(10 * density);
+            canvas.drawText(formatPrice(currentPrice), w - rightMargin + 4 * density, yPrice + 4 * density, labelPaint);
+        }
+
+        // Volume grid lines
+        if (showVol) {
+            canvas.drawLine(margin, volTop, w - rightMargin, volTop, paintGrid);
+            canvas.drawLine(margin, volBottom, w - rightMargin, volBottom, paintGrid);
+        }
+
+        // RSI grid + ref lines
+        if (showRSI) {
+            canvas.drawLine(margin, rsiTop, w - rightMargin, rsiTop, paintGrid);
+            canvas.drawLine(margin, rsiBottom, w - rightMargin, rsiBottom, paintGrid);
+            float y70 = rsiTop + rsiHeight * (100 - 70) / 100f;
+            float y30 = rsiTop + rsiHeight * (100 - 30) / 100f;
+            canvas.drawLine(margin, y70, w - rightMargin, y70, paintRefLine);
+            canvas.drawLine(margin, y30, w - rightMargin, y30, paintRefLine);
+            paintText.setTextSize(9 * density);
+            canvas.drawText("70", w - rightMargin + 4 * density, y70 + 3 * density, paintText);
+            canvas.drawText("30", w - rightMargin + 4 * density, y30 + 3 * density, paintText);
+            paintText.setTextSize(10 * density);
+
+            // RSI label
+            paintText.setTextSize(9 * density);
+            paintText.setColor(COLOR_RSI);
+            canvas.drawText("RSI(14)", margin + 4 * density, rsiTop + 12 * density, paintText);
+            paintText.setColor(COLOR_TEXT);
+            paintText.setTextSize(10 * density);
+        }
+
         // Legend
         float legendY = kTop + 12 * density;
         float legendX = margin + 4 * density;
         paintText.setTextSize(9 * density);
-        paintText.setColor(COLOR_MA5);
-        canvas.drawText("MA5", legendX, legendY, paintText);
-        legendX += 35 * density;
-        paintText.setColor(COLOR_MA10);
-        canvas.drawText("MA10", legendX, legendY, paintText);
-        legendX += 40 * density;
-        paintText.setColor(COLOR_MA20);
-        canvas.drawText("MA20", legendX, legendY, paintText);
-        legendX += 42 * density;
-        paintText.setColor(COLOR_BBAND);
-        canvas.drawText("BBand", legendX, legendY, paintText);
+        if (showMA) {
+            paintText.setColor(COLOR_MA5);
+            canvas.drawText("MA5", legendX, legendY, paintText);
+            legendX += 35 * density;
+            paintText.setColor(COLOR_MA10);
+            canvas.drawText("MA10", legendX, legendY, paintText);
+            legendX += 40 * density;
+            paintText.setColor(COLOR_MA20);
+            canvas.drawText("MA20", legendX, legendY, paintText);
+            legendX += 42 * density;
+        }
+        if (showBBand) {
+            paintText.setColor(COLOR_BBAND);
+            canvas.drawText("BBand", legendX, legendY, paintText);
+        }
         paintText.setColor(COLOR_TEXT);
         paintText.setTextSize(10 * density);
 
-        // RSI label
-        paintText.setTextSize(9 * density);
-        paintText.setColor(COLOR_RSI);
-        canvas.drawText("RSI(14)", margin + 4 * density, rsiTop + 12 * density, paintText);
-        paintText.setColor(COLOR_TEXT);
-        paintText.setTextSize(10 * density);
+        // Zoom indicator
+        if (scaleFactor > 1.05f) {
+            paintText.setTextSize(9 * density);
+            paintText.setColor(UIHelper.TEXT_HINT);
+            String zoomText = String.format("%.1fx", scaleFactor);
+            canvas.drawText(zoomText, w - rightMargin - 30 * density, kTop + 12 * density, paintText);
+            paintText.setColor(COLOR_TEXT);
+            paintText.setTextSize(10 * density);
+        }
     }
 
     private void drawLine(Canvas canvas, double[] values, float margin, float candleWidth,

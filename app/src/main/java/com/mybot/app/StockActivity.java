@@ -34,6 +34,7 @@ public class StockActivity extends AppCompatActivity {
     private static final long UPDATE_INTERVAL = 10_000;
     private static final String PREFS_NAME = "stock_prefs";
     private static final String KEY_WATCHLIST = "watchlist";
+    private static final String KEY_AI_PREFIX = "ai_analysis_";
 
     private Handler updateHandler;
     private boolean isRunning = false;
@@ -48,6 +49,11 @@ public class StockActivity extends AppCompatActivity {
     private LinearLayout infoCard;
     private StockChartView chartView;
     private LinearLayout periodBar;
+    private LinearLayout indicatorBar;
+    private LinearLayout aiCard;
+    private TextView aiContent;
+    private TextView aiBtn;
+    private TextView aiDeleteBtn;
     private TextView statusText;
     private TextView tvName, tvPrice, tvChange, tvOpen, tvHigh, tvLow, tvPrevClose, tvVolume;
 
@@ -65,6 +71,7 @@ public class StockActivity extends AppCompatActivity {
         if (!watchlist.isEmpty()) {
             selectedCode = watchlist.get(0);
             refreshChips();
+            loadAiAnalysis(selectedCode);
         }
     }
 
@@ -182,6 +189,32 @@ public class StockActivity extends AppCompatActivity {
         chartView.setVisibility(View.GONE);
         content.addView(chartView);
 
+        // Indicator toggle buttons
+        indicatorBar = new LinearLayout(this);
+        indicatorBar.setOrientation(LinearLayout.HORIZONTAL);
+        indicatorBar.setGravity(Gravity.CENTER);
+        indicatorBar.setPadding(0, UIHelper.dp(this, 2), 0, UIHelper.dp(this, 2));
+        indicatorBar.setVisibility(View.GONE);
+
+        String[] indLabels = {"MA", "BBand", "RSI", "Vol"};
+        for (String label : indLabels) {
+            TextView btn = new TextView(this);
+            btn.setText(label);
+            btn.setTextSize(12);
+            btn.setGravity(Gravity.CENTER);
+            btn.setPadding(UIHelper.dp(this, 10), UIHelper.dp(this, 5),
+                    UIHelper.dp(this, 10), UIHelper.dp(this, 5));
+            btn.setTag(label);
+            btn.setOnClickListener(v -> toggleIndicator(label));
+            LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            btnLp.setMargins(UIHelper.dp(this, 3), 0, UIHelper.dp(this, 3), 0);
+            btn.setLayoutParams(btnLp);
+            indicatorBar.addView(btn);
+        }
+        updateIndicatorButtons();
+        content.addView(indicatorBar);
+
         // Period buttons
         periodBar = new LinearLayout(this);
         periodBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -209,6 +242,70 @@ public class StockActivity extends AppCompatActivity {
         }
         updatePeriodButtons();
         content.addView(periodBar);
+
+        // AI Analysis card
+        aiCard = new LinearLayout(this);
+        aiCard.setOrientation(LinearLayout.VERTICAL);
+        aiCard.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 16, this));
+        int aiPad = UIHelper.dp(this, 14);
+        aiCard.setPadding(aiPad, aiPad, aiPad, aiPad);
+        aiCard.setElevation(UIHelper.dp(this, 3));
+        LinearLayout.LayoutParams aiLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        aiLp.setMargins(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+        aiCard.setLayoutParams(aiLp);
+        aiCard.setVisibility(View.GONE);
+
+        // AI title row
+        LinearLayout aiTitleRow = new LinearLayout(this);
+        aiTitleRow.setOrientation(LinearLayout.HORIZONTAL);
+        aiTitleRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView aiTitle = new TextView(this);
+        aiTitle.setText("AI 分析評語");
+        aiTitle.setTextSize(15);
+        aiTitle.setTextColor(UIHelper.TEXT_PRIMARY);
+        aiTitle.setTypeface(Typeface.DEFAULT_BOLD);
+        aiTitle.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        aiBtn = new TextView(this);
+        aiBtn.setText("取得分析");
+        aiBtn.setTextSize(13);
+        aiBtn.setTextColor(UIHelper.ACCENT_BLUE);
+        aiBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        aiBtn.setPadding(UIHelper.dp(this, 12), UIHelper.dp(this, 6),
+                UIHelper.dp(this, 12), UIHelper.dp(this, 6));
+        aiBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_BLUE, 10, 1, this));
+        aiBtn.setOnClickListener(v -> requestAiAnalysis());
+
+        aiDeleteBtn = new TextView(this);
+        aiDeleteBtn.setText("刪除");
+        aiDeleteBtn.setTextSize(13);
+        aiDeleteBtn.setTextColor(UIHelper.ACCENT_RED);
+        aiDeleteBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        aiDeleteBtn.setPadding(UIHelper.dp(this, 12), UIHelper.dp(this, 6),
+                UIHelper.dp(this, 12), UIHelper.dp(this, 6));
+        aiDeleteBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_RED, 10, 1, this));
+        aiDeleteBtn.setVisibility(View.GONE);
+        aiDeleteBtn.setOnClickListener(v -> deleteAiAnalysis());
+
+        aiTitleRow.addView(aiTitle);
+        aiTitleRow.addView(aiBtn);
+        aiTitleRow.addView(aiDeleteBtn);
+        LinearLayout.LayoutParams delLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        delLp.setMargins(UIHelper.dp(this, 6), 0, 0, 0);
+        aiDeleteBtn.setLayoutParams(delLp);
+        aiCard.addView(aiTitleRow);
+
+        aiContent = new TextView(this);
+        aiContent.setTextSize(13);
+        aiContent.setTextColor(UIHelper.TEXT_SECONDARY);
+        aiContent.setLineSpacing(UIHelper.dp(this, 3), 1f);
+        aiContent.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        aiCard.addView(aiContent);
+
+        content.addView(aiCard);
 
         // Status
         statusText = new TextView(this);
@@ -318,6 +415,7 @@ public class StockActivity extends AppCompatActivity {
             chip.setOnClickListener(v -> {
                 selectedCode = code;
                 historicalCandles = null;
+                loadAiAnalysis(code);
                 refreshChips();
                 updateInfoCard();
                 updateChart();
@@ -332,9 +430,12 @@ public class StockActivity extends AppCompatActivity {
                             saveWatchlist();
                             tickMap.remove(code);
                             quoteMap.remove(code);
+                            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                                    .edit().remove(KEY_AI_PREFIX + code).apply();
                             if (code.equals(selectedCode)) {
                                 selectedCode = watchlist.isEmpty() ? null : watchlist.get(0);
                                 historicalCandles = null;
+                                if (selectedCode != null) loadAiAnalysis(selectedCode);
                             }
                             refreshChips();
                             updateInfoCard();
@@ -358,11 +459,15 @@ public class StockActivity extends AppCompatActivity {
             infoCard.setVisibility(View.GONE);
             chartView.setVisibility(View.GONE);
             periodBar.setVisibility(View.GONE);
+            indicatorBar.setVisibility(View.GONE);
+            aiCard.setVisibility(View.GONE);
             return;
         }
         infoCard.setVisibility(View.VISIBLE);
         chartView.setVisibility(View.VISIBLE);
         periodBar.setVisibility(View.VISIBLE);
+        indicatorBar.setVisibility(View.VISIBLE);
+        aiCard.setVisibility(View.VISIBLE);
 
         StockData.StockQuote q = quoteMap.get(selectedCode);
         if (q == null) {
@@ -463,6 +568,41 @@ public class StockActivity extends AppCompatActivity {
             }
         } else {
             updateChart();
+        }
+    }
+
+    private void toggleIndicator(String label) {
+        switch (label) {
+            case "MA": chartView.showMA = !chartView.showMA; break;
+            case "BBand": chartView.showBBand = !chartView.showBBand; break;
+            case "RSI": chartView.showRSI = !chartView.showRSI; break;
+            case "Vol": chartView.showVol = !chartView.showVol; break;
+        }
+        updateIndicatorButtons();
+        chartView.invalidate();
+    }
+
+    private void updateIndicatorButtons() {
+        for (int i = 0; i < indicatorBar.getChildCount(); i++) {
+            TextView btn = (TextView) indicatorBar.getChildAt(i);
+            String label = (String) btn.getTag();
+            boolean on;
+            int color;
+            switch (label) {
+                case "MA": on = chartView.showMA; color = Color.parseColor("#4FC3F7"); break;
+                case "BBand": on = chartView.showBBand; color = Color.parseColor("#80DEEA"); break;
+                case "RSI": on = chartView.showRSI; color = Color.parseColor("#FFD54F"); break;
+                case "Vol": on = chartView.showVol; color = Color.parseColor("#66BB6A"); break;
+                default: on = true; color = UIHelper.TEXT_SECONDARY; break;
+            }
+            if (on) {
+                btn.setBackground(UIHelper.roundRect(Color.argb(50,
+                        Color.red(color), Color.green(color), Color.blue(color)), 8, this));
+                btn.setTextColor(color);
+            } else {
+                btn.setBackground(UIHelper.roundRectStroke(UIHelper.BG_CARD, UIHelper.TEXT_HINT, 8, 1, this));
+                btn.setTextColor(UIHelper.TEXT_HINT);
+            }
         }
     }
 
@@ -569,6 +709,97 @@ public class StockActivity extends AppCompatActivity {
         int min = cal.get(Calendar.MINUTE);
         int time = hour * 60 + min;
         return time >= 9 * 60 && time <= 13 * 60 + 30;
+    }
+
+    private void requestAiAnalysis() {
+        if (selectedCode == null) return;
+        StockData.StockQuote q = quoteMap.get(selectedCode);
+        if (q == null || q.currentPrice <= 0) {
+            aiContent.setText("尚無報價資料，請稍後再試");
+            return;
+        }
+
+        aiBtn.setText("分析中...");
+        aiBtn.setTextColor(UIHelper.TEXT_HINT);
+        aiBtn.setEnabled(false);
+        aiContent.setText("AI 正在分析中，請稍候...");
+
+        // Build context info
+        StringBuilder info = new StringBuilder();
+        info.append("股票代碼: ").append(q.code).append("\n");
+        info.append("股票名稱: ").append(q.name).append("\n");
+        info.append("現價: ").append(formatPrice(q.currentPrice)).append("\n");
+        info.append("昨收: ").append(formatPrice(q.prevClose)).append("\n");
+        info.append("漲跌幅: ").append(String.format("%.2f%%", q.getChangePercent())).append("\n");
+        info.append("開盤: ").append(formatPrice(q.open)).append("\n");
+        info.append("最高: ").append(formatPrice(q.high)).append("\n");
+        info.append("最低: ").append(formatPrice(q.low)).append("\n");
+        info.append("成交量: ").append(formatVolume(q.volume)).append("\n");
+
+        // Add technical indicators if available
+        if (historicalCandles != null && !historicalCandles.isEmpty()) {
+            List<StockData.CandleBar> dc = historicalCandles;
+            int size = dc.size();
+            double[] ma5v = StockData.calcMA(dc, 5);
+            double[] ma20v = StockData.calcMA(dc, 20);
+            double[] rsiv = StockData.calcRSI(dc, 14);
+            if (size > 0 && !Double.isNaN(ma5v[size - 1]))
+                info.append("MA5: ").append(formatPrice(ma5v[size - 1])).append("\n");
+            if (size > 0 && !Double.isNaN(ma20v[size - 1]))
+                info.append("MA20: ").append(formatPrice(ma20v[size - 1])).append("\n");
+            if (size > 0 && !Double.isNaN(rsiv[size - 1]))
+                info.append("RSI(14): ").append(String.format("%.1f", rsiv[size - 1])).append("\n");
+
+            // Recent 5 days trend
+            info.append("近5日收盤: ");
+            int start = Math.max(0, size - 5);
+            for (int i = start; i < size; i++) {
+                if (i > start) info.append(" → ");
+                info.append(formatPrice(dc.get(i).close));
+            }
+            info.append("\n");
+        }
+
+        BridgeClient.analyzeStock(info.toString(), (result, offline, error) -> {
+            aiBtn.setText("取得分析");
+            aiBtn.setTextColor(UIHelper.ACCENT_BLUE);
+            aiBtn.setEnabled(true);
+
+            if (result != null && !result.isEmpty()) {
+                aiContent.setText(result);
+                saveAiAnalysis(selectedCode, result);
+                aiDeleteBtn.setVisibility(View.VISIBLE);
+            } else if (offline) {
+                aiContent.setText("Bridge 離線，無法取得 AI 分析\n" + (error != null ? error : ""));
+            } else {
+                aiContent.setText("分析失敗" + (error != null ? ": " + error : ""));
+            }
+        });
+    }
+
+    private void saveAiAnalysis(String code, String analysis) {
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit().putString(KEY_AI_PREFIX + code, analysis).apply();
+    }
+
+    private void loadAiAnalysis(String code) {
+        String saved = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .getString(KEY_AI_PREFIX + code, "");
+        if (!saved.isEmpty()) {
+            aiContent.setText(saved);
+            aiDeleteBtn.setVisibility(View.VISIBLE);
+        } else {
+            aiContent.setText("點擊「取得分析」讓 AI 評估此股票");
+            aiDeleteBtn.setVisibility(View.GONE);
+        }
+    }
+
+    private void deleteAiAnalysis() {
+        if (selectedCode == null) return;
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit().remove(KEY_AI_PREFIX + selectedCode).apply();
+        aiContent.setText("點擊「取得分析」讓 AI 評估此股票");
+        aiDeleteBtn.setVisibility(View.GONE);
     }
 
     private void loadWatchlist() {
