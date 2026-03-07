@@ -145,6 +145,49 @@ public class BridgeClient {
         });
     }
 
+    public interface WorkoutCallback {
+        void onResult(String responseJson, boolean offline, String error);
+    }
+
+    public static void generateWorkoutPlan(double height, double weight, String goal,
+                                            String level, String feedback, WorkoutCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "generate_workout_plan");
+                body.put("height_cm", height);
+                body.put("weight_kg", weight);
+                body.put("bmi", Math.round(weight / Math.pow(height / 100.0, 2) * 10) / 10.0);
+                body.put("goal", goal);
+                body.put("level", level);
+                if (feedback != null && !feedback.isEmpty()) {
+                    body.put("feedback", feedback);
+                }
+                body.put("prompt", "請為這位用戶生成一週七天的居家無器材運動計畫。"
+                        + "回傳 JSON 格式，包含 days 陣列，每天包含: "
+                        + "day_of_week(1-7), day_label(週一~週日), focus(訓練重點), "
+                        + "exercises 陣列(每個動作: name, sets, reps, rest_sec, duration_sec, tips, video_keyword)。"
+                        + "video_keyword 是用來搜尋 YouTube 教學影片的關鍵字。"
+                        + "每天安排4-6個動作，包含熱身和收操。根據用戶的目標和等級調整強度。");
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString());
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    mainHandler.post(() -> callback.onResult(response, false, null));
+                } else {
+                    lastError = error;
+                    mainHandler.post(() -> callback.onResult(null, true, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
     /**
      * Returns [responseBody, errorMessage]. responseBody is null on failure.
      */

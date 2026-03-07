@@ -18,6 +18,8 @@ public class BootReceiver extends BroadcastReceiver {
             ReminderHelper.restoreIfEnabled(context);
             // Restore TODO deadline check
             ReminderHelper.scheduleTodoCheck(context);
+            // Restore fitness reminder
+            ReminderHelper.restoreFitnessIfEnabled(context);
         }
     }
 }

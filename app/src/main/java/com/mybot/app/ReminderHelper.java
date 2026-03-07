@@ -88,6 +88,70 @@ public class ReminderHelper {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
+    // --- Fitness reminder ---
+    private static final String FITNESS_PREFS = "mybot_fitness_reminder";
+    private static final int FITNESS_REQUEST_CODE = 8866;
+
+    public static void scheduleFitnessReminder(Context context, int hour, int minute) {
+        SharedPreferences prefs = context.getSharedPreferences(FITNESS_PREFS, Context.MODE_PRIVATE);
+        prefs.edit()
+                .putBoolean(KEY_ENABLED, true)
+                .putInt(KEY_HOUR, hour)
+                .putInt(KEY_MINUTE, minute)
+                .apply();
+
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, hour);
+        cal.set(Calendar.MINUTE, minute);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+
+        Intent intent = new Intent(context, FitnessReminderReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, FITNESS_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        am.setRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(),
+                AlarmManager.INTERVAL_DAY, pi);
+    }
+
+    public static void cancelFitnessReminder(Context context) {
+        context.getSharedPreferences(FITNESS_PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, false).apply();
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, FitnessReminderReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, FITNESS_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        if (am != null) am.cancel(pi);
+    }
+
+    public static void restoreFitnessIfEnabled(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(FITNESS_PREFS, Context.MODE_PRIVATE);
+        if (prefs.getBoolean(KEY_ENABLED, false)) {
+            scheduleFitnessReminder(context,
+                    prefs.getInt(KEY_HOUR, 18), prefs.getInt(KEY_MINUTE, 0));
+        }
+    }
+
+    public static boolean isFitnessEnabled(Context context) {
+        return context.getSharedPreferences(FITNESS_PREFS, Context.MODE_PRIVATE)
+                .getBoolean(KEY_ENABLED, false);
+    }
+
+    public static int getFitnessHour(Context context) {
+        return context.getSharedPreferences(FITNESS_PREFS, Context.MODE_PRIVATE)
+                .getInt(KEY_HOUR, 18);
+    }
+
+    public static int getFitnessMinute(Context context) {
+        return context.getSharedPreferences(FITNESS_PREFS, Context.MODE_PRIVATE)
+                .getInt(KEY_MINUTE, 0);
+    }
+
     // --- TODO daily check (runs at 09:00 daily) ---
     private static final int TODO_REQUEST_CODE = 8877;
 

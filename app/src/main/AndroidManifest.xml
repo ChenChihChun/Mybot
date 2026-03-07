@@ -44,6 +44,12 @@
         <!-- Add Todo Activity -->
         <activity android:name=".AddTodoActivity" android:exported="false" />
 
+        <!-- Fitness Activities -->
+        <activity android:name=".FitnessActivity" android:exported="false" />
+        <activity android:name=".FitnessProfileActivity" android:exported="false" />
+        <activity android:name=".WorkoutDetailActivity" android:exported="false" />
+        <activity android:name=".FitnessProgressActivity" android:exported="false" />
+
         <!-- Notification Listener Service -->
         <service
             android:name=".NotificationService"
@@ -82,6 +88,11 @@
         <!-- Todo Deadline Reminder Receiver -->
         <receiver
             android:name=".TodoReminderReceiver"
+            android:exported="false" />
+
+        <!-- Fitness Reminder Receiver -->
+        <receiver
+            android:name=".FitnessReminderReceiver"
             android:exported="false" />
 
     </application>

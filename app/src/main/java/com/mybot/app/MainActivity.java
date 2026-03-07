@@ -31,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
         requestPermissions();
         ReminderHelper.restoreIfEnabled(this);
         ReminderHelper.scheduleTodoCheck(this);
+        ReminderHelper.restoreFitnessIfEnabled(this);
 
         getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
 
@@ -130,6 +131,9 @@ public class MainActivity extends AppCompatActivity {
         Button btnTodo = UIHelper.cardButton(this, "待辦事項", "TO DO 時間管理", UIHelper.ACCENT_GREEN);
         btnTodo.setOnClickListener(v -> startActivity(new Intent(this, TodoActivity.class)));
 
+        Button btnFitness = UIHelper.cardButton(this, "健身教練", "AI 居家運動計畫", UIHelper.ACCENT_PURPLE);
+        btnFitness.setOnClickListener(v -> startActivity(new Intent(this, FitnessActivity.class)));
+
         Button btnMonitor = UIHelper.cardButton(this, "監聽狀態", "即時通知與簡訊 Log", UIHelper.ACCENT_BLUE);
         btnMonitor.setOnClickListener(v -> startActivity(new Intent(this, MonitorActivity.class)));
 
@@ -139,12 +143,13 @@ public class MainActivity extends AppCompatActivity {
 
         content.addView(btnExpenses);
         content.addView(btnTodo);
+        content.addView(btnFitness);
         content.addView(btnMonitor);
         content.addView(btnPermission);
 
         // Version footer
         TextView version = new TextView(this);
-        version.setText("v2.2");
+        version.setText("v2.3");
         version.setTextSize(11);
         version.setTextColor(UIHelper.TEXT_HINT);
         version.setGravity(Gravity.CENTER);
