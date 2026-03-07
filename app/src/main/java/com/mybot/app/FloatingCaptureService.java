@@ -8,7 +8,9 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.graphics.drawable.GradientDrawable;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.Image;
@@ -24,6 +26,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -37,6 +40,8 @@ public class FloatingCaptureService extends Service {
 
     private WindowManager windowManager;
     private View floatingButton;
+    private View dismissZone;       // X zone at bottom
+    private TextView dismissText;
     private MediaProjection mediaProjection;
     private VirtualDisplay virtualDisplay;
     private ImageReader imageReader;
@@ -46,6 +51,7 @@ public class FloatingCaptureService extends Service {
     private int screenWidth;
     private int screenHeight;
     private int screenDensity;
+    private float density;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -63,10 +69,17 @@ public class FloatingCaptureService extends Service {
         screenWidth = metrics.widthPixels;
         screenHeight = metrics.heightPixels;
         screenDensity = metrics.densityDpi;
+        density = metrics.density;
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // Handle stop action from notification
+        if (intent != null && "STOP".equals(intent.getAction())) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, buildNotification());
 
@@ -79,6 +92,7 @@ public class FloatingCaptureService extends Service {
                         getSystemService(Context.MEDIA_PROJECTION_SERVICE);
                 mediaProjection = mpm.getMediaProjection(resultCode, data);
                 setupImageReader();
+                createDismissZone();
                 createFloatingButton();
             }
         }
@@ -102,7 +116,7 @@ public class FloatingCaptureService extends Service {
 
         return new Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("截圖記帳運行中")
-                .setContentText("點擊懸浮按鈕截圖分析消費")
+                .setContentText("拖曳按鈕到底部 X 可關閉")
                 .setSmallIcon(android.R.drawable.ic_menu_camera)
                 .addAction(android.R.drawable.ic_delete, "停止", stopPi)
                 .setOngoing(true)
@@ -114,15 +128,95 @@ public class FloatingCaptureService extends Service {
                 PixelFormat.RGBA_8888, 2);
     }
 
+    // ── Dismiss zone (X at bottom) ──
+
+    private void createDismissZone() {
+        int zoneHeight = (int) (80 * density);
+
+        FrameLayout container = new FrameLayout(this);
+
+        // Background gradient (transparent → dark)
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x00000000, 0xCC000000});
+        container.setBackground(bg);
+
+        // X circle
+        dismissText = new TextView(this);
+        dismissText.setText("✕");
+        dismissText.setTextSize(22);
+        dismissText.setTextColor(Color.WHITE);
+        dismissText.setGravity(Gravity.CENTER);
+        GradientDrawable circle = new GradientDrawable();
+        circle.setShape(GradientDrawable.OVAL);
+        circle.setColor(0xFFEF5350);
+        dismissText.setBackground(circle);
+        int circleSize = (int) (48 * density);
+        FrameLayout.LayoutParams circleLp = new FrameLayout.LayoutParams(circleSize, circleSize);
+        circleLp.gravity = Gravity.CENTER;
+        dismissText.setLayoutParams(circleLp);
+
+        container.addView(dismissText);
+
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT, zoneHeight,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                PixelFormat.TRANSLUCENT);
+        params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+
+        dismissZone = container;
+        dismissZone.setVisibility(View.GONE);
+        windowManager.addView(dismissZone, params);
+    }
+
+    private void showDismissZone() {
+        if (dismissZone != null) dismissZone.setVisibility(View.VISIBLE);
+    }
+
+    private void hideDismissZone() {
+        if (dismissZone != null) dismissZone.setVisibility(View.GONE);
+        if (dismissText != null) {
+            ((GradientDrawable) dismissText.getBackground()).setColor(0xFFEF5350);
+            dismissText.setScaleX(1f);
+            dismissText.setScaleY(1f);
+        }
+    }
+
+    private boolean isOverDismissZone(float rawY) {
+        return rawY > screenHeight - (100 * density);
+    }
+
+    private void highlightDismissZone(boolean highlight) {
+        if (dismissText == null) return;
+        if (highlight) {
+            ((GradientDrawable) dismissText.getBackground()).setColor(0xFFFF1744);
+            dismissText.setScaleX(1.3f);
+            dismissText.setScaleY(1.3f);
+        } else {
+            ((GradientDrawable) dismissText.getBackground()).setColor(0xFFEF5350);
+            dismissText.setScaleX(1f);
+            dismissText.setScaleY(1f);
+        }
+    }
+
+    // ── Floating button ──
+
     private void createFloatingButton() {
         TextView btn = new TextView(this);
-        btn.setText("\uD83D\uDCF7"); // camera emoji
+        btn.setText("\uD83D\uDCF7");
         btn.setTextSize(24);
         btn.setGravity(Gravity.CENTER);
-        btn.setBackgroundColor(0xCC1A2733);
-        btn.setPadding(20, 20, 20, 20);
 
-        int size = (int) (56 * getResources().getDisplayMetrics().density);
+        // Round button style
+        GradientDrawable btnBg = new GradientDrawable();
+        btnBg.setShape(GradientDrawable.OVAL);
+        btnBg.setColor(0xE61A2733);
+        btnBg.setStroke((int) (2 * density), 0x66FFFFFF);
+        btn.setBackground(btnBg);
+
+        int size = (int) (56 * density);
 
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 size, size,
@@ -133,10 +227,10 @@ public class FloatingCaptureService extends Service {
         params.x = screenWidth - size - 20;
         params.y = screenHeight / 3;
 
-        // Drag support
         final int[] lastX = {0}, lastY = {0};
         final int[] initX = {0}, initY = {0};
         final boolean[] moved = {false};
+        final boolean[] dragging = {false};
 
         btn.setOnTouchListener((v, event) -> {
             switch (event.getAction()) {
@@ -146,7 +240,9 @@ public class FloatingCaptureService extends Service {
                     initX[0] = lastX[0];
                     initY[0] = lastY[0];
                     moved[0] = false;
+                    dragging[0] = false;
                     return true;
+
                 case MotionEvent.ACTION_MOVE:
                     int dx = (int) event.getRawX() - lastX[0];
                     int dy = (int) event.getRawY() - lastY[0];
@@ -155,12 +251,28 @@ public class FloatingCaptureService extends Service {
                     windowManager.updateViewLayout(floatingButton, params);
                     lastX[0] = (int) event.getRawX();
                     lastY[0] = (int) event.getRawY();
+
                     if (Math.abs(event.getRawX() - initX[0]) > 10 ||
                             Math.abs(event.getRawY() - initY[0]) > 10) {
                         moved[0] = true;
+                        if (!dragging[0]) {
+                            dragging[0] = true;
+                            showDismissZone();
+                        }
                     }
+
+                    // Highlight dismiss zone when hovering
+                    highlightDismissZone(isOverDismissZone(event.getRawY()));
                     return true;
+
                 case MotionEvent.ACTION_UP:
+                    if (dragging[0] && isOverDismissZone(event.getRawY())) {
+                        // Dropped on dismiss zone — stop service
+                        hideDismissZone();
+                        stopSelf();
+                        return true;
+                    }
+                    hideDismissZone();
                     if (!moved[0]) {
                         captureScreen();
                     }
@@ -173,11 +285,12 @@ public class FloatingCaptureService extends Service {
         windowManager.addView(floatingButton, params);
     }
 
+    // ── Screen capture ──
+
     private void captureScreen() {
         if (capturing) return;
         capturing = true;
 
-        // Hide floating button during capture
         floatingButton.setVisibility(View.INVISIBLE);
 
         handler.postDelayed(() -> {
@@ -198,7 +311,6 @@ public class FloatingCaptureService extends Service {
                         virtualDisplay = null;
                     }
 
-                    // Show button again
                     floatingButton.setVisibility(View.VISIBLE);
 
                     if (bitmap != null) {
@@ -233,7 +345,6 @@ public class FloatingCaptureService extends Service {
                     Bitmap.Config.ARGB_8888);
             bitmap.copyPixelsFromBuffer(buffer);
 
-            // Crop to actual screen size if needed
             if (bitmap.getWidth() > screenWidth) {
                 Bitmap cropped = Bitmap.createBitmap(bitmap, 0, 0, screenWidth, screenHeight);
                 bitmap.recycle();
@@ -245,9 +356,9 @@ public class FloatingCaptureService extends Service {
         }
     }
 
+    // ── AI analysis ──
+
     private void analyzeScreenshot(Bitmap bitmap) {
-        // Compress and convert to base64
-        // Scale down for faster transfer
         int maxDim = 1080;
         float scale = Math.min((float) maxDim / bitmap.getWidth(),
                 (float) maxDim / bitmap.getHeight());
@@ -299,7 +410,6 @@ public class FloatingCaptureService extends Service {
                 String category = r.optString("category", "");
                 String description = r.optString("description", "");
 
-                // Save to DB
                 ExpenseDbHelper db = new ExpenseDbHelper(this);
                 db.insert(amount, currency, category, merchant, description,
                         "截圖", "", System.currentTimeMillis());
@@ -308,8 +418,6 @@ public class FloatingCaptureService extends Service {
                     String msg = String.format("已記錄: %s $%.0f", merchant, amount);
                     if (!category.isEmpty()) msg += " (" + category + ")";
                     Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-
-                    // Also send a notification
                     NotificationHelper.sendExpenseNotification(this, merchant, amount, category);
                 });
             } catch (Exception e) {
@@ -319,11 +427,16 @@ public class FloatingCaptureService extends Service {
         });
     }
 
+    // ── Cleanup ──
+
     @Override
     public void onDestroy() {
         super.onDestroy();
         if (floatingButton != null) {
-            windowManager.removeView(floatingButton);
+            try { windowManager.removeView(floatingButton); } catch (Exception ignored) {}
+        }
+        if (dismissZone != null) {
+            try { windowManager.removeView(dismissZone); } catch (Exception ignored) {}
         }
         if (virtualDisplay != null) {
             virtualDisplay.release();
