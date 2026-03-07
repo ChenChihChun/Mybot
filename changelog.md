@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.35 (2026-03-08)
+- **Enhancement: Music Manager — Font Size Setting**
+  - Modified `MusicActivity.java` — Added ⚙ settings button in top bar; font size setting dialog (小/中/大) stored in SharedPreferences; song card title/channel/badge text sizes adjust dynamically (small: 14/11/10, medium: 17/13/12, large: 20/15/14); default changed from small to medium
+  - Modified `app/build.gradle` — versionCode 57, versionName 3.35
+
 ## v3.34 (2026-03-08)
 - **Fix: Music Manager — Support Legacy YouTube Username Lookup**
   - Modified `YouTubeClient.java` — `resolveChannel()` now tries `forHandle` first, then falls back to `forUsername` (legacy YouTube username from pre-Google-merger era); extracted `parseChannelResponse()` helper to reduce duplication

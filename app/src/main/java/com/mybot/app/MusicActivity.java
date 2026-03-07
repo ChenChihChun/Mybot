@@ -41,6 +41,7 @@ public class MusicActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "music_prefs";
     private static final String KEY_CHANNEL_ID = "youtube_channel_id";
     private static final String KEY_CHANNEL_TITLE = "youtube_channel_title";
+    private static final String KEY_FONT_SIZE = "font_size"; // 0=small, 1=medium, 2=large
 
     private MusicDbHelper db;
     private LinearLayout songListContainer;
@@ -112,13 +113,20 @@ public class MusicActivity extends AppCompatActivity {
         addBtn.setText("\uFF0B");
         addBtn.setTextSize(22);
         addBtn.setTextColor(UIHelper.ACCENT_GREEN);
-        addBtn.setPadding(UIHelper.dp(this, 8), 0, 0, 0);
+        addBtn.setPadding(UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4), 0);
         addBtn.setOnClickListener(v -> showAddDialog());
+
+        TextView settingsBtn = new TextView(this);
+        settingsBtn.setText("\u2699");
+        settingsBtn.setTextSize(20);
+        settingsBtn.setPadding(UIHelper.dp(this, 8), 0, 0, 0);
+        settingsBtn.setOnClickListener(v -> showSettingsDialog());
 
         topBar.addView(backBtn);
         topBar.addView(titleTv);
         topBar.addView(syncBtn);
         topBar.addView(addBtn);
+        topBar.addView(settingsBtn);
 
         // ── Channel indicator (built here, added to root later) ──
         LinearLayout channelRow = null;
@@ -320,15 +328,21 @@ public class MusicActivity extends AppCompatActivity {
         LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         textCol.setLayoutParams(textLp);
 
+        int fontSize = getPrefs().getInt(KEY_FONT_SIZE, 1);
+        // 0=small(14/11), 1=medium(17/13), 2=large(20/15)
+        int titleSize = fontSize == 0 ? 14 : fontSize == 1 ? 17 : 20;
+        int subSize = fontSize == 0 ? 11 : fontSize == 1 ? 13 : 15;
+        int badgeSize = fontSize == 0 ? 10 : fontSize == 1 ? 12 : 14;
+
         TextView titleTv = new TextView(this);
         titleTv.setText(song.title);
-        titleTv.setTextSize(14);
+        titleTv.setTextSize(titleSize);
         titleTv.setTextColor(UIHelper.TEXT_PRIMARY);
         titleTv.setMaxLines(2);
 
         TextView channelTv = new TextView(this);
         channelTv.setText(song.channelTitle != null ? song.channelTitle : "");
-        channelTv.setTextSize(11);
+        channelTv.setTextSize(subSize);
         channelTv.setTextColor(UIHelper.TEXT_HINT);
         channelTv.setMaxLines(1);
 
@@ -339,7 +353,7 @@ public class MusicActivity extends AppCompatActivity {
         if (song.categoryName != null) {
             TextView badge = new TextView(this);
             badge.setText(song.categoryName);
-            badge.setTextSize(10);
+            badge.setTextSize(badgeSize);
             badge.setTextColor(UIHelper.ACCENT_PURPLE);
             badge.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_PURPLE, 8, 1, this));
             badge.setPadding(UIHelper.dp(this, 6), UIHelper.dp(this, 2),
@@ -534,6 +548,20 @@ public class MusicActivity extends AppCompatActivity {
             }
             showPlaylistSelectionDialog(token, playlists);
         });
+    }
+
+    private void showSettingsDialog() {
+        int current = getPrefs().getInt(KEY_FONT_SIZE, 1);
+        String[] options = {"\u5C0F", "\u4E2D (\u9810\u8A2D)", "\u5927"};
+        new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
+                .setTitle("\u5B57\u9AD4\u5927\u5C0F")
+                .setSingleChoiceItems(options, current, (d, which) -> {
+                    getPrefs().edit().putInt(KEY_FONT_SIZE, which).apply();
+                    d.dismiss();
+                    refreshSongList();
+                })
+                .setNegativeButton("\u53D6\u6D88", null)
+                .show();
     }
 
     private SharedPreferences getPrefs() {
