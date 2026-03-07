@@ -172,20 +172,21 @@ public class UpdateChecker {
         request.setTitle("Mybot v" + version);
         request.setDescription("下載更新中...");
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        request.setMimeType("application/vnd.android.package-archive");
 
         String fileName = "mybot-v" + version + ".apk";
         request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
 
         long downloadId = dm.enqueue(request);
 
-        // Listen for download complete
+        // Listen for download complete — must use RECEIVER_EXPORTED for system broadcast
         BroadcastReceiver receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
                 if (id == downloadId) {
-                    context.unregisterReceiver(this);
-                    installApk(context, fileName);
+                    try { context.unregisterReceiver(this); } catch (Exception ignored) {}
+                    installApk(context, dm, downloadId, fileName);
                 }
             }
         };
@@ -193,14 +194,27 @@ public class UpdateChecker {
         if (Build.VERSION.SDK_INT >= 33) {
             ctx.registerReceiver(receiver,
                     new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                    Context.RECEIVER_NOT_EXPORTED);
+                    Context.RECEIVER_EXPORTED);
         } else {
             ctx.registerReceiver(receiver,
                     new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
         }
     }
 
-    private static void installApk(Context ctx, String fileName) {
+    private static void installApk(Context ctx, DownloadManager dm, long downloadId, String fileName) {
+        // Try DownloadManager URI first (most reliable)
+        Uri downloadUri = dm.getUriForDownloadedFile(downloadId);
+        if (downloadUri != null) {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(downloadUri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                ctx.startActivity(intent);
+                return;
+            } catch (Exception ignored) {}
+        }
+
+        // Fallback: use FileProvider
         File apkFile = new File(Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DOWNLOADS), fileName);
 
@@ -210,18 +224,10 @@ public class UpdateChecker {
         }
 
         Intent intent = new Intent(Intent.ACTION_VIEW);
-        Uri apkUri;
-
-        if (Build.VERSION.SDK_INT >= 24) {
-            apkUri = FileProvider.getUriForFile(ctx,
-                    ctx.getPackageName() + ".fileprovider", apkFile);
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        } else {
-            apkUri = Uri.fromFile(apkFile);
-        }
-
+        Uri apkUri = FileProvider.getUriForFile(ctx,
+                ctx.getPackageName() + ".fileprovider", apkFile);
         intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
         ctx.startActivity(intent);
     }
 
