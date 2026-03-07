@@ -52,6 +52,9 @@
         <activity android:name=".CalendarActivity" android:exported="false" />
         <activity android:name=".AddCalendarEventActivity" android:exported="false" />
 
+        <!-- Stock Activity -->
+        <activity android:name=".StockActivity" android:exported="false" />
+
         <!-- Screen Capture Permission Activity (transparent) -->
         <activity
             android:name=".CapturePermissionActivity"

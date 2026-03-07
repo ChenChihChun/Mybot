@@ -180,9 +180,12 @@ public class MainActivity extends AppCompatActivity {
                 "\uD83D\uDCF7", "截圖分析消費", "懸浮按鈕·AI 辨識", UIHelper.ACCENT_RED, 35);
         cardCapture.setOnClickListener(v -> toggleFloatingCapture());
 
+        LinearLayout cardStock = UIHelper.featureCard(this,
+                "\uD83D\uDCC8", "台股追蹤", "即時行情·技術分析", UIHelper.ACCENT_ORANGE, 40);
+        cardStock.setOnClickListener(v -> startActivity(new Intent(this, StockActivity.class)));
+
         row3.addView(cardCapture, gridCellLp(0));
-        View spacer = new View(this);
-        row3.addView(spacer, gridCellLp(UIHelper.dp(this, 10)));
+        row3.addView(cardStock, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row3);
 
         // ── Version footer ──

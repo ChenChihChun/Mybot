@@ -1,0 +1,352 @@
+package com.mybot.app;
+
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.DashPathEffect;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RectF;
+import android.util.AttributeSet;
+import android.view.View;
+
+import java.util.List;
+
+public class StockChartView extends View {
+
+    private List<StockData.CandleBar> candles;
+    private double[] ma5, ma10, ma20;
+    private double[][] bollinger; // [upper, middle, lower]
+    private double[] rsi;
+    private double currentPrice = 0;
+
+    private final Paint paintUp = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintDown = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintMa5 = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintMa10 = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintMa20 = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintBBand = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintBBandFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintRsi = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintGrid = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintText = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintPriceLine = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintVolUp = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintVolDown = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintRefLine = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    private static final int COLOR_UP = Color.parseColor("#66BB6A");
+    private static final int COLOR_DOWN = Color.parseColor("#EF5350");
+    private static final int COLOR_MA5 = Color.parseColor("#4FC3F7");
+    private static final int COLOR_MA10 = Color.parseColor("#FFA726");
+    private static final int COLOR_MA20 = Color.parseColor("#AB47BC");
+    private static final int COLOR_BBAND = Color.parseColor("#80DEEA");
+    private static final int COLOR_RSI = Color.parseColor("#FFD54F");
+    private static final int COLOR_GRID = Color.parseColor("#1E3040");
+    private static final int COLOR_TEXT = Color.parseColor("#90A4AE");
+    private static final int COLOR_PRICE_LINE = Color.parseColor("#4FC3F7");
+
+    private float density;
+
+    public StockChartView(Context context) {
+        super(context);
+        init();
+    }
+
+    public StockChartView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        init();
+    }
+
+    private void init() {
+        density = getResources().getDisplayMetrics().density;
+
+        paintUp.setColor(COLOR_UP);
+        paintUp.setStyle(Paint.Style.FILL);
+        paintDown.setColor(COLOR_DOWN);
+        paintDown.setStyle(Paint.Style.FILL);
+
+        paintMa5.setColor(COLOR_MA5);
+        paintMa5.setStyle(Paint.Style.STROKE);
+        paintMa5.setStrokeWidth(1.5f * density);
+
+        paintMa10.setColor(COLOR_MA10);
+        paintMa10.setStyle(Paint.Style.STROKE);
+        paintMa10.setStrokeWidth(1.5f * density);
+
+        paintMa20.setColor(COLOR_MA20);
+        paintMa20.setStyle(Paint.Style.STROKE);
+        paintMa20.setStrokeWidth(1.5f * density);
+
+        paintBBand.setColor(COLOR_BBAND);
+        paintBBand.setStyle(Paint.Style.STROKE);
+        paintBBand.setStrokeWidth(1f * density);
+
+        paintBBandFill.setColor(Color.argb(25, 128, 222, 234));
+        paintBBandFill.setStyle(Paint.Style.FILL);
+
+        paintRsi.setColor(COLOR_RSI);
+        paintRsi.setStyle(Paint.Style.STROKE);
+        paintRsi.setStrokeWidth(1.5f * density);
+
+        paintGrid.setColor(COLOR_GRID);
+        paintGrid.setStyle(Paint.Style.STROKE);
+        paintGrid.setStrokeWidth(0.5f * density);
+
+        paintText.setColor(COLOR_TEXT);
+        paintText.setTextSize(10 * density);
+
+        paintPriceLine.setColor(COLOR_PRICE_LINE);
+        paintPriceLine.setStyle(Paint.Style.STROKE);
+        paintPriceLine.setStrokeWidth(1f * density);
+        paintPriceLine.setPathEffect(new DashPathEffect(new float[]{6 * density, 4 * density}, 0));
+
+        paintVolUp.setColor(Color.argb(180, 102, 187, 106));
+        paintVolUp.setStyle(Paint.Style.FILL);
+        paintVolDown.setColor(Color.argb(180, 239, 83, 80));
+        paintVolDown.setStyle(Paint.Style.FILL);
+
+        paintRefLine.setColor(Color.parseColor("#2E4050"));
+        paintRefLine.setStyle(Paint.Style.STROKE);
+        paintRefLine.setStrokeWidth(0.5f * density);
+        paintRefLine.setPathEffect(new DashPathEffect(new float[]{4 * density, 4 * density}, 0));
+
+        setBackgroundColor(Color.parseColor("#0F1923"));
+    }
+
+    public void setData(List<StockData.CandleBar> candles, double[] ma5, double[] ma10, double[] ma20,
+                        double[][] bollinger, double[] rsi, double currentPrice) {
+        this.candles = candles;
+        this.ma5 = ma5;
+        this.ma10 = ma10;
+        this.ma20 = ma20;
+        this.bollinger = bollinger;
+        this.rsi = rsi;
+        this.currentPrice = currentPrice;
+        invalidate();
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+        if (candles == null || candles.isEmpty()) {
+            paintText.setTextSize(14 * density);
+            paintText.setTextAlign(Paint.Align.CENTER);
+            canvas.drawText("Loading...", getWidth() / 2f, getHeight() / 2f, paintText);
+            paintText.setTextAlign(Paint.Align.LEFT);
+            paintText.setTextSize(10 * density);
+            return;
+        }
+
+        float w = getWidth();
+        float h = getHeight();
+        float margin = 8 * density;
+        float rightMargin = 55 * density;
+        float chartW = w - margin - rightMargin;
+
+        // Regions
+        float kTop = margin;
+        float kHeight = h * 0.55f;
+        float kBottom = kTop + kHeight;
+
+        float volTop = kBottom + 8 * density;
+        float volHeight = h * 0.20f;
+        float volBottom = volTop + volHeight;
+
+        float rsiTop = volBottom + 8 * density;
+        float rsiHeight = h - rsiTop - margin;
+        float rsiBottom = rsiTop + rsiHeight;
+
+        int count = candles.size();
+        float candleWidth = chartW / Math.max(count, 1);
+        float bodyWidth = Math.max(candleWidth * 0.6f, 2 * density);
+
+        // Find price range
+        double minPrice = Double.MAX_VALUE, maxPrice = Double.MIN_VALUE;
+        long maxVol = 0;
+        for (StockData.CandleBar c : candles) {
+            minPrice = Math.min(minPrice, c.low);
+            maxPrice = Math.max(maxPrice, c.high);
+            maxVol = Math.max(maxVol, c.volume);
+        }
+        // Include bollinger bands in range
+        if (bollinger != null) {
+            for (int i = 0; i < count; i++) {
+                if (!Double.isNaN(bollinger[0][i])) maxPrice = Math.max(maxPrice, bollinger[0][i]);
+                if (!Double.isNaN(bollinger[2][i])) minPrice = Math.min(minPrice, bollinger[2][i]);
+            }
+        }
+        double pricePad = (maxPrice - minPrice) * 0.05;
+        if (pricePad < 0.5) pricePad = 0.5;
+        minPrice -= pricePad;
+        maxPrice += pricePad;
+        double priceRange = maxPrice - minPrice;
+        if (priceRange <= 0) priceRange = 1;
+
+        // Draw grid lines for K area
+        for (int i = 0; i <= 3; i++) {
+            float y = kTop + kHeight * i / 3f;
+            canvas.drawLine(margin, y, w - rightMargin, y, paintGrid);
+            double price = maxPrice - priceRange * i / 3;
+            canvas.drawText(formatPrice(price), w - rightMargin + 4 * density, y + 4 * density, paintText);
+        }
+
+        // Draw Bollinger bands fill
+        if (bollinger != null) {
+            Path fillPath = new Path();
+            boolean started = false;
+            for (int i = 0; i < count; i++) {
+                if (Double.isNaN(bollinger[0][i])) continue;
+                float x = margin + candleWidth * i + candleWidth / 2;
+                float yU = kTop + (float) ((maxPrice - bollinger[0][i]) / priceRange * kHeight);
+                if (!started) { fillPath.moveTo(x, yU); started = true; }
+                else fillPath.lineTo(x, yU);
+            }
+            for (int i = count - 1; i >= 0; i--) {
+                if (Double.isNaN(bollinger[2][i])) continue;
+                float x = margin + candleWidth * i + candleWidth / 2;
+                float yL = kTop + (float) ((maxPrice - bollinger[2][i]) / priceRange * kHeight);
+                fillPath.lineTo(x, yL);
+            }
+            fillPath.close();
+            canvas.drawPath(fillPath, paintBBandFill);
+
+            // Draw band lines
+            drawLine(canvas, bollinger[0], margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintBBand);
+            drawLine(canvas, bollinger[2], margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintBBand);
+        }
+
+        // Draw MA lines
+        if (ma5 != null) drawLine(canvas, ma5, margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintMa5);
+        if (ma10 != null) drawLine(canvas, ma10, margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintMa10);
+        if (ma20 != null) drawLine(canvas, ma20, margin, candleWidth, kTop, kHeight, maxPrice, priceRange, count, paintMa20);
+
+        // Draw candles
+        for (int i = 0; i < count; i++) {
+            StockData.CandleBar c = candles.get(i);
+            boolean up = c.close >= c.open;
+            Paint paint = up ? paintUp : paintDown;
+
+            float x = margin + candleWidth * i + candleWidth / 2;
+            float yOpen = kTop + (float) ((maxPrice - c.open) / priceRange * kHeight);
+            float yClose = kTop + (float) ((maxPrice - c.close) / priceRange * kHeight);
+            float yHigh = kTop + (float) ((maxPrice - c.high) / priceRange * kHeight);
+            float yLow = kTop + (float) ((maxPrice - c.low) / priceRange * kHeight);
+
+            // Wick
+            canvas.drawLine(x, yHigh, x, yLow, paint);
+            // Body
+            float top = Math.min(yOpen, yClose);
+            float bottom = Math.max(yOpen, yClose);
+            if (bottom - top < 1) bottom = top + 1;
+            RectF body = new RectF(x - bodyWidth / 2, top, x + bodyWidth / 2, bottom);
+            if (up) {
+                Paint strokePaint = new Paint(paint);
+                strokePaint.setStyle(Paint.Style.STROKE);
+                strokePaint.setStrokeWidth(1 * density);
+                canvas.drawRect(body, strokePaint);
+            } else {
+                canvas.drawRect(body, paint);
+            }
+        }
+
+        // Current price dashed line
+        if (currentPrice > 0 && currentPrice >= minPrice && currentPrice <= maxPrice) {
+            float yPrice = kTop + (float) ((maxPrice - currentPrice) / priceRange * kHeight);
+            Path dashPath = new Path();
+            dashPath.moveTo(margin, yPrice);
+            dashPath.lineTo(w - rightMargin, yPrice);
+            canvas.drawPath(dashPath, paintPriceLine);
+            // Price label
+            Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            labelPaint.setColor(COLOR_PRICE_LINE);
+            labelPaint.setTextSize(10 * density);
+            canvas.drawText(formatPrice(currentPrice), w - rightMargin + 4 * density, yPrice + 4 * density, labelPaint);
+        }
+
+        // Volume bars
+        canvas.drawLine(margin, volTop, w - rightMargin, volTop, paintGrid);
+        canvas.drawLine(margin, volBottom, w - rightMargin, volBottom, paintGrid);
+        if (maxVol > 0) {
+            for (int i = 0; i < count; i++) {
+                StockData.CandleBar c = candles.get(i);
+                boolean up = c.close >= c.open;
+                float x = margin + candleWidth * i + candleWidth / 2;
+                float barH = (float) ((double) c.volume / maxVol * volHeight);
+                RectF bar = new RectF(x - bodyWidth / 2, volBottom - barH, x + bodyWidth / 2, volBottom);
+                canvas.drawRect(bar, up ? paintVolUp : paintVolDown);
+            }
+        }
+
+        // RSI
+        canvas.drawLine(margin, rsiTop, w - rightMargin, rsiTop, paintGrid);
+        canvas.drawLine(margin, rsiBottom, w - rightMargin, rsiBottom, paintGrid);
+        // RSI 30/70 reference lines
+        float y70 = rsiTop + rsiHeight * (100 - 70) / 100f;
+        float y30 = rsiTop + rsiHeight * (100 - 30) / 100f;
+        canvas.drawLine(margin, y70, w - rightMargin, y70, paintRefLine);
+        canvas.drawLine(margin, y30, w - rightMargin, y30, paintRefLine);
+        paintText.setTextSize(9 * density);
+        canvas.drawText("70", w - rightMargin + 4 * density, y70 + 3 * density, paintText);
+        canvas.drawText("30", w - rightMargin + 4 * density, y30 + 3 * density, paintText);
+        paintText.setTextSize(10 * density);
+
+        if (rsi != null) {
+            Path rsiPath = new Path();
+            boolean started = false;
+            for (int i = 0; i < count && i < rsi.length; i++) {
+                if (Double.isNaN(rsi[i])) continue;
+                float x = margin + candleWidth * i + candleWidth / 2;
+                float y = rsiTop + rsiHeight * (float) (100 - rsi[i]) / 100f;
+                if (!started) { rsiPath.moveTo(x, y); started = true; }
+                else rsiPath.lineTo(x, y);
+            }
+            canvas.drawPath(rsiPath, paintRsi);
+        }
+
+        // Legend
+        float legendY = kTop + 12 * density;
+        float legendX = margin + 4 * density;
+        paintText.setTextSize(9 * density);
+        paintText.setColor(COLOR_MA5);
+        canvas.drawText("MA5", legendX, legendY, paintText);
+        legendX += 35 * density;
+        paintText.setColor(COLOR_MA10);
+        canvas.drawText("MA10", legendX, legendY, paintText);
+        legendX += 40 * density;
+        paintText.setColor(COLOR_MA20);
+        canvas.drawText("MA20", legendX, legendY, paintText);
+        legendX += 42 * density;
+        paintText.setColor(COLOR_BBAND);
+        canvas.drawText("BBand", legendX, legendY, paintText);
+        paintText.setColor(COLOR_TEXT);
+        paintText.setTextSize(10 * density);
+
+        // RSI label
+        paintText.setTextSize(9 * density);
+        paintText.setColor(COLOR_RSI);
+        canvas.drawText("RSI(14)", margin + 4 * density, rsiTop + 12 * density, paintText);
+        paintText.setColor(COLOR_TEXT);
+        paintText.setTextSize(10 * density);
+    }
+
+    private void drawLine(Canvas canvas, double[] values, float margin, float candleWidth,
+                          float top, float height, double maxPrice, double priceRange, int count, Paint paint) {
+        Path path = new Path();
+        boolean started = false;
+        for (int i = 0; i < count && i < values.length; i++) {
+            if (Double.isNaN(values[i])) continue;
+            float x = margin + candleWidth * i + candleWidth / 2;
+            float y = top + (float) ((maxPrice - values[i]) / priceRange * height);
+            if (!started) { path.moveTo(x, y); started = true; }
+            else path.lineTo(x, y);
+        }
+        canvas.drawPath(path, paint);
+    }
+
+    private String formatPrice(double price) {
+        if (price >= 100) return String.format("%.0f", price);
+        if (price >= 10) return String.format("%.1f", price);
+        return String.format("%.2f", price);
+    }
+}
