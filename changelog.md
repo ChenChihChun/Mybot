@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.32 (2026-03-08)
+- **Enhancement: Music Manager — Manual Channel ID Input for Legacy YouTube Accounts**
+  - Modified `YouTubeClient.java` — Added `getChannelInfo(token, channelId, callback)` to fetch channel title by ID
+  - Modified `MusicActivity.java` — Channel selection dialog now includes "手動輸入頻道 ID" option at bottom; added `showManualChannelIdDialog()` with instructions and UC... input; channel picker and first-time sync always show selection dialog (even when API returns empty list); auto-fetches channel title after manual ID input
+  - Modified `app/build.gradle` — versionCode 54, versionName 3.32
+
 ## v3.31 (2026-03-08)
 - **Enhancement: Music Manager — YouTube Brand Account / Channel Switcher**
   - Modified `YouTubeClient.java` — Added `ChannelInfo` class, `listMyChannels()` method (channels?mine=true), renamed playlist listing to `listPlaylists(token, channelId, callback)` using `channelId` param instead of `mine=true`

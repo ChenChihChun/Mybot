@@ -426,34 +426,76 @@ public class MusicActivity extends AppCompatActivity {
 
     private void pickChannelThenSync(String token) {
         YouTubeClient.listMyChannels(token, (channels, err) -> {
-            if (err != null) {
-                Toast.makeText(this, "\u53D6\u5F97\u983B\u9053\u5931\u6557: " + err, Toast.LENGTH_LONG).show();
-                return;
-            }
-            if (channels == null || channels.isEmpty()) {
-                Toast.makeText(this, "\u627E\u4E0D\u5230 YouTube \u983B\u9053", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (channels.size() == 1) {
-                saveChannel(channels.get(0));
-                loadPlaylistsForChannel(token, channels.get(0).id);
-            } else {
-                showChannelSelectionDialog(token, channels);
-            }
+            List<YouTubeClient.ChannelInfo> list = (channels != null) ? channels : new ArrayList<>();
+            showChannelSelectionDialog(token, list);
         });
     }
 
     private void showChannelSelectionDialog(String token, List<YouTubeClient.ChannelInfo> channels) {
-        String[] names = new String[channels.size()];
+        // Add manual input option at the end
+        String[] names = new String[channels.size() + 1];
         for (int i = 0; i < channels.size(); i++) {
             names[i] = channels.get(i).title;
         }
+        names[channels.size()] = "\u270F\uFE0F \u624B\u52D5\u8F38\u5165\u983B\u9053 ID";
         new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
                 .setTitle("\u9078\u64C7 YouTube \u983B\u9053")
                 .setItems(names, (d, which) -> {
-                    saveChannel(channels.get(which));
-                    loadPlaylistsForChannel(token, channels.get(which).id);
+                    if (which < channels.size()) {
+                        saveChannel(channels.get(which));
+                        loadPlaylistsForChannel(token, channels.get(which).id);
+                    } else {
+                        showManualChannelIdDialog(token);
+                    }
                 })
+                .show();
+    }
+
+    private void showManualChannelIdDialog(String token) {
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        int pad = UIHelper.dp(this, 20);
+        container.setPadding(pad, pad, pad, 0);
+
+        TextView hint = new TextView(this);
+        hint.setText("YouTube App \u2192 \u5207\u63DB\u5230\u820A\u5E33\u865F \u2192 \u8A2D\u5B9A \u2192 \u9EDE\u5E33\u865F\u540D\u7A31 \u2192 \u8907\u88FD\u300C\u983B\u9053 ID\u300D\n\u683C\u5F0F: UC...");
+        hint.setTextSize(12);
+        hint.setTextColor(UIHelper.TEXT_HINT);
+        hint.setPadding(0, 0, 0, UIHelper.dp(this, 12));
+        container.addView(hint);
+
+        EditText input = UIHelper.styledInput(this, "\u983B\u9053 ID (UC...)");
+        container.addView(input);
+
+        new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
+                .setTitle("\u624B\u52D5\u8F38\u5165\u983B\u9053 ID")
+                .setView(container)
+                .setPositiveButton("\u78BA\u5B9A", (d, w) -> {
+                    String channelId = input.getText().toString().trim();
+                    if (channelId.isEmpty()) return;
+                    // Save with channel ID as title temporarily, then try to fetch real name
+                    getPrefs().edit()
+                            .putString(KEY_CHANNEL_ID, channelId)
+                            .putString(KEY_CHANNEL_TITLE, channelId)
+                            .apply();
+                    if (token != null) {
+                        // Try to get channel title
+                        YouTubeClient.getChannelInfo(token, channelId, (channels, err) -> {
+                            if (channels != null && !channels.isEmpty()) {
+                                getPrefs().edit()
+                                        .putString(KEY_CHANNEL_TITLE, channels.get(0).title)
+                                        .apply();
+                            }
+                            buildUI();
+                            refreshChips();
+                            loadPlaylistsForChannel(token, channelId);
+                        });
+                    } else {
+                        buildUI();
+                        refreshChips();
+                    }
+                })
+                .setNegativeButton("\u53D6\u6D88", null)
                 .show();
     }
 
@@ -478,11 +520,8 @@ public class MusicActivity extends AppCompatActivity {
                 return;
             }
             YouTubeClient.listMyChannels(token, (channels, err) -> {
-                if (err != null || channels == null || channels.isEmpty()) {
-                    Toast.makeText(this, "\u53D6\u5F97\u983B\u9053\u5931\u6557", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                showChannelSelectionDialog(token, channels);
+                List<YouTubeClient.ChannelInfo> list = (channels != null) ? channels : new ArrayList<>();
+                showChannelSelectionDialog(token, list);
             });
         });
     }

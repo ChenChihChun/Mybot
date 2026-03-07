@@ -358,6 +358,39 @@ public class YouTubeClient {
         });
     }
 
+    public static void getChannelInfo(String accessToken, String channelId, ChannelListCallback callback) {
+        executor.execute(() -> {
+            try {
+                String url = BASE + "/channels?part=snippet&id=" + URLEncoder.encode(channelId, "UTF-8");
+                String response = httpGet(url, accessToken);
+                JSONObject json = new JSONObject(response);
+                JSONArray items = json.optJSONArray("items");
+                List<ChannelInfo> list = new ArrayList<>();
+                if (items != null) {
+                    for (int i = 0; i < items.length(); i++) {
+                        JSONObject item = items.getJSONObject(i);
+                        JSONObject snippet = item.getJSONObject("snippet");
+                        String thumbUrl = "";
+                        JSONObject thumbs = snippet.optJSONObject("thumbnails");
+                        if (thumbs != null) {
+                            JSONObject def = thumbs.optJSONObject("default");
+                            if (def != null) thumbUrl = def.optString("url", "");
+                        }
+                        list.add(new ChannelInfo(
+                                item.getString("id"),
+                                snippet.optString("title", ""),
+                                thumbUrl
+                        ));
+                    }
+                }
+                mainHandler.post(() -> callback.onResult(list, null));
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
     private static String httpGet(String urlStr, String accessToken) throws Exception {
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
