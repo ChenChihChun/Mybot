@@ -42,4 +42,12 @@ public class NotificationHelper {
             manager.notify(notificationId++, builder.build());
         }
     }
+
+    public static void sendExpenseNotification(Context context, String merchant, double amount, String category) {
+        String title = "截圖記帳";
+        String text = String.format(java.util.Locale.getDefault(),
+                "%s $%.0f", merchant.isEmpty() ? "消費" : merchant, amount);
+        if (category != null && !category.isEmpty()) text += " (" + category + ")";
+        sendNotification(context, title, text);
+    }
 }

@@ -188,6 +188,40 @@ public class BridgeClient {
         });
     }
 
+    public interface ScreenshotCallback {
+        void onResult(String responseJson, boolean offline, String error);
+    }
+
+    public static void analyzeScreenshot(String base64Image, ScreenshotCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "analyze_expense_screenshot");
+                body.put("image_base64", base64Image);
+                body.put("prompt", "請分析這張螢幕截圖，判斷是否包含消費/付款/交易資訊。"
+                        + "如果有，回傳: {\"is_expense\": true, \"amount\": 數字, \"currency\": \"TWD\", "
+                        + "\"merchant\": \"商家名稱\", \"category\": \"類別\", \"description\": \"描述\"}。"
+                        + "如果沒有消費資訊，回傳: {\"is_expense\": false}。"
+                        + "類別請從以下選擇：餐飲、交通、購物、娛樂、醫療、教育、生活、其他。");
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 60000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    mainHandler.post(() -> callback.onResult(response, false, null));
+                } else {
+                    lastError = error;
+                    mainHandler.post(() -> callback.onResult(null, true, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
     public interface CalendarParseCallback {
         void onResult(String responseJson, boolean offline, String error);
     }

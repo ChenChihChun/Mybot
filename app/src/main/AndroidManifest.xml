@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
     <application
         android:allowBackup="true"
@@ -54,6 +56,18 @@
         <!-- Calendar Activities -->
         <activity android:name=".CalendarActivity" android:exported="false" />
         <activity android:name=".AddCalendarEventActivity" android:exported="false" />
+
+        <!-- Screen Capture Permission Activity (transparent) -->
+        <activity
+            android:name=".CapturePermissionActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Floating Capture Service -->
+        <service
+            android:name=".FloatingCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
         <!-- FileProvider for APK install -->
         <provider

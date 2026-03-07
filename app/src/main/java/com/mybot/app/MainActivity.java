@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
+import android.net.Uri;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
@@ -157,22 +158,36 @@ public class MainActivity extends AppCompatActivity {
         row2.addView(cardFitness, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row2);
 
-        // Row 3: 監聽狀態 + 通知權限
-        content.addView(UIHelper.sectionHeader(this, "SYSTEM"));
+        // Row 3: 截圖分析消費 + 監聽狀態
+        content.addView(UIHelper.sectionHeader(this, "TOOLS"));
 
         LinearLayout row3 = gridRow();
+        LinearLayout cardCapture = UIHelper.featureCard(this,
+                "\uD83D\uDCF7", "截圖分析消費", "懸浮按鈕·AI 辨識", UIHelper.ACCENT_RED, 35);
+        cardCapture.setOnClickListener(v -> toggleFloatingCapture());
+
         LinearLayout cardMonitor = UIHelper.featureCard(this,
                 "\uD83D\uDCE1", "監聽狀態", "通知·簡訊 Log", UIHelper.ACCENT_BLUE, 30);
         cardMonitor.setOnClickListener(v -> startActivity(new Intent(this, MonitorActivity.class)));
 
+        row3.addView(cardCapture, gridCellLp(0));
+        row3.addView(cardMonitor, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row3);
+
+        // Row 4: 通知權限
+        content.addView(UIHelper.sectionHeader(this, "SYSTEM"));
+
+        LinearLayout row4 = gridRow();
         LinearLayout cardPerm = UIHelper.featureCard(this,
                 "\u2699\uFE0F", "通知權限", "開啟系統設定", UIHelper.ACCENT_ORANGE, 30);
         cardPerm.setOnClickListener(v ->
                 startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)));
 
-        row3.addView(cardMonitor, gridCellLp(0));
-        row3.addView(cardPerm, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row3);
+        row4.addView(cardPerm, gridCellLp(0));
+        // Empty spacer for grid alignment
+        View spacer = new View(this);
+        row4.addView(spacer, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row4);
 
         // ── Version footer with update check ──
         LinearLayout versionRow = new LinearLayout(this);
@@ -225,6 +240,19 @@ public class MainActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
+    }
+
+    private void toggleFloatingCapture() {
+        // Check overlay permission
+        if (!Settings.canDrawOverlays(this)) {
+            android.widget.Toast.makeText(this,
+                    "請先開啟「顯示在其他應用程式上層」權限", android.widget.Toast.LENGTH_LONG).show();
+            startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName())));
+            return;
+        }
+        // Launch capture permission request (MediaProjection)
+        startActivity(new Intent(this, CapturePermissionActivity.class));
     }
 
     private LinearLayout gridRow() {
