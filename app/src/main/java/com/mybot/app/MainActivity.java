@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.net.Uri;
@@ -22,6 +23,7 @@ import androidx.core.content.ContextCompat;
 public class MainActivity extends AppCompatActivity {
 
     private static final int PERMISSION_CODE = 100;
+    private View bridgeDot;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
         topSection.setPadding(p, UIHelper.dp(this, 16), p, UIHelper.dp(this, 14));
         topSection.setElevation(UIHelper.dp(this, 4));
 
-        // Compact hero: icon + text in horizontal row
+        // Compact hero: icon + text + bridge dot
         LinearLayout heroRow = new LinearLayout(this);
         heroRow.setOrientation(LinearLayout.HORIZONTAL);
         heroRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -64,6 +66,9 @@ public class MainActivity extends AppCompatActivity {
 
         LinearLayout textCol = new LinearLayout(this);
         textCol.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams textColLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        textCol.setLayoutParams(textColLp);
 
         TextView title = new TextView(this);
         title.setText("Mybot");
@@ -81,8 +86,21 @@ public class MainActivity extends AppCompatActivity {
 
         textCol.addView(title);
         textCol.addView(subtitle);
+
+        // Bridge status dot (right side)
+        int dotSize = UIHelper.dp(this, 14);
+        bridgeDot = new View(this);
+        GradientDrawable dotBg = new GradientDrawable();
+        dotBg.setShape(GradientDrawable.OVAL);
+        dotBg.setColor(UIHelper.TEXT_HINT); // grey initially
+        bridgeDot.setBackground(dotBg);
+        LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(dotSize, dotSize);
+        dotLp.setMargins(UIHelper.dp(this, 12), 0, 0, 0);
+        bridgeDot.setLayoutParams(dotLp);
+
         heroRow.addView(iconCircle);
         heroRow.addView(textCol);
+        heroRow.addView(bridgeDot);
         topSection.addView(heroRow);
 
         // ── Scrollable content ──
@@ -93,39 +111,6 @@ public class MainActivity extends AppCompatActivity {
         content.setOrientation(LinearLayout.VERTICAL);
         int cp = UIHelper.dp(this, 16);
         content.setPadding(cp, UIHelper.dp(this, 16), cp, cp);
-
-        // ── Status card ──
-        LinearLayout statusCard = UIHelper.card(this);
-
-        LinearLayout statusRow = new LinearLayout(this);
-        statusRow.setOrientation(LinearLayout.HORIZONTAL);
-        statusRow.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView dot = new TextView(this);
-        dot.setBackground(UIHelper.roundRect(UIHelper.ACCENT_GREEN, 20, this));
-        LinearLayout.LayoutParams dotLp = new LinearLayout.LayoutParams(
-                UIHelper.dp(this, 10), UIHelper.dp(this, 10));
-        dotLp.setMargins(0, 0, UIHelper.dp(this, 12), 0);
-        dot.setLayoutParams(dotLp);
-
-        TextView statusText = new TextView(this);
-        statusText.setText("監聽服務運行中");
-        statusText.setTextSize(15);
-        statusText.setTextColor(UIHelper.ACCENT_GREEN);
-        statusText.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-
-        statusRow.addView(dot);
-        statusRow.addView(statusText);
-
-        TextView statusHint = new TextView(this);
-        statusHint.setText("通知與簡訊監聽已啟動，AI 自動分析運行中");
-        statusHint.setTextSize(12);
-        statusHint.setTextColor(UIHelper.TEXT_SECONDARY);
-        statusHint.setPadding(0, UIHelper.dp(this, 6), 0, 0);
-
-        statusCard.addView(statusRow);
-        statusCard.addView(statusHint);
-        content.addView(statusCard);
 
         // ── Feature grid ──
         content.addView(UIHelper.sectionHeader(this, "FEATURES"));
@@ -158,7 +143,7 @@ public class MainActivity extends AppCompatActivity {
         row2.addView(cardFitness, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row2);
 
-        // Row 3: 截圖分析消費 + 監聽狀態
+        // Row 3: 截圖分析消費
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));
 
         LinearLayout row3 = gridRow();
@@ -166,28 +151,11 @@ public class MainActivity extends AppCompatActivity {
                 "\uD83D\uDCF7", "截圖分析消費", "懸浮按鈕·AI 辨識", UIHelper.ACCENT_RED, 35);
         cardCapture.setOnClickListener(v -> toggleFloatingCapture());
 
-        LinearLayout cardMonitor = UIHelper.featureCard(this,
-                "\uD83D\uDCE1", "監聽狀態", "通知·簡訊 Log", UIHelper.ACCENT_BLUE, 30);
-        cardMonitor.setOnClickListener(v -> startActivity(new Intent(this, MonitorActivity.class)));
-
         row3.addView(cardCapture, gridCellLp(0));
-        row3.addView(cardMonitor, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row3);
-
-        // Row 4: 通知權限
-        content.addView(UIHelper.sectionHeader(this, "SYSTEM"));
-
-        LinearLayout row4 = gridRow();
-        LinearLayout cardPerm = UIHelper.featureCard(this,
-                "\u2699\uFE0F", "通知權限", "開啟系統設定", UIHelper.ACCENT_ORANGE, 30);
-        cardPerm.setOnClickListener(v ->
-                startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)));
-
-        row4.addView(cardPerm, gridCellLp(0));
         // Empty spacer for grid alignment
         View spacer = new View(this);
-        row4.addView(spacer, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row4);
+        row3.addView(spacer, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row3);
 
         // ── Version footer with update check ──
         LinearLayout versionRow = new LinearLayout(this);
@@ -196,7 +164,6 @@ public class MainActivity extends AppCompatActivity {
         versionRow.setPadding(0, UIHelper.dp(this, 20), 0, UIHelper.dp(this, 16));
 
         TextView version = new TextView(this);
-        // Use PackageInfo to get real version at runtime
         version.setText("v" + UpdateChecker.getCurrentVersionName(this));
         version.setTextSize(11);
         version.setTextColor(UIHelper.TEXT_HINT);
@@ -240,10 +207,19 @@ public class MainActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
+
+        // Check Bridge health and update dot
+        checkBridgeHealth();
+    }
+
+    private void checkBridgeHealth() {
+        BridgeClient.healthCheck((online, message) -> {
+            GradientDrawable dotBg = (GradientDrawable) bridgeDot.getBackground();
+            dotBg.setColor(online ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED);
+        });
     }
 
     private void toggleFloatingCapture() {
-        // Check overlay permission
         if (!Settings.canDrawOverlays(this)) {
             android.widget.Toast.makeText(this,
                     "請先開啟「顯示在其他應用程式上層」權限", android.widget.Toast.LENGTH_LONG).show();
@@ -251,7 +227,6 @@ public class MainActivity extends AppCompatActivity {
                     Uri.parse("package:" + getPackageName())));
             return;
         }
-        // Launch capture permission request (MediaProjection)
         startActivity(new Intent(this, CapturePermissionActivity.class));
     }
 
@@ -272,30 +247,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void requestPermissions() {
-        String[] perms;
         if (Build.VERSION.SDK_INT >= 33) {
-            perms = new String[]{
-                    android.Manifest.permission.RECEIVE_SMS,
-                    android.Manifest.permission.READ_SMS,
-                    "android.permission.POST_NOTIFICATIONS"
-            };
-        } else {
-            perms = new String[]{
-                    android.Manifest.permission.RECEIVE_SMS,
-                    android.Manifest.permission.READ_SMS
-            };
-        }
-
-        boolean needRequest = false;
-        for (String perm : perms) {
+            String perm = "android.permission.POST_NOTIFICATIONS";
             if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
-                needRequest = true;
-                break;
+                ActivityCompat.requestPermissions(this, new String[]{perm}, PERMISSION_CODE);
             }
-        }
-
-        if (needRequest) {
-            ActivityCompat.requestPermissions(this, perms, PERMISSION_CODE);
         }
     }
 }
