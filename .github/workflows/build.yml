@@ -49,6 +49,14 @@ jobs:
               -dname "CN=Mybot Debug,O=Mybot,C=TW"
           fi
 
+      - name: Print debug keystore SHA-1
+        run: |
+          keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android 2>/dev/null | grep -E "SHA1|SHA-1" | head -1
+          echo "### Signing Info" >> "$GITHUB_STEP_SUMMARY"
+          SHA1=$(keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android 2>/dev/null | grep -E "SHA1|SHA-1" | head -1 | sed 's/.*: //')
+          echo "| SHA-1 | \`${SHA1}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Package | com.mybot.app |" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:

@@ -131,6 +131,9 @@ public class MainActivity extends AppCompatActivity {
         Button btnTodo = UIHelper.cardButton(this, "待辦事項", "TO DO 時間管理", UIHelper.ACCENT_GREEN);
         btnTodo.setOnClickListener(v -> startActivity(new Intent(this, TodoActivity.class)));
 
+        Button btnCalendar = UIHelper.cardButton(this, "Google 日曆", "AI 智慧行事曆管理", UIHelper.ACCENT_BLUE);
+        btnCalendar.setOnClickListener(v -> startActivity(new Intent(this, CalendarActivity.class)));
+
         Button btnFitness = UIHelper.cardButton(this, "健身教練", "AI 居家運動計畫", UIHelper.ACCENT_PURPLE);
         btnFitness.setOnClickListener(v -> startActivity(new Intent(this, FitnessActivity.class)));
 
@@ -143,13 +146,14 @@ public class MainActivity extends AppCompatActivity {
 
         content.addView(btnExpenses);
         content.addView(btnTodo);
+        content.addView(btnCalendar);
         content.addView(btnFitness);
         content.addView(btnMonitor);
         content.addView(btnPermission);
 
         // Version footer
         TextView version = new TextView(this);
-        version.setText("v2.3");
+        version.setText("v2.4");
         version.setTextSize(11);
         version.setTextColor(UIHelper.TEXT_HINT);
         version.setGravity(Gravity.CENTER);

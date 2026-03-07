@@ -50,6 +50,10 @@
         <activity android:name=".WorkoutDetailActivity" android:exported="false" />
         <activity android:name=".FitnessProgressActivity" android:exported="false" />
 
+        <!-- Calendar Activities -->
+        <activity android:name=".CalendarActivity" android:exported="false" />
+        <activity android:name=".AddCalendarEventActivity" android:exported="false" />
+
         <!-- Notification Listener Service -->
         <service
             android:name=".NotificationService"

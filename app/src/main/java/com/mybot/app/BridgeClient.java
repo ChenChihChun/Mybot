@@ -188,6 +188,44 @@ public class BridgeClient {
         });
     }
 
+    public interface CalendarParseCallback {
+        void onResult(String responseJson, boolean offline, String error);
+    }
+
+    public static void parseCalendarEvent(String userText, CalendarParseCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "parse_calendar_event");
+                body.put("text", userText);
+                body.put("today", new java.text.SimpleDateFormat("yyyy-MM-dd (E)", java.util.Locale.TAIWAN)
+                        .format(new java.util.Date()));
+                body.put("prompt", "請解析以下文字，判斷使用者想要新增什麼日曆事件。"
+                        + "回傳 JSON 格式：{\"events\": [{\"title\": \"...\", \"start_date\": \"YYYY-MM-DD\", "
+                        + "\"start_time\": \"HH:mm\", \"end_date\": \"YYYY-MM-DD\", \"end_time\": \"HH:mm\", "
+                        + "\"all_day\": false, \"description\": \"...\", \"location\": \"...\"}]}。"
+                        + "如果是多天或多個事件，events 陣列就放多筆。"
+                        + "如果是全天事件，all_day 設為 true，不需要 start_time/end_time。"
+                        + "今天日期供參考，請推算正確的日期。");
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 60000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    mainHandler.post(() -> callback.onResult(response, false, null));
+                } else {
+                    lastError = error;
+                    mainHandler.post(() -> callback.onResult(null, true, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
     private static String[] postJsonWithError(String urlStr, String jsonBody) {
         return postJsonWithError(urlStr, jsonBody, 30000);
     }
