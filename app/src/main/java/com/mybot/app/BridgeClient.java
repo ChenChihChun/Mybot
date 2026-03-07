@@ -287,17 +287,30 @@ public class BridgeClient {
                 if (response != null) {
                     JSONObject json = new JSONObject(response);
                     if (json.optBoolean("success", false)) {
-                        JSONObject r = json.getJSONObject("result");
-                        // Try different possible fields for the text response
-                        String analysis = r.optString("response", "");
-                        if (analysis.isEmpty()) analysis = r.optString("text", "");
-                        if (analysis.isEmpty()) analysis = r.optString("content", "");
-                        if (analysis.isEmpty()) analysis = r.toString();
+                        // result could be a string or a JSONObject
+                        Object resultObj = json.opt("result");
+                        String analysis = "";
+                        if (resultObj instanceof String) {
+                            analysis = (String) resultObj;
+                        } else if (resultObj instanceof JSONObject) {
+                            JSONObject r = (JSONObject) resultObj;
+                            // Try common field names
+                            analysis = r.optString("response", "");
+                            if (analysis.isEmpty()) analysis = r.optString("text", "");
+                            if (analysis.isEmpty()) analysis = r.optString("content", "");
+                            if (analysis.isEmpty()) analysis = r.optString("answer", "");
+                            if (analysis.isEmpty()) analysis = r.optString("message", "");
+                            if (analysis.isEmpty()) analysis = r.toString();
+                        } else if (resultObj != null) {
+                            analysis = resultObj.toString();
+                        }
                         final String finalAnalysis = analysis;
                         mainHandler.post(() -> callback.onResult(finalAnalysis, false, null));
                         return;
                     }
-                    mainHandler.post(() -> callback.onResult(null, false, "Bridge 回傳 success=false"));
+                    // success=false, not offline — show the error detail
+                    String detail = json.optString("error", json.toString());
+                    mainHandler.post(() -> callback.onResult(null, false, detail));
                     return;
                 }
                 lastError = error;
