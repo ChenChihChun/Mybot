@@ -105,9 +105,11 @@ public class StockClient {
                     quotes.add(q);
                 }
 
+                AppLog.i("Stock", "fetchStocks: " + quotes.size() + "檔報價取得成功");
                 mainHandler.post(() -> callback.onResult(quotes, null));
             } catch (Exception e) {
                 String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Stock", "fetchStocks失敗: " + err);
                 mainHandler.post(() -> callback.onResult(null, err));
             }
         });
@@ -169,9 +171,11 @@ public class StockClient {
                     }
                 }
 
+                AppLog.i("Stock", "fetchHistory " + year + "/" + month + ": " + candles.size() + "根K棒");
                 mainHandler.post(() -> callback.onResult(candles, null));
             } catch (Exception e) {
                 String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Stock", "fetchHistory失敗: " + err);
                 mainHandler.post(() -> callback.onResult(null, err));
             }
         });
@@ -228,9 +232,11 @@ public class StockClient {
                     Thread.sleep(1500);
                 }
 
+                AppLog.i("Stock", "fetchMultiMonth " + code + " " + months + "個月: " + allCandles.size() + "根K棒");
                 mainHandler.post(() -> callback.onResult(allCandles, null));
             } catch (Exception e) {
                 String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Stock", "fetchMultiMonth失敗: " + err);
                 mainHandler.post(() -> callback.onResult(null, err));
             }
         });
@@ -252,6 +258,7 @@ public class StockClient {
     private static void handleBlock() {
         lastBlockedTime = System.currentTimeMillis();
         if (backoffLevel < 3) backoffLevel++;
+        AppLog.w("Stock", "TWSE封鎖偵測, backoff level=" + backoffLevel);
     }
 
     private static String httpGet(String urlStr, int timeoutMs) {

@@ -55,6 +55,9 @@
         <!-- Stock Activity -->
         <activity android:name=".StockActivity" android:exported="false" />
 
+        <!-- Log Activity -->
+        <activity android:name=".LogActivity" android:exported="false" />
+
         <!-- Screen Capture Permission Activity (transparent) -->
         <activity
             android:name=".CapturePermissionActivity"

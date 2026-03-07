@@ -46,6 +46,9 @@ public class MainActivity extends AppCompatActivity {
 
         healthHandler = new Handler(Looper.getMainLooper());
 
+        AppLog.init(this);
+        AppLog.i("System", "App啟動 v" + UpdateChecker.getCurrentVersionName(this));
+
         NotificationHelper.createNotificationChannel(this);
         requestPermissions();
         ReminderHelper.restoreIfEnabled(this);
@@ -187,6 +190,19 @@ public class MainActivity extends AppCompatActivity {
         row3.addView(cardCapture, gridCellLp(0));
         row3.addView(cardStock, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row3);
+
+        // Row 4
+        LinearLayout row4 = gridRow();
+        LinearLayout cardLog = UIHelper.featureCard(this,
+                "\uD83D\uDCCB", "系統日誌", "操作記錄·除錯資訊", UIHelper.TEXT_SECONDARY, 30);
+        cardLog.setOnClickListener(v -> startActivity(new Intent(this, LogActivity.class)));
+
+        // Spacer for alignment
+        View spacer = new View(this);
+
+        row4.addView(cardLog, gridCellLp(0));
+        row4.addView(spacer, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row4);
 
         // ── Version footer ──
         LinearLayout versionRow = new LinearLayout(this);

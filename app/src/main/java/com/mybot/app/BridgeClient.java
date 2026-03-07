@@ -61,10 +61,12 @@ public class BridgeClient {
                 conn.disconnect();
 
                 String body = sb.toString();
+                AppLog.i("Bridge", "healthCheck: HTTP " + code);
                 mainHandler.post(() -> callback.onResult(code == 200, "HTTP " + code + ": " + body));
             } catch (Exception e) {
                 String err = e.getClass().getSimpleName() + ": " + e.getMessage();
                 lastError = err;
+                AppLog.e("Bridge", "healthCheck失敗: " + err);
                 mainHandler.post(() -> callback.onResult(false, err));
             }
         });
@@ -72,6 +74,7 @@ public class BridgeClient {
 
     public static void categorize(String merchant, String description, double amount, CategorizeCallback callback) {
         executor.execute(() -> {
+            AppLog.i("Bridge", "categorize: merchant=" + merchant + " amount=" + amount);
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "categorize_expense");
@@ -88,17 +91,20 @@ public class BridgeClient {
                     if (json.optBoolean("success", false)) {
                         JSONObject r = json.getJSONObject("result");
                         String category = r.optString("category", "");
+                        AppLog.i("Bridge", "categorize結果: " + category);
                         mainHandler.post(() -> callback.onResult(category, false));
                         return;
                     }
-                    // Bridge responded but success=false, not offline
+                    AppLog.w("Bridge", "categorize: success=false");
                     mainHandler.post(() -> callback.onResult("", false));
                     return;
                 }
                 lastError = error;
+                AppLog.e("Bridge", "categorize失敗: " + error);
                 mainHandler.post(() -> callback.onResult("", true));
             } catch (Exception e) {
                 lastError = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "categorize異常: " + lastError);
                 mainHandler.post(() -> callback.onResult("", true));
             }
         });
@@ -106,6 +112,7 @@ public class BridgeClient {
 
     public static void analyze(NotificationLog log, AnalyzeCallback callback) {
         executor.execute(() -> {
+            AppLog.i("Bridge", "analyze: app=" + log.sourceApp + " title=" + log.title);
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "analyze_notification");
@@ -132,15 +139,19 @@ public class BridgeClient {
                     }
                     log.analyzed = true;
                     log.offline = false;
+                    AppLog.i("Bridge", "analyze完成: expense=" + log.isExpense
+                            + (log.isExpense ? " amount=" + log.amount + " " + log.currency : ""));
                 } else {
                     log.analyzed = true;
                     log.offline = true;
                     log.errorMsg = error;
+                    AppLog.e("Bridge", "analyze失敗: " + error);
                 }
             } catch (Exception e) {
                 log.analyzed = true;
                 log.offline = true;
                 log.errorMsg = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "analyze異常: " + log.errorMsg);
             }
             mainHandler.post(() -> callback.onResult(log));
         });
@@ -153,6 +164,7 @@ public class BridgeClient {
     public static void generateWorkoutPlan(double height, double weight, String goal,
                                             String level, String feedback, WorkoutCallback callback) {
         executor.execute(() -> {
+            AppLog.i("Bridge", "generateWorkoutPlan: goal=" + goal + " level=" + level);
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "generate_workout_plan");
@@ -176,14 +188,17 @@ public class BridgeClient {
                 String error = result[1];
 
                 if (response != null) {
+                    AppLog.i("Bridge", "workoutPlan生成成功");
                     mainHandler.post(() -> callback.onResult(response, false, null));
                 } else {
                     lastError = error;
+                    AppLog.e("Bridge", "workoutPlan失敗: " + error);
                     mainHandler.post(() -> callback.onResult(null, true, error));
                 }
             } catch (Exception e) {
                 String err = e.getClass().getSimpleName() + ": " + e.getMessage();
                 lastError = err;
+                AppLog.e("Bridge", "workoutPlan異常: " + err);
                 mainHandler.post(() -> callback.onResult(null, true, err));
             }
         });
@@ -195,6 +210,7 @@ public class BridgeClient {
 
     public static void analyzeScreenshot(String base64Image, ScreenshotCallback callback) {
         executor.execute(() -> {
+            AppLog.i("Bridge", "analyzeScreenshot: imageSize=" + (base64Image != null ? base64Image.length() : 0));
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "analyze_expense_screenshot");
@@ -210,14 +226,17 @@ public class BridgeClient {
                 String error = result[1];
 
                 if (response != null) {
+                    AppLog.i("Bridge", "screenshot分析完成");
                     mainHandler.post(() -> callback.onResult(response, false, null));
                 } else {
                     lastError = error;
+                    AppLog.e("Bridge", "screenshot分析失敗: " + error);
                     mainHandler.post(() -> callback.onResult(null, true, error));
                 }
             } catch (Exception e) {
                 String err = e.getClass().getSimpleName() + ": " + e.getMessage();
                 lastError = err;
+                AppLog.e("Bridge", "screenshot異常: " + err);
                 mainHandler.post(() -> callback.onResult(null, true, err));
             }
         });
@@ -229,6 +248,7 @@ public class BridgeClient {
 
     public static void parseCalendarEvent(String userText, CalendarParseCallback callback) {
         executor.execute(() -> {
+            AppLog.i("Bridge", "parseCalendarEvent: " + (userText.length() > 50 ? userText.substring(0, 50) + "..." : userText));
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "parse_calendar_event");
@@ -248,14 +268,17 @@ public class BridgeClient {
                 String error = result[1];
 
                 if (response != null) {
+                    AppLog.i("Bridge", "calendarEvent解析完成");
                     mainHandler.post(() -> callback.onResult(response, false, null));
                 } else {
                     lastError = error;
+                    AppLog.e("Bridge", "calendarEvent失敗: " + error);
                     mainHandler.post(() -> callback.onResult(null, true, error));
                 }
             } catch (Exception e) {
                 String err = e.getClass().getSimpleName() + ": " + e.getMessage();
                 lastError = err;
+                AppLog.e("Bridge", "calendarEvent異常: " + err);
                 mainHandler.post(() -> callback.onResult(null, true, err));
             }
         });
@@ -267,22 +290,22 @@ public class BridgeClient {
 
     public static void analyzeStock(String stockInfo, StockAnalysisCallback callback) {
         executor.execute(() -> {
+            AppLog.i("Bridge", "analyzeStock: infoLen=" + stockInfo.length());
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "analyze_stock");
-                body.put("web_search", true);
-                body.put("prompt", "你是一位專業的台股分析師。請先上網搜尋這檔股票的最新新聞、產業動態、"
-                        + "以及當前國際市場局勢（美股、費半、AI概念股、地緣政治等），"
-                        + "然後結合以下即時數據進行綜合分析。\n\n"
+                body.put("prompt", "你是一位專業的台股分析師，擁有豐富的台股與國際市場知識。\n\n"
                         + "【即時數據與技術指標】\n"
                         + stockInfo + "\n\n"
-                        + "請根據最新新聞 + 以上數據，提供投資分析評語（約300-500字），包含：\n"
-                        + "1. 最新消息面：近期重要新聞、法說會、營收、產業趨勢\n"
-                        + "2. 國際局勢影響：美股/費半走勢、AI產業動態、總經環境\n"
-                        + "3. 技術面分析：均線、RSI 指標解讀\n"
-                        + "4. 籌碼面觀察：外資/投信動向（如有資料）\n"
+                        + "請根據以上數據，結合你對該公司、產業趨勢、以及近期國際市場局勢"
+                        + "（美股、費半、AI概念股、地緣政治、總經環境等）的了解，"
+                        + "提供投資分析評語（約300-500字），包含：\n"
+                        + "1. 消息面：該公司近期重要動態、營收表現、產業趨勢\n"
+                        + "2. 國際局勢影響：美股/費半走勢、AI產業動態對該股的影響\n"
+                        + "3. 技術面分析：根據提供的均線、RSI 指標解讀多空訊號\n"
+                        + "4. 籌碼面觀察：外資/投信可能動向\n"
                         + "5. 短中期展望與投資建議（偏多/偏空/觀望）\n\n"
-                        + "請引用具體新聞來源或日期佐證。直接回覆純文字分析，不要回傳 JSON。"
+                        + "直接回覆純文字分析即可，不要使用任何工具，不要回傳 JSON。"
                         + "注意：這僅供參考，不構成投資建議。");
 
                 String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 60000);
@@ -290,21 +313,25 @@ public class BridgeClient {
                 String error = result[1];
 
                 if (response != null) {
-                    // DEBUG: 暫時顯示原始回應結構，方便排查
-                    String raw = response.length() > 2000 ? response.substring(0, 2000) + "..." : response;
+                    AppLog.i("Bridge", "stockAnalysis回應: " + (response.length() > 200 ? response.substring(0, 200) + "..." : response));
                     String analysis = extractAnalysis(response);
-                    String debugInfo = "【原始回應前500字】\n"
-                            + (raw.length() > 500 ? raw.substring(0, 500) : raw)
-                            + "\n\n【解析結果】\n"
-                            + (analysis != null ? analysis : "(null)");
-                    mainHandler.post(() -> callback.onResult(debugInfo, false, null));
+                    if (analysis != null && !analysis.isEmpty()) {
+                        AppLog.i("Bridge", "stockAnalysis成功: " + analysis.length() + "字");
+                        mainHandler.post(() -> callback.onResult(analysis, false, null));
+                    } else {
+                        String raw = response.length() > 500 ? response.substring(0, 500) + "..." : response;
+                        AppLog.w("Bridge", "stockAnalysis格式異常: " + raw);
+                        mainHandler.post(() -> callback.onResult(null, false, "回應格式異常:\n" + raw));
+                    }
                     return;
                 }
                 lastError = error;
+                AppLog.e("Bridge", "stockAnalysis失敗: " + error);
                 mainHandler.post(() -> callback.onResult(null, true, error));
             } catch (Exception e) {
                 String err = e.getClass().getSimpleName() + ": " + e.getMessage();
                 lastError = err;
+                AppLog.e("Bridge", "stockAnalysis異常: " + err);
                 mainHandler.post(() -> callback.onResult(null, true, err));
             }
         });
@@ -416,12 +443,17 @@ public class BridgeClient {
             conn.disconnect();
 
             if (code >= 200 && code < 300) {
+                AppLog.i("Bridge", "POST " + urlStr + " → " + code + " (" + sb.length() + " bytes)");
                 return new String[]{sb.toString(), null};
             } else {
-                return new String[]{null, "HTTP " + code + ": " + sb.toString()};
+                String errBody = sb.toString();
+                AppLog.w("Bridge", "POST " + urlStr + " → HTTP " + code + ": " + (errBody.length() > 200 ? errBody.substring(0, 200) : errBody));
+                return new String[]{null, "HTTP " + code + ": " + errBody};
             }
         } catch (Exception e) {
-            return new String[]{null, e.getClass().getSimpleName() + ": " + e.getMessage()};
+            String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+            AppLog.e("Bridge", "POST " + urlStr + " 連線失敗: " + err);
+            return new String[]{null, err};
         }
     }
 }
