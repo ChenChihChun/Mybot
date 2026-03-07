@@ -269,9 +269,9 @@ public class BridgeClient {
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "analyze_stock");
-                body.put("stock_info", stockInfo);
-                body.put("prompt", "你是一位專業的台股分析師。根據以下股票即時數據和技術指標，"
-                        + "請提供簡潔的投資分析評語（約200-300字），包含：\n"
+                body.put("prompt", "你是一位專業的台股分析師。以下是股票的即時數據和技術指標：\n\n"
+                        + stockInfo + "\n\n"
+                        + "請根據以上數據，提供簡潔的投資分析評語（約200-300字），包含：\n"
                         + "1. 當前股價表現評估\n"
                         + "2. 技術面分析（均線、RSI等指標解讀）\n"
                         + "3. 結合國際市場背景的趨勢判斷\n"
