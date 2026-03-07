@@ -70,6 +70,43 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         return db.insert(TABLE, null, cv);
     }
 
+    public void update(long id, double amount, String category, String merchant,
+                       String description, long createdAt) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_AMOUNT, amount);
+        cv.put(COL_CATEGORY, category);
+        cv.put(COL_MERCHANT, merchant);
+        cv.put(COL_DESCRIPTION, description);
+        cv.put(COL_CREATED_AT, createdAt);
+        db.update(TABLE, cv, COL_ID + " = ?", new String[]{String.valueOf(id)});
+    }
+
+    public void delete(long id) {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete(TABLE, COL_ID + " = ?", new String[]{String.valueOf(id)});
+    }
+
+    public Expense queryById(long id) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.query(TABLE, null, COL_ID + " = ?",
+                new String[]{String.valueOf(id)}, null, null, null);
+        Expense e = null;
+        if (cursor.moveToFirst()) {
+            e = new Expense();
+            e.id = cursor.getLong(cursor.getColumnIndexOrThrow(COL_ID));
+            e.amount = cursor.getDouble(cursor.getColumnIndexOrThrow(COL_AMOUNT));
+            e.currency = cursor.getString(cursor.getColumnIndexOrThrow(COL_CURRENCY));
+            e.category = cursor.getString(cursor.getColumnIndexOrThrow(COL_CATEGORY));
+            e.merchant = cursor.getString(cursor.getColumnIndexOrThrow(COL_MERCHANT));
+            e.description = cursor.getString(cursor.getColumnIndexOrThrow(COL_DESCRIPTION));
+            e.source = cursor.getString(cursor.getColumnIndexOrThrow(COL_SOURCE));
+            e.createdAt = cursor.getLong(cursor.getColumnIndexOrThrow(COL_CREATED_AT));
+        }
+        cursor.close();
+        return e;
+    }
+
     public List<Expense> queryAll(String categoryFilter) {
         SQLiteDatabase db = getReadableDatabase();
         String selection = null;

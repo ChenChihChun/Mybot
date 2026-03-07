@@ -1,5 +1,6 @@
 package com.mybot.app;
 
+import android.app.AlertDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.graphics.Color;
@@ -115,6 +116,11 @@ public class ExpenseActivity extends AppCompatActivity {
         adapter = new ExpenseAdapter();
         listView.setAdapter(adapter);
 
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            ExpenseDbHelper.Expense e = adapter.data.get(position);
+            showExpenseActions(e);
+        });
+
         // Empty state
         TextView emptyView = new TextView(this);
         emptyView.setText("尚無消費紀錄");
@@ -180,6 +186,33 @@ public class ExpenseActivity extends AppCompatActivity {
             Toast.makeText(this, String.format("已設定每日 %02d:%02d 提醒記帳", h, m),
                     Toast.LENGTH_SHORT).show();
         }, hour, minute, true).show();
+    }
+
+    private void showExpenseActions(ExpenseDbHelper.Expense e) {
+        String info = (e.merchant != null && !e.merchant.isEmpty() ? e.merchant : "無商家")
+                + "  $" + String.format(Locale.getDefault(), "%.0f", e.amount);
+        new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
+                .setTitle(info)
+                .setItems(new String[]{"編輯", "刪除"}, (d, which) -> {
+                    if (which == 0) {
+                        Intent intent = new Intent(this, AddExpenseActivity.class);
+                        intent.putExtra("expense_id", e.id);
+                        startActivity(intent);
+                    } else {
+                        new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
+                                .setTitle("確認刪除")
+                                .setMessage("確定要刪除這筆消費紀錄？")
+                                .setPositiveButton("刪除", (d2, w2) -> {
+                                    dbHelper.delete(e.id);
+                                    refreshList();
+                                    Toast.makeText(this, "已刪除", Toast.LENGTH_SHORT).show();
+                                })
+                                .setNegativeButton("取消", null)
+                                .show();
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void refreshList() {

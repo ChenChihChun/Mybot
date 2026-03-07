@@ -27,17 +27,19 @@ public class AddExpenseActivity extends AppCompatActivity {
     private final Calendar selectedDate = Calendar.getInstance();
     private TextView dateDisplay;
     private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault());
+    private long editId = -1; // -1 = new, >0 = editing
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
+        editId = getIntent().getLongExtra("expense_id", -1);
 
         LinearLayout root = UIHelper.pageRoot(this);
 
         // Top bar
-        LinearLayout topBar = UIHelper.topBar(this, "新增消費");
+        LinearLayout topBar = UIHelper.topBar(this, editId > 0 ? "編輯消費" : "新增消費");
         Button closeBtn = UIHelper.smallButton(this, "X", UIHelper.TEXT_SECONDARY);
         closeBtn.setOnClickListener(v -> finish());
         topBar.addView(closeBtn);
@@ -232,14 +234,35 @@ public class AddExpenseActivity extends AppCompatActivity {
             }
 
             ExpenseDbHelper db = new ExpenseDbHelper(this);
-            db.insert(amount, "TWD", category, merchant, desc, "手動", "",
-                    selectedDate.getTimeInMillis());
-            Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
+            if (editId > 0) {
+                db.update(editId, amount, category, merchant, desc,
+                        selectedDate.getTimeInMillis());
+                Toast.makeText(this, "已更新", Toast.LENGTH_SHORT).show();
+            } else {
+                db.insert(amount, "TWD", category, merchant, desc, "手動", "",
+                        selectedDate.getTimeInMillis());
+                Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
+            }
             finish();
         });
 
         Button cancelBtn = UIHelper.outlineButton(this, "取消");
         cancelBtn.setOnClickListener(v -> finish());
+
+        // Load existing data in edit mode
+        if (editId > 0) {
+            ExpenseDbHelper db = new ExpenseDbHelper(this);
+            ExpenseDbHelper.Expense existing = db.queryById(editId);
+            if (existing != null) {
+                amountInput.setText(String.format(Locale.getDefault(), "%.0f", existing.amount));
+                merchantInput.setText(existing.merchant != null ? existing.merchant : "");
+                descInput.setText(existing.description != null ? existing.description : "");
+                categoryInput.setText(existing.category != null ? existing.category : "");
+                selectedDate.setTimeInMillis(existing.createdAt);
+                dateDisplay.setText(sdf.format(selectedDate.getTime()));
+            }
+            saveBtn.setText("更新");
+        }
 
         form.addView(dateCard);
         form.addView(amountCard);

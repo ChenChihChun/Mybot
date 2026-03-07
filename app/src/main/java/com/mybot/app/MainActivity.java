@@ -42,41 +42,47 @@ public class MainActivity extends AppCompatActivity {
         topSection.setGravity(Gravity.CENTER);
         topSection.setBackgroundColor(UIHelper.BG_TOP_BAR);
         int p = UIHelper.dp(this, 24);
-        topSection.setPadding(p, UIHelper.dp(this, 36), p, UIHelper.dp(this, 28));
+        topSection.setPadding(p, UIHelper.dp(this, 16), p, UIHelper.dp(this, 14));
         topSection.setElevation(UIHelper.dp(this, 4));
 
-        // App icon — large gradient circle
+        // Compact hero: icon + text in horizontal row
+        LinearLayout heroRow = new LinearLayout(this);
+        heroRow.setOrientation(LinearLayout.HORIZONTAL);
+        heroRow.setGravity(Gravity.CENTER_VERTICAL);
+
         TextView iconCircle = new TextView(this);
-        iconCircle.setText("\uD83E\uDD16"); // robot emoji
-        iconCircle.setTextSize(40);
+        iconCircle.setText("\uD83E\uDD16");
+        iconCircle.setTextSize(28);
         iconCircle.setGravity(Gravity.CENTER);
-        iconCircle.setBackground(UIHelper.roundRect(Color.parseColor("#1B3A4B"), 24, this));
-        iconCircle.setElevation(UIHelper.dp(this, 6));
+        iconCircle.setBackground(UIHelper.roundRect(Color.parseColor("#1B3A4B"), 18, this));
+        iconCircle.setElevation(UIHelper.dp(this, 4));
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(
-                UIHelper.dp(this, 80), UIHelper.dp(this, 80));
-        iconLp.gravity = Gravity.CENTER;
-        iconLp.setMargins(0, 0, 0, UIHelper.dp(this, 14));
+                UIHelper.dp(this, 52), UIHelper.dp(this, 52));
+        iconLp.setMargins(0, 0, UIHelper.dp(this, 14), 0);
         iconCircle.setLayoutParams(iconLp);
+
+        LinearLayout textCol = new LinearLayout(this);
+        textCol.setOrientation(LinearLayout.VERTICAL);
 
         TextView title = new TextView(this);
         title.setText("Mybot");
-        title.setTextSize(32);
+        title.setTextSize(24);
         title.setTextColor(UIHelper.TEXT_PRIMARY);
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
-        title.setGravity(Gravity.CENTER);
-        title.setLetterSpacing(0.06f);
+        title.setLetterSpacing(0.04f);
 
         TextView subtitle = new TextView(this);
         subtitle.setText("Smart Notification Assistant");
-        subtitle.setTextSize(13);
+        subtitle.setTextSize(12);
         subtitle.setTextColor(UIHelper.TEXT_SECONDARY);
-        subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, UIHelper.dp(this, 4), 0, 0);
-        subtitle.setLetterSpacing(0.04f);
+        subtitle.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+        subtitle.setLetterSpacing(0.03f);
 
-        topSection.addView(iconCircle);
-        topSection.addView(title);
-        topSection.addView(subtitle);
+        textCol.addView(title);
+        textCol.addView(subtitle);
+        heroRow.addView(iconCircle);
+        heroRow.addView(textCol);
+        topSection.addView(heroRow);
 
         // ── Scrollable content ──
         ScrollView scrollView = new ScrollView(this);
@@ -170,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
 
         // ── Version footer ──
         TextView version = new TextView(this);
-        version.setText("v2.4");
+        version.setText("v2.5");
         version.setTextSize(11);
         version.setTextColor(UIHelper.TEXT_HINT);
         version.setGravity(Gravity.CENTER);
