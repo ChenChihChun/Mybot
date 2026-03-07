@@ -290,16 +290,14 @@ public class BridgeClient {
                 String error = result[1];
 
                 if (response != null) {
+                    // DEBUG: 暫時顯示原始回應結構，方便排查
+                    String raw = response.length() > 2000 ? response.substring(0, 2000) + "..." : response;
                     String analysis = extractAnalysis(response);
-                    if (analysis != null && !analysis.isEmpty()) {
-                        // Log for debug
-                        android.util.Log.d("BridgeClient", "AI analysis length=" + analysis.length());
-                        mainHandler.post(() -> callback.onResult(analysis, false, null));
-                    } else {
-                        // Show raw response for debugging
-                        String raw = response.length() > 1000 ? response.substring(0, 1000) + "..." : response;
-                        mainHandler.post(() -> callback.onResult("【DEBUG 原始回應】\n" + raw, false, null));
-                    }
+                    String debugInfo = "【原始回應前500字】\n"
+                            + (raw.length() > 500 ? raw.substring(0, 500) : raw)
+                            + "\n\n【解析結果】\n"
+                            + (analysis != null ? analysis : "(null)");
+                    mainHandler.post(() -> callback.onResult(debugInfo, false, null));
                     return;
                 }
                 lastError = error;
