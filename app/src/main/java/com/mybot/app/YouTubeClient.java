@@ -361,43 +361,61 @@ public class YouTubeClient {
     public static void resolveChannel(String accessToken, String input, ChannelListCallback callback) {
         executor.execute(() -> {
             try {
-                String url;
-                if (input.startsWith("@")) {
-                    String handle = input.substring(1);
-                    url = BASE + "/channels?part=snippet&forHandle=" + URLEncoder.encode(handle, "UTF-8");
-                } else if (input.startsWith("UC") || input.startsWith("HC")) {
-                    url = BASE + "/channels?part=snippet&id=" + URLEncoder.encode(input, "UTF-8");
-                } else {
-                    // Try as forHandle without @
-                    url = BASE + "/channels?part=snippet&forHandle=" + URLEncoder.encode(input, "UTF-8");
-                }
-                String response = httpGet(url, accessToken);
-                JSONObject json = new JSONObject(response);
-                JSONArray items = json.optJSONArray("items");
+                String name = input.startsWith("@") ? input.substring(1) : input;
+                boolean isChannelId = input.startsWith("UC") || input.startsWith("HC");
                 List<ChannelInfo> list = new ArrayList<>();
-                if (items != null) {
-                    for (int i = 0; i < items.length(); i++) {
-                        JSONObject item = items.getJSONObject(i);
-                        JSONObject snippet = item.getJSONObject("snippet");
-                        String thumbUrl = "";
-                        JSONObject thumbs = snippet.optJSONObject("thumbnails");
-                        if (thumbs != null) {
-                            JSONObject def = thumbs.optJSONObject("default");
-                            if (def != null) thumbUrl = def.optString("url", "");
-                        }
-                        list.add(new ChannelInfo(
-                                item.getString("id"),
-                                snippet.optString("title", ""),
-                                thumbUrl
-                        ));
+
+                if (isChannelId) {
+                    // Direct channel ID lookup
+                    list = parseChannelResponse(httpGet(
+                            BASE + "/channels?part=snippet&id=" + URLEncoder.encode(input, "UTF-8"), accessToken));
+                } else {
+                    // Try forHandle first (new-style @handle)
+                    try {
+                        list = parseChannelResponse(httpGet(
+                                BASE + "/channels?part=snippet&forHandle=" + URLEncoder.encode(name, "UTF-8"), accessToken));
+                    } catch (Exception ignored) {}
+
+                    // If not found, try forUsername (legacy YouTube username)
+                    if (list.isEmpty()) {
+                        try {
+                            list = parseChannelResponse(httpGet(
+                                    BASE + "/channels?part=snippet&forUsername=" + URLEncoder.encode(name, "UTF-8"), accessToken));
+                        } catch (Exception ignored) {}
                     }
                 }
-                mainHandler.post(() -> callback.onResult(list, null));
+
+                List<ChannelInfo> finalList = list;
+                mainHandler.post(() -> callback.onResult(finalList, null));
             } catch (Exception e) {
                 String err = e.getClass().getSimpleName() + ": " + e.getMessage();
                 mainHandler.post(() -> callback.onResult(null, err));
             }
         });
+    }
+
+    private static List<ChannelInfo> parseChannelResponse(String response) throws Exception {
+        JSONObject json = new JSONObject(response);
+        JSONArray items = json.optJSONArray("items");
+        List<ChannelInfo> list = new ArrayList<>();
+        if (items != null) {
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject item = items.getJSONObject(i);
+                JSONObject snippet = item.getJSONObject("snippet");
+                String thumbUrl = "";
+                JSONObject thumbs = snippet.optJSONObject("thumbnails");
+                if (thumbs != null) {
+                    JSONObject def = thumbs.optJSONObject("default");
+                    if (def != null) thumbUrl = def.optString("url", "");
+                }
+                list.add(new ChannelInfo(
+                        item.getString("id"),
+                        snippet.optString("title", ""),
+                        thumbUrl
+                ));
+            }
+        }
+        return list;
     }
 
     public static void getChannelInfo(String accessToken, String channelId, ChannelListCallback callback) {

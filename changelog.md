@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.34 (2026-03-08)
+- **Fix: Music Manager — Support Legacy YouTube Username Lookup**
+  - Modified `YouTubeClient.java` — `resolveChannel()` now tries `forHandle` first, then falls back to `forUsername` (legacy YouTube username from pre-Google-merger era); extracted `parseChannelResponse()` helper to reduce duplication
+  - Modified `app/build.gradle` — versionCode 56, versionName 3.34
+
 ## v3.33 (2026-03-08)
 - **Enhancement: Music Manager — Support @handle Input for Channel Resolution**
   - Modified `YouTubeClient.java` — Added `resolveChannel()` method that auto-detects input format: `@handle` uses `forHandle` param, `UC...` uses `id` param, plain text tries `forHandle`; returns resolved channel ID + title
