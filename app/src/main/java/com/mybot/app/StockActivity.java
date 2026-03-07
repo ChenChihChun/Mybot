@@ -399,7 +399,7 @@ public class StockActivity extends AppCompatActivity {
             boolean selected = code.equals(selectedCode);
             int accentColor;
             if (q != null && q.currentPrice > 0) {
-                accentColor = q.getChange() >= 0 ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED;
+                accentColor = q.getChange() >= 0 ? UIHelper.ACCENT_RED : UIHelper.ACCENT_GREEN;
             } else {
                 accentColor = UIHelper.TEXT_HINT;
             }
@@ -492,8 +492,8 @@ public class StockActivity extends AppCompatActivity {
             double pct = q.getChangePercent();
             String sign = change >= 0 ? "+" : "";
             tvChange.setText(sign + formatPrice(change) + " (" + sign + String.format("%.2f%%", pct) + ")");
-            tvChange.setTextColor(change >= 0 ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED);
-            tvPrice.setTextColor(change >= 0 ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED);
+            tvChange.setTextColor(change >= 0 ? UIHelper.ACCENT_RED : UIHelper.ACCENT_GREEN);
+            tvPrice.setTextColor(change >= 0 ? UIHelper.ACCENT_RED : UIHelper.ACCENT_GREEN);
         } else {
             tvPrice.setText("--");
             tvChange.setText("");
