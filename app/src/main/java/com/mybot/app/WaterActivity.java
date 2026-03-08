@@ -1,6 +1,6 @@
 package com.mybot.app;
 
-import android.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -334,7 +334,7 @@ public class WaterActivity extends AppCompatActivity {
         EditText input = UIHelper.styledInput(this, "\u8F38\u5165 ml \u6578");
         input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
 
-        new AlertDialog.Builder(this)
+        new androidx.appcompat.app.AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
                 .setTitle("\u81EA\u8A02\u6C34\u91CF")
                 .setView(input)
                 .setPositiveButton("\u65B0\u589E", (d, w) -> {
@@ -361,6 +361,7 @@ public class WaterActivity extends AppCompatActivity {
     private void showSettingsDialog() {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setBackgroundColor(UIHelper.BG_CARD);
         int p = UIHelper.dp(this, 20);
         layout.setPadding(p, p, p, p);
 
@@ -371,10 +372,9 @@ public class WaterActivity extends AppCompatActivity {
         goalLabel.setTextColor(UIHelper.TEXT_PRIMARY);
         layout.addView(goalLabel);
 
-        EditText goalInput = new EditText(this);
+        EditText goalInput = UIHelper.styledInput(this, "2000");
         goalInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
         goalInput.setText(String.valueOf(WaterDbHelper.getGoal(this)));
-        goalInput.setTextColor(UIHelper.TEXT_PRIMARY);
         layout.addView(goalInput);
 
         // Reminder toggle
@@ -398,28 +398,58 @@ public class WaterActivity extends AppCompatActivity {
 
         // Interval
         TextView intervalLabel = new TextView(this);
-        intervalLabel.setText(String.format(Locale.US, "\u63D0\u9192\u9593\u9694\uFF1A%d \u5206\u9418", WaterDbHelper.getRemindInterval(this)));
-        intervalLabel.setTextSize(13);
-        intervalLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        intervalLabel.setText("\u63D0\u9192\u9593\u9694 (\u5206\u9418)");
+        intervalLabel.setTextSize(14);
+        intervalLabel.setTextColor(UIHelper.TEXT_PRIMARY);
+        intervalLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
         layout.addView(intervalLabel);
 
-        EditText intervalInput = new EditText(this);
+        EditText intervalInput = UIHelper.styledInput(this, "60");
         intervalInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
         intervalInput.setText(String.valueOf(WaterDbHelper.getRemindInterval(this)));
-        intervalInput.setTextColor(UIHelper.TEXT_PRIMARY);
-        intervalInput.setHint("\u5206\u9418");
         layout.addView(intervalInput);
 
         // Active hours
         TextView hoursLabel = new TextView(this);
-        hoursLabel.setText(String.format(Locale.US, "\u63D0\u9192\u6642\u6BB5\uFF1A%d:00 - %d:00",
-                WaterDbHelper.getRemindStartHour(this), WaterDbHelper.getRemindEndHour(this)));
-        hoursLabel.setTextSize(13);
-        hoursLabel.setTextColor(UIHelper.TEXT_SECONDARY);
-        hoursLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        hoursLabel.setText("\u63D0\u9192\u6642\u6BB5");
+        hoursLabel.setTextSize(14);
+        hoursLabel.setTextColor(UIHelper.TEXT_PRIMARY);
+        hoursLabel.setPadding(0, UIHelper.dp(this, 12), 0, UIHelper.dp(this, 4));
         layout.addView(hoursLabel);
 
-        new AlertDialog.Builder(this)
+        LinearLayout hoursRow = new LinearLayout(this);
+        hoursRow.setOrientation(LinearLayout.HORIZONTAL);
+        hoursRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        EditText startHourInput = UIHelper.styledInput(this, "8");
+        startHourInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        startHourInput.setText(String.valueOf(WaterDbHelper.getRemindStartHour(this)));
+        startHourInput.setGravity(Gravity.CENTER);
+        startHourInput.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        TextView hoursSep = new TextView(this);
+        hoursSep.setText(" : 00  \u2014  ");
+        hoursSep.setTextSize(14);
+        hoursSep.setTextColor(UIHelper.TEXT_SECONDARY);
+
+        EditText endHourInput = UIHelper.styledInput(this, "22");
+        endHourInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        endHourInput.setText(String.valueOf(WaterDbHelper.getRemindEndHour(this)));
+        endHourInput.setGravity(Gravity.CENTER);
+        endHourInput.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        TextView hoursSep2 = new TextView(this);
+        hoursSep2.setText(" : 00");
+        hoursSep2.setTextSize(14);
+        hoursSep2.setTextColor(UIHelper.TEXT_SECONDARY);
+
+        hoursRow.addView(startHourInput);
+        hoursRow.addView(hoursSep);
+        hoursRow.addView(endHourInput);
+        hoursRow.addView(hoursSep2);
+        layout.addView(hoursRow);
+
+        new androidx.appcompat.app.AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
                 .setTitle("\u559D\u6C34\u8A2D\u5B9A")
                 .setView(layout)
                 .setPositiveButton("\u5132\u5B58", (d, w) -> {
@@ -433,9 +463,18 @@ public class WaterActivity extends AppCompatActivity {
                         if (interval >= 15) WaterDbHelper.setRemindInterval(this, interval);
                     } catch (NumberFormatException ignored) {}
 
+                    try {
+                        int sh = Integer.parseInt(startHourInput.getText().toString().trim());
+                        int eh = Integer.parseInt(endHourInput.getText().toString().trim());
+                        if (sh >= 0 && sh <= 23 && eh >= 0 && eh <= 23) {
+                            WaterDbHelper.setRemindHours(this, sh, eh);
+                        }
+                    } catch (NumberFormatException ignored) {}
+
                     boolean enabled = remindSwitch.isChecked();
                     WaterDbHelper.setRemindEnabled(this, enabled);
-                    AppLog.i("Water", "設定變更: 目標=" + WaterDbHelper.getGoal(this) + "ml 提醒=" + enabled);
+                    AppLog.i("Water", "設定變更: 目標=" + WaterDbHelper.getGoal(this) + "ml 提醒=" + enabled
+                            + " 間隔=" + WaterDbHelper.getRemindInterval(this) + "min");
                     if (enabled) {
                         ReminderHelper.scheduleWaterReminder(this);
                     } else {

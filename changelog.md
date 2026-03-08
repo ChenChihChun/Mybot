@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.40 (2026-03-08)
+- **Fix: Water Reminder Not Firing + Settings Dialog Visibility**
+  - Modified `ReminderHelper.java` — Replaced `setRepeating()` with `setExactAndAllowWhileIdle()` for water reminders (Doze-safe); added `scheduleNextWaterAlarm()` for one-shot exact scheduling
+  - Modified `WaterReminderReceiver.java` — Reschedules next alarm at the start of `onReceive()` (since exact alarms are one-shot)
+  - Modified `WaterActivity.java` — Settings dialog: switched to AppCompat dark theme, used `UIHelper.styledInput()` for all inputs, added editable start/end hour fields; custom amount dialog also uses dark theme
+  - Modified `app/build.gradle` — versionCode 62, versionName 3.40
+
 ## v3.39 (2026-03-08)
 - **Enhancement: Screenshot Expense — Tap Notification to Edit**
   - Modified `NotificationHelper.java` — Added `sendExpenseNotification(context, merchant, amount, category, expenseId)` overload; when expenseId > 0, notification includes PendingIntent opening AddExpenseActivity in edit mode

@@ -158,6 +158,11 @@ public class ReminderHelper {
 
     public static void scheduleWaterReminder(Context context) {
         WaterDbHelper.setRemindEnabled(context, true);
+        scheduleNextWaterAlarm(context);
+    }
+
+    /** Schedule a single exact alarm for the next water reminder. */
+    public static void scheduleNextWaterAlarm(Context context) {
         int intervalMin = WaterDbHelper.getRemindInterval(context);
 
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
@@ -170,7 +175,7 @@ public class ReminderHelper {
         long intervalMs = intervalMin * 60 * 1000L;
         long triggerAt = System.currentTimeMillis() + intervalMs;
 
-        am.setRepeating(AlarmManager.RTC_WAKEUP, triggerAt, intervalMs, pi);
+        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi);
     }
 
     public static void cancelWaterReminder(Context context) {

@@ -17,6 +17,11 @@ public class WaterReminderReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        // Always schedule the next alarm first (exact alarms are one-shot)
+        if (WaterDbHelper.isRemindEnabled(context)) {
+            ReminderHelper.scheduleNextWaterAlarm(context);
+        }
+
         // Check active hours
         int currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         int startHour = WaterDbHelper.getRemindStartHour(context);
