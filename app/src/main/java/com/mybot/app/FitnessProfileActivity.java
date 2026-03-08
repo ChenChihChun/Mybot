@@ -183,12 +183,14 @@ public class FitnessProfileActivity extends AppCompatActivity {
                 h = Double.parseDouble(hStr);
                 w = Double.parseDouble(wStr);
             } catch (Exception e) {
+                AppLog.e("Fitness", "個人檔案儲存失敗: 格式錯誤");
                 Toast.makeText(this, "格式錯誤", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             FitnessDbHelper db = new FitnessDbHelper(this);
             db.saveProfile(h, w, goalKeys[selectedGoalIdx], levelKeys[selectedLevelIdx]);
+            AppLog.i("Fitness", "個人檔案已儲存: " + h + "cm/" + w + "kg goal=" + goalKeys[selectedGoalIdx] + " level=" + levelKeys[selectedLevelIdx]);
             Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
             finish();
         });

@@ -55,6 +55,7 @@ public class WorkoutDetailActivity extends AppCompatActivity {
         }
 
         if (plan == null) {
+            AppLog.e("Fitness", "找不到訓練計畫: planId=" + planId);
             TextView err = new TextView(this);
             err.setText("找不到訓練計畫");
             err.setTextSize(16);
@@ -62,6 +63,7 @@ public class WorkoutDetailActivity extends AppCompatActivity {
             err.setGravity(Gravity.CENTER);
             content.addView(err);
         } else {
+            AppLog.i("Fitness", "載入訓練詳情: " + plan.dayLabel + " - " + plan.focus);
             // Header card
             LinearLayout headerCard = UIHelper.card(this);
 
@@ -108,6 +110,7 @@ public class WorkoutDetailActivity extends AppCompatActivity {
                         completeBtn.setOnClickListener(v -> {
                             db.saveLog(FitnessDbHelper.getTodayStr(), finalPlan.id,
                                     exCount, exCount, 30, "");
+                            AppLog.i("Fitness", "今日訓練完成(詳情頁): " + exCount + "個動作");
                             Toast.makeText(this, "太棒了！今日訓練完成！", Toast.LENGTH_SHORT).show();
                             finish();
                         });
@@ -116,6 +119,7 @@ public class WorkoutDetailActivity extends AppCompatActivity {
                 }
 
             } catch (Exception e) {
+                AppLog.e("Fitness", "訓練詳情解析錯誤: " + e.getMessage());
                 TextView errView = new TextView(this);
                 errView.setText("計畫資料格式錯誤: " + e.getMessage());
                 errView.setTextSize(13);

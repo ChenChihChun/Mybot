@@ -108,6 +108,7 @@ public class ReportActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
+        AppLog.i("Expense", "消費報表頁面已開啟");
         switchMode(0);
     }
 
@@ -217,10 +218,15 @@ public class ReportActivity extends AppCompatActivity {
         periodLabel.setText(getPeriodText());
         contentArea.removeAllViews();
 
+        String[] modeNames = {"月報", "季報", "年報"};
+        AppLog.i("Expense", "生成報表: " + modeNames[currentMode] + " " + getPeriodText());
+
         long[] range = getDateRange();
         double totalAmount = dbHelper.sumByDateRange(range[0], range[1]);
         int totalCount = dbHelper.countByDateRange(range[0], range[1]);
         List<ExpenseDbHelper.CategorySum> categories = dbHelper.sumByCategory(range[0], range[1]);
+
+        AppLog.i("Expense", "報表結果: 共" + totalCount + "筆, 總額$" + String.format(Locale.getDefault(), "%.0f", totalAmount) + ", " + categories.size() + "個類別");
 
         // Summary card
         LinearLayout summaryCard = UIHelper.card(this);

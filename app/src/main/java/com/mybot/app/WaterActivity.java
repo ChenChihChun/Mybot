@@ -160,6 +160,7 @@ public class WaterActivity extends AppCompatActivity {
             btn.setLayoutParams(btnLp);
             btn.setOnClickListener(v -> {
                 dbHelper.addLog(amt);
+                AppLog.i("Water", "記錄飲水: " + amt + "ml");
                 refreshUI();
             });
             quickRow.addView(btn);
@@ -343,6 +344,7 @@ public class WaterActivity extends AppCompatActivity {
                             int amt = Integer.parseInt(text);
                             if (amt > 0 && amt <= 5000) {
                                 dbHelper.addLog(amt);
+                                AppLog.i("Water", "記錄飲水(自訂): " + amt + "ml");
                                 refreshUI();
                             } else {
                                 Toast.makeText(this, "\u8ACB\u8F38\u5165 1-5000 ml", Toast.LENGTH_SHORT).show();
@@ -433,6 +435,7 @@ public class WaterActivity extends AppCompatActivity {
 
                     boolean enabled = remindSwitch.isChecked();
                     WaterDbHelper.setRemindEnabled(this, enabled);
+                    AppLog.i("Water", "設定變更: 目標=" + WaterDbHelper.getGoal(this) + "ml 提醒=" + enabled);
                     if (enabled) {
                         ReminderHelper.scheduleWaterReminder(this);
                     } else {

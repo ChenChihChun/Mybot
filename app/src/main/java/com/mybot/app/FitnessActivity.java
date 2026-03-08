@@ -342,6 +342,7 @@ public class FitnessActivity extends AppCompatActivity {
                         completeBtn.setOnClickListener(v -> {
                             dbHelper.saveLog(FitnessDbHelper.getTodayStr(), pd.id,
                                     exercises.length(), exercises.length(), 30, "");
+                            AppLog.i("Fitness", "今日訓練完成: " + exercises.length() + "個動作");
                             Toast.makeText(this, "太棒了！今日訓練完成！", Toast.LENGTH_SHORT).show();
                             buildUI();
                         });
@@ -349,6 +350,7 @@ public class FitnessActivity extends AppCompatActivity {
                     card.addView(completeBtn);
                 }
             } catch (Exception e) {
+                AppLog.e("Fitness", "計畫資料解析錯誤: " + e.getMessage());
                 TextView errView = new TextView(this);
                 errView.setText("計畫資料格式錯誤");
                 errView.setTextSize(13);
@@ -464,6 +466,7 @@ public class FitnessActivity extends AppCompatActivity {
         btn.setText("AI 生成中...");
         statusText.setText("正在透過 AI Bridge 生成運動計畫，請稍候...");
         statusText.setTextColor(UIHelper.ACCENT_BLUE);
+        AppLog.i("Fitness", "AI計畫生成開始: goal=" + profile.goal + " level=" + profile.level);
 
         BridgeClient.generateWorkoutPlan(profile.heightCm, profile.weightKg,
                 profile.goal, profile.level, null, (responseJson, offline, error) -> {
@@ -471,6 +474,7 @@ public class FitnessActivity extends AppCompatActivity {
                     btn.setText("AI 生成本週運動計畫");
 
                     if (offline) {
+                        AppLog.e("Fitness", "AI計畫生成失敗: Bridge離線 " + (error != null ? error : "無法連線"));
                         statusText.setText("Bridge 離線: " + (error != null ? error : "無法連線"));
                         statusText.setTextColor(UIHelper.ACCENT_RED);
                         return;
@@ -504,14 +508,17 @@ public class FitnessActivity extends AppCompatActivity {
                                         day.getJSONArray("exercises").toString());
                             }
 
+                            AppLog.i("Fitness", "AI計畫生成完成: " + days.length() + "天");
                             statusText.setText("計畫已生成！");
                             statusText.setTextColor(UIHelper.ACCENT_GREEN);
                             buildUI();
                         } else {
+                            AppLog.e("Fitness", "AI計畫生成失敗: 回應格式不符");
                             statusText.setText("AI 回應格式不符，請重試");
                             statusText.setTextColor(UIHelper.ACCENT_ORANGE);
                         }
                     } catch (Exception e) {
+                        AppLog.e("Fitness", "AI計畫解析失敗: " + e.getMessage());
                         statusText.setText("解析失敗: " + e.getMessage());
                         statusText.setTextColor(UIHelper.ACCENT_RED);
                     }

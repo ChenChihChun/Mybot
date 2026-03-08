@@ -184,7 +184,9 @@ public class HabitActivity extends AppCompatActivity {
         }
 
         checkBtn.setOnClickListener(v -> {
+            boolean wasCompleted = completed;
             dbHelper.toggleLog(habit.id, today);
+            AppLog.i("Habit", (wasCompleted ? "取消打卡" : "打卡") + ": " + habit.name);
             refreshList();
         });
 
@@ -245,6 +247,7 @@ public class HabitActivity extends AppCompatActivity {
                             .setMessage("\u6240\u6709\u8A18\u9304\u5C07\u4E00\u4F75\u522A\u9664")
                             .setPositiveButton("\u522A\u9664", (d2, w2) -> {
                                 dbHelper.deleteHabit(habit.id);
+                                AppLog.i("Habit", "刪除習慣: " + habit.name);
                                 refreshList();
                             })
                             .setNegativeButton("\u53D6\u6D88", null)

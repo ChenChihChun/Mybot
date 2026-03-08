@@ -190,13 +190,16 @@ public class AddExpenseActivity extends AppCompatActivity {
                 aiBtn.setBackground(UIHelper.roundRect(UIHelper.ACCENT_BLUE, 10, this));
 
                 if (offline) {
+                    AppLog.w("Expense", "AI分類失敗: Bridge離線");
                     aiHint.setText("Bridge 離線，請手動輸入類別");
                     aiHint.setTextColor(UIHelper.ACCENT_ORANGE);
                 } else if (category != null && !category.isEmpty()) {
+                    AppLog.i("Expense", "AI分類結果: " + category + " (merchant=" + merchant + ")");
                     categoryInput.setText(category);
                     aiHint.setText("AI 建議: " + category);
                     aiHint.setTextColor(UIHelper.ACCENT_GREEN);
                 } else {
+                    AppLog.w("Expense", "AI無法判斷類別: merchant=" + merchant);
                     aiHint.setText("AI 無法判斷，請手動輸入");
                     aiHint.setTextColor(UIHelper.ACCENT_ORANGE);
                 }
@@ -221,6 +224,7 @@ public class AddExpenseActivity extends AppCompatActivity {
             try {
                 amount = Double.parseDouble(amountStr);
             } catch (NumberFormatException e) {
+                AppLog.e("Expense", "金額格式錯誤: " + amountStr);
                 Toast.makeText(this, "金額格式錯誤", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -237,10 +241,12 @@ public class AddExpenseActivity extends AppCompatActivity {
             if (editId > 0) {
                 db.update(editId, amount, category, merchant, desc,
                         selectedDate.getTimeInMillis());
+                AppLog.i("Expense", "更新消費: id=" + editId + " amount=" + amount + " category=" + category + " merchant=" + merchant);
                 Toast.makeText(this, "已更新", Toast.LENGTH_SHORT).show();
             } else {
                 db.insert(amount, "TWD", category, merchant, desc, "手動", "",
                         selectedDate.getTimeInMillis());
+                AppLog.i("Expense", "新增消費: amount=" + amount + " category=" + category + " merchant=" + merchant);
                 Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
             }
             finish();
@@ -281,6 +287,7 @@ public class AddExpenseActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
+        AppLog.i("Expense", (editId > 0 ? "編輯消費頁面已開啟: id=" + editId : "新增消費頁面已開啟"));
     }
 
     private void showDatePicker() {

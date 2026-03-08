@@ -247,8 +247,10 @@ public class AddCountdownActivity extends AppCompatActivity {
 
         if (editId > 0) {
             dbHelper.update(editId, title, selectedDate, note, selectedIcon, selectedColor, notify);
+            AppLog.i("Countdown", "編輯倒數日: " + title + " → " + selectedDate);
         } else {
             dbHelper.insert(title, selectedDate, note, selectedIcon, selectedColor, notify);
+            AppLog.i("Countdown", "新增倒數日: " + title + " → " + selectedDate);
         }
         finish();
     }

@@ -369,11 +369,13 @@ public class TodoActivity extends AppCompatActivity {
                     switch (action) {
                         case "標記完成":
                             dbHelper.markCompleted(todo.id);
+                            AppLog.i("Todo", "標記完成: " + todo.title);
                             refreshList();
                             Toast.makeText(this, "已完成", Toast.LENGTH_SHORT).show();
                             break;
                         case "恢復為未完成":
                             dbHelper.markUncompleted(todo.id);
+                            AppLog.i("Todo", "恢復為未完成: " + todo.title);
                             refreshList();
                             Toast.makeText(this, "已恢復", Toast.LENGTH_SHORT).show();
                             break;
@@ -388,6 +390,7 @@ public class TodoActivity extends AppCompatActivity {
                                     .setMessage("確定要刪除「" + todo.title + "」嗎？")
                                     .setPositiveButton("刪除", (dd, ww) -> {
                                         dbHelper.delete(todo.id);
+                                        AppLog.i("Todo", "刪除待辦: " + todo.title);
                                         refreshList();
                                         Toast.makeText(this, "已刪除", Toast.LENGTH_SHORT).show();
                                     })

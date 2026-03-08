@@ -175,8 +175,10 @@ public class AddHabitActivity extends AppCompatActivity {
 
         if (editId > 0) {
             dbHelper.updateHabit(editId, name, selectedIcon, selectedColor);
+            AppLog.i("Habit", "編輯習慣: " + name);
         } else {
             dbHelper.insertHabit(name, selectedIcon, selectedColor);
+            AppLog.i("Habit", "新增習慣: " + name);
         }
         finish();
     }

@@ -58,6 +58,7 @@ public class UpdateChecker {
     }
 
     public static void checkForUpdate(Context ctx, UpdateCallback callback) {
+        AppLog.i("Update", "開始檢查更新");
         executor.execute(() -> {
             try {
                 URL url = new URL(GITHUB_API);
@@ -108,6 +109,11 @@ public class UpdateChecker {
 
                 boolean hasUpdate = remoteCode > currentCode && apkUrl != null;
                 String finalApkUrl = apkUrl;
+                if (hasUpdate) {
+                    AppLog.i("Update", "有新版本: v" + remoteName + " (code " + remoteCode + ")");
+                } else {
+                    AppLog.i("Update", "已是最新版本 (current=" + currentCode + " remote=" + remoteCode + ")");
+                }
                 mainHandler.post(() -> callback.onResult(hasUpdate, remoteName, remoteCode,
                         finalApkUrl, body, null));
             } catch (Exception e) {
@@ -165,6 +171,7 @@ public class UpdateChecker {
     }
 
     public static void downloadAndInstall(Context ctx, String downloadUrl, String version) {
+        AppLog.i("Update", "開始下載更新: v" + version);
         Toast.makeText(ctx, "開始下載更新...", Toast.LENGTH_SHORT).show();
 
         DownloadManager dm = (DownloadManager) ctx.getSystemService(Context.DOWNLOAD_SERVICE);

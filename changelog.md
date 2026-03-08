@@ -1,5 +1,29 @@
 # Changelog
 
+## v3.37 (2026-03-08)
+- **Enhancement: Add AppLog Logging to All Modules**
+  - Modified `ExpenseActivity.java` — AppLog for page open, edit, delete (tag: Expense)
+  - Modified `AddExpenseActivity.java` — AppLog for add/update expense, amount error, AI categorization (tag: Expense)
+  - Modified `ReportActivity.java` — AppLog for report generation with stats (tag: Expense)
+  - Modified `TodoActivity.java` — AppLog for complete/uncomplete, delete (tag: Todo)
+  - Modified `AddTodoActivity.java` — AppLog for add/update todo, validation errors (tag: Todo)
+  - Modified `CalendarActivity.java` — AppLog for sign-in, load calendars/events, sign-out, token failures (tag: Calendar)
+  - Modified `AddCalendarEventActivity.java` — AppLog for AI parse, create event success/fail (tag: Calendar)
+  - Modified `FitnessActivity.java` — AppLog for AI plan generation, workout complete, errors (tag: Fitness)
+  - Modified `FitnessProfileActivity.java` — AppLog for profile save, input errors (tag: Fitness)
+  - Modified `WorkoutDetailActivity.java` — AppLog for load details, complete workout, errors (tag: Fitness)
+  - Modified `StockActivity.java` — AppLog for stock add/remove, AI analysis (tag: Stock)
+  - Modified `CountdownActivity.java` — AppLog for delete countdown (tag: Countdown)
+  - Modified `AddCountdownActivity.java` — AppLog for add/edit countdown (tag: Countdown)
+  - Modified `HabitActivity.java` — AppLog for check-in toggle, delete habit (tag: Habit)
+  - Modified `AddHabitActivity.java` — AppLog for add/edit habit (tag: Habit)
+  - Modified `WaterActivity.java` — AppLog for water intake, settings changed (tag: Water)
+  - Modified `GoogleAuthHelper.java` — AppLog for sign-in/out, token exchange (tag: Auth)
+  - Modified `UpdateChecker.java` — AppLog for update check, download (tag: Update)
+  - Modified `FloatingCaptureService.java` — AppLog for service start/stop, screenshot (tag: Capture)
+  - Modified `BootReceiver.java` — AppLog for boot/package replace (tag: System)
+  - Modified `app/build.gradle` — versionCode 59, versionName 3.37
+
 ## v3.36 (2026-03-08)
 - **Enhancement: Music Manager — Add AppLog Logging**
   - Modified `MusicActivity.java` — Added AppLog calls for: sync start/complete, token failure, channel selection, channel resolve (success/fail), playlist loading errors, video playback, song deletion

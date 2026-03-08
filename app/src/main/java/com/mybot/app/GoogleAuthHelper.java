@@ -85,11 +85,14 @@ public class GoogleAuthHelper {
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             GoogleSignInAccount account = task.getResult(ApiException.class);
             if (account != null) {
+                AppLog.i("Auth", "Google登入成功: " + account.getEmail());
                 callback.onResult(true, null);
             } else {
+                AppLog.w("Auth", "Google登入失敗: null account");
                 callback.onResult(false, "Sign-in returned null account");
             }
         } catch (ApiException e) {
+            AppLog.e("Auth", "Google登入失敗: code " + e.getStatusCode());
             callback.onResult(false, "Sign-in failed: code " + e.getStatusCode());
         }
     }
@@ -180,11 +183,14 @@ public class GoogleAuthHelper {
                         .putString("access_token", accessToken)
                         .putLong("token_expiry", System.currentTimeMillis() + json.optLong("expires_in", 3600) * 1000)
                         .apply();
+                AppLog.i("Auth", "Token交換成功");
                 return new String[]{accessToken, null};
             } else {
+                AppLog.e("Auth", "Token交換失敗: HTTP " + code);
                 return new String[]{null, "Token exchange failed: HTTP " + code + " " + sb.toString()};
             }
         } catch (Exception e) {
+            AppLog.e("Auth", "Token交換異常: " + e.getMessage());
             return new String[]{null, e.getClass().getSimpleName() + ": " + e.getMessage()};
         }
     }
@@ -216,6 +222,7 @@ public class GoogleAuthHelper {
                 .addOnCompleteListener(task -> {
                     ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
                             .remove("access_token").remove("token_expiry").apply();
+                    AppLog.i("Auth", "已登出Google帳號");
                     callback.onResult(true, null);
                 });
     }

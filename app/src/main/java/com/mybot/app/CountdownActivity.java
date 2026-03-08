@@ -179,6 +179,7 @@ public class CountdownActivity extends AppCompatActivity {
                     .setMessage("\u78BA\u5B9A\u8981\u522A\u9664\u300C" + item.title + "\u300D\u55CE\uFF1F")
                     .setPositiveButton("\u522A\u9664", (d, w) -> {
                         dbHelper.delete(item.id);
+                        AppLog.i("Countdown", "刪除倒數日: " + item.title);
                         refreshList();
                     })
                     .setNegativeButton("\u53D6\u6D88", null)

@@ -137,6 +137,7 @@ public class AddTodoActivity extends AppCompatActivity {
         saveBtn.setOnClickListener(v -> {
             String title = titleInput.getText().toString().trim();
             if (title.isEmpty()) {
+                AppLog.w("Todo", "儲存失敗: 標題為空");
                 Toast.makeText(this, "請輸入標題", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -148,9 +149,11 @@ public class AddTodoActivity extends AppCompatActivity {
             TodoDbHelper db = new TodoDbHelper(this);
             if (isEdit) {
                 db.update(editId, title, desc, selectedPriority, category, deadline);
+                AppLog.i("Todo", "更新待辦: " + title);
                 Toast.makeText(this, "已更新", Toast.LENGTH_SHORT).show();
             } else {
                 db.insert(title, desc, selectedPriority, category, deadline);
+                AppLog.i("Todo", "新增待辦: " + title);
                 Toast.makeText(this, "已新增", Toast.LENGTH_SHORT).show();
             }
             finish();
@@ -176,6 +179,9 @@ public class AddTodoActivity extends AppCompatActivity {
         if (isEdit) {
             TodoDbHelper db = new TodoDbHelper(this);
             TodoDbHelper.Todo todo = db.getById(editId);
+            if (todo == null) {
+                AppLog.e("Todo", "找不到待辦 id=" + editId);
+            }
             if (todo != null) {
                 titleInput.setText(todo.title);
                 descInput.setText(todo.description);

@@ -11,10 +11,12 @@ public class BootReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         if (Intent.ACTION_BOOT_COMPLETED.equals(action)
                 || "android.intent.action.QUICKBOOT_POWERON".equals(action)) {
+            AppLog.i("System", "收到開機廣播，恢復鬧鐘");
             NotificationHelper.createNotificationChannel(context);
             NotificationHelper.sendNotification(context, "Mybot", "Mybot 已隨開機啟動");
             restoreAlarms(context);
         } else if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
+            AppLog.i("System", "App更新完成，恢復鬧鐘");
             NotificationHelper.createNotificationChannel(context);
             NotificationHelper.sendNotification(context, "Mybot", "Mybot 已更新，提醒已恢復");
             restoreAlarms(context);

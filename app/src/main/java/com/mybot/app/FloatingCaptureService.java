@@ -94,6 +94,7 @@ public class FloatingCaptureService extends Service {
                 setupImageReader();
                 createDismissZone();
                 createFloatingButton();
+                AppLog.i("Capture", "截圖服務啟動");
             }
         }
 
@@ -314,6 +315,7 @@ public class FloatingCaptureService extends Service {
                     floatingButton.setVisibility(View.VISIBLE);
 
                     if (bitmap != null) {
+                        AppLog.i("Capture", "截圖完成，開始分析");
                         analyzeScreenshot(bitmap);
                     } else {
                         Toast.makeText(this, "截圖失敗", Toast.LENGTH_SHORT).show();
@@ -432,6 +434,7 @@ public class FloatingCaptureService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        AppLog.i("Capture", "截圖服務停止");
         if (floatingButton != null) {
             try { windowManager.removeView(floatingButton); } catch (Exception ignored) {}
         }

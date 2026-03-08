@@ -148,6 +148,7 @@ public class AddCalendarEventActivity extends AppCompatActivity {
             resultLayout.removeAllViews();
 
             if (offline || responseJson == null) {
+                AppLog.e("Calendar", "AI parse failed" + (error != null ? ": " + error : ""));
                 TextView err = new TextView(this);
                 err.setText("AI 解析失敗" + (error != null ? ": " + error : ""));
                 err.setTextSize(14);
@@ -160,6 +161,7 @@ public class AddCalendarEventActivity extends AppCompatActivity {
             try {
                 JSONObject json = new JSONObject(responseJson);
                 if (!json.optBoolean("success", false)) {
+                    AppLog.w("Calendar", "AI could not parse event input");
                     TextView err = new TextView(this);
                     err.setText("AI 無法解析此內容");
                     err.setTextSize(14);
@@ -172,6 +174,7 @@ public class AddCalendarEventActivity extends AppCompatActivity {
                 JSONArray eventsArr = result.getJSONArray("events");
                 parsedEvents.clear();
 
+                AppLog.i("Calendar", "AI parsed " + eventsArr.length() + " events from input");
                 resultLayout.addView(UIHelper.sectionHeader(this, "解析結果 (" + eventsArr.length() + " 個事件)"));
 
                 for (int i = 0; i < eventsArr.length(); i++) {
@@ -196,6 +199,7 @@ public class AddCalendarEventActivity extends AppCompatActivity {
                     btnSave.setVisibility(android.view.View.VISIBLE);
                 }
             } catch (Exception e) {
+                AppLog.e("Calendar", "Parse JSON error: " + e.getMessage());
                 TextView err = new TextView(this);
                 err.setText("解析錯誤: " + e.getMessage());
                 err.setTextSize(14);
@@ -366,6 +370,7 @@ public class AddCalendarEventActivity extends AppCompatActivity {
 
         GoogleAuthHelper.getCachedOrFreshToken(this, (token, error) -> {
             if (token == null) {
+                AppLog.e("Calendar", "Token refresh failed on save events: " + error);
                 Toast.makeText(this, "Token 失敗: " + error, Toast.LENGTH_LONG).show();
                 btnSave.setEnabled(true);
                 btnSave.setText("新增到日曆");
@@ -394,8 +399,13 @@ public class AddCalendarEventActivity extends AppCompatActivity {
                         pe.title, pe.description, pe.location,
                         startDT, endDT, pe.allDay,
                         (success, eventId, err) -> {
-                            if (success) saved[0]++;
-                            else failed[0]++;
+                            if (success) {
+                                saved[0]++;
+                                AppLog.i("Calendar", "Created event: " + pe.title);
+                            } else {
+                                failed[0]++;
+                                AppLog.e("Calendar", "Failed to create event '" + pe.title + "': " + err);
+                            }
 
                             if (saved[0] + failed[0] >= total) {
                                 btnSave.setEnabled(true);

@@ -367,6 +367,7 @@ public class StockActivity extends AppCompatActivity {
                     if (!code.isEmpty() && !watchlist.contains(code)) {
                         watchlist.add(code);
                         saveWatchlist();
+                        AppLog.i("Stock", "新增自選股: " + code);
                         if (selectedCode == null) selectedCode = code;
                         refreshChips();
                         fetchQuotes();
@@ -429,6 +430,7 @@ public class StockActivity extends AppCompatActivity {
                         .setPositiveButton("刪除", (d, w) -> {
                             watchlist.remove(code);
                             saveWatchlist();
+                            AppLog.i("Stock", "移除自選股: " + code);
                             tickMap.remove(code);
                             quoteMap.remove(code);
                             getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -750,6 +752,7 @@ public class StockActivity extends AppCompatActivity {
             return;
         }
 
+        AppLog.i("Stock", "AI分析開始: " + selectedCode);
         aiBtn.setText("分析中...");
         aiBtn.setTextColor(UIHelper.TEXT_HINT);
         aiBtn.setEnabled(false);
@@ -797,12 +800,15 @@ public class StockActivity extends AppCompatActivity {
             aiBtn.setEnabled(true);
 
             if (result != null && !result.isEmpty()) {
+                AppLog.i("Stock", "AI分析完成: " + selectedCode);
                 aiContent.setText(result);
                 saveAiAnalysis(selectedCode, result);
                 aiDeleteBtn.setVisibility(View.VISIBLE);
             } else if (offline) {
+                AppLog.w("Stock", "AI分析失敗(離線): " + selectedCode);
                 aiContent.setText("Bridge 離線，無法取得 AI 分析\n" + (error != null ? error : ""));
             } else {
+                AppLog.e("Stock", "AI分析失敗: " + selectedCode + " " + (error != null ? error : ""));
                 aiContent.setText("分析失敗" + (error != null ? ": " + error : ""));
             }
         });

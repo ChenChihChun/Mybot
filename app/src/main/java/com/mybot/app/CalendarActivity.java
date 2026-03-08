@@ -146,6 +146,7 @@ public class CalendarActivity extends AppCompatActivity {
             if (token != null) {
                 loadCalendarsAndEvents(token);
             } else {
+                AppLog.e("Calendar", "Token refresh failed on initial load: " + error);
                 GoogleAuthHelper.signOut(this, (s, e) -> showSignInButton());
             }
         });
@@ -162,6 +163,7 @@ public class CalendarActivity extends AppCompatActivity {
             if (token != null) {
                 loadCalendarsAndEvents(token);
             } else {
+                AppLog.e("Calendar", "Token refresh failed on force refresh: " + error);
                 showError("Token 失敗: " + error);
             }
         });
@@ -258,10 +260,12 @@ public class CalendarActivity extends AppCompatActivity {
         if (requestCode == RC_SIGN_IN) {
             GoogleAuthHelper.handleSignInResult(data, (success, error) -> {
                 if (success) {
+                    AppLog.i("Calendar", "Google sign-in successful");
                     Toast.makeText(this, "登入成功", Toast.LENGTH_SHORT).show();
                     CalendarCache.clearAll();
                     checkSignInAndLoad();
                 } else {
+                    AppLog.e("Calendar", "Google sign-in failed: " + error);
                     Toast.makeText(this, "登入失敗: " + error, Toast.LENGTH_LONG).show();
                 }
             });
@@ -298,10 +302,12 @@ public class CalendarActivity extends AppCompatActivity {
     private void loadCalendarsAndEvents(String token) {
         GoogleCalendarClient.listCalendars(token, (cals, error) -> {
             if (cals != null) {
+                AppLog.i("Calendar", "Loaded " + cals.size() + " calendars");
                 calendars = cals;
                 CalendarCache.putCalendars(cals);
                 loadEvents(true);
             } else {
+                AppLog.e("Calendar", "Failed to load calendars: " + error);
                 showError("載入日曆失敗: " + error);
             }
         });
@@ -330,6 +336,7 @@ public class CalendarActivity extends AppCompatActivity {
         // No cache at all — must load
         GoogleAuthHelper.getCachedOrFreshToken(this, (token, error) -> {
             if (token == null) {
+                AppLog.e("Calendar", "Token refresh failed on load events: " + error);
                 showError("Token 失敗: " + error);
                 return;
             }
@@ -337,10 +344,12 @@ public class CalendarActivity extends AppCompatActivity {
             String[] range = getMonthRange(currentMonth);
             GoogleCalendarClient.listAllEvents(token, calendars, range[0], range[1], (evts, err) -> {
                 if (evts != null) {
+                    AppLog.i("Calendar", "Loaded " + evts.size() + " events for " + monthKey);
                     events = evts;
                     CalendarCache.putEvents(monthKey, evts);
                     renderUI();
                 } else {
+                    AppLog.e("Calendar", "Failed to load events: " + err);
                     showError("載入事件失敗: " + err);
                 }
             });
@@ -687,6 +696,7 @@ public class CalendarActivity extends AppCompatActivity {
             btnSignOut.setLayoutParams(solp);
             btnSignOut.setOnClickListener(v -> {
                 GoogleAuthHelper.signOut(this, (success, err) -> {
+                    AppLog.i("Calendar", "Google signed out");
                     CalendarCache.clearAll();
                     Toast.makeText(this, "已登出", Toast.LENGTH_SHORT).show();
                     checkSignInAndLoad();
