@@ -415,6 +415,51 @@ public class BridgeClient {
         return null;
     }
 
+    public interface RemoteCodeCallback {
+        void onResult(String result, boolean offline, String error);
+    }
+
+    public static void remoteCode(String task, String project, RemoteCodeCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("RemoteDev", "remoteCode: task=" + (task.length() > 80 ? task.substring(0, 80) + "..." : task)
+                    + " project=" + project);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", task);
+                if (project != null && !project.isEmpty()) {
+                    body.put("project", project);
+                }
+                body.put("timeout", 600);
+
+                String[] result = postJsonWithError(BASE_URL + "/remote-code", body.toString(), 620000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    JSONObject json = new JSONObject(response);
+                    if (json.optBoolean("success", false)) {
+                        String text = json.optString("result", "");
+                        AppLog.i("RemoteDev", "remoteCode成功: " + text.length() + "字");
+                        mainHandler.post(() -> callback.onResult(text, false, null));
+                    } else {
+                        String err = json.optString("error", "unknown error");
+                        AppLog.e("RemoteDev", "remoteCode失敗: " + err);
+                        mainHandler.post(() -> callback.onResult(null, false, err));
+                    }
+                } else {
+                    lastError = error;
+                    AppLog.e("RemoteDev", "remoteCode連線失敗: " + error);
+                    mainHandler.post(() -> callback.onResult(null, true, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                AppLog.e("RemoteDev", "remoteCode異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
     private static String[] postJsonWithError(String urlStr, String jsonBody) {
         return postJsonWithError(urlStr, jsonBody, 30000);
     }

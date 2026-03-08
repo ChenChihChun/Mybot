@@ -237,10 +237,12 @@ public class MainActivity extends AppCompatActivity {
                 "\uD83E\uDDFE", "\u767C\u7968\u6383\u63CF\u8A18\u5E33", "\u62CD\u7167/\u76F8\u7C3F\u00B7AI \u8FA8\u8B58", UIHelper.ACCENT_ORANGE, 35);
         cardInvoice.setOnClickListener(v -> startActivity(new Intent(this, InvoiceActivity.class)));
 
-        View invoiceSpacer = new View(this);
+        LinearLayout cardRemoteDev = UIHelper.featureCard(this,
+                "\uD83D\uDCBB", "\u9060\u7AEF\u958B\u767C", "Slack Bot\u00B7Claude Code", UIHelper.ACCENT_BLUE, 35);
+        cardRemoteDev.setOnClickListener(v -> startActivity(new Intent(this, RemoteDevActivity.class)));
 
         row5.addView(cardInvoice, gridCellLp(0));
-        row5.addView(invoiceSpacer, gridCellLp(UIHelper.dp(this, 10)));
+        row5.addView(cardRemoteDev, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row5);
 
         // ── Version footer ──

@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.38 (2026-03-08)
+- **New Feature: Remote Development Control (遠端開發)**
+  - Added `RemoteDevActivity.java` — Remote dev UI with multi-line task input, project path picker (stored in SharedPreferences), run/reset buttons, monospace result display; sends tasks via Bridge to Slack Bot on work PC running Claude Code CLI
+  - Modified `BridgeClient.java` — Added `remoteCode(task, project, callback)` with `RemoteCodeCallback` interface; 620s read timeout for long-running dev tasks; AppLog logging (tag: RemoteDev)
+  - Modified `bridge.py` — Added `POST /remote-code` endpoint and `send_slack_and_wait()` function; posts task to Slack Bot DM channel via Slack API, polls `conversations.history` for bot reply (5-10s interval, 600s timeout)
+  - Modified `bridge/config.json` — Added `slack_bot_token` and `slack_channel_id` fields
+  - Modified `MainActivity.java` — Added 💻遠端開發 card in TOOLS section row 5 (next to 發票掃描記帳)
+  - Modified `AndroidManifest.xml` — Registered RemoteDevActivity
+  - Added `~/remote-dev-setup.txt` — Complete setup guide for work PC (Slack App creation, bot.py, config.json, auto-start)
+  - Modified `app/build.gradle` — versionCode 60, versionName 3.38
+
 ## v3.37 (2026-03-08)
 - **Enhancement: Add AppLog Logging to All Modules**
   - Modified `ExpenseActivity.java` — AppLog for page open, edit, delete (tag: Expense)

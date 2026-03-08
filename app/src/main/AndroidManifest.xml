@@ -88,6 +88,9 @@
             </intent-filter>
         </activity>
 
+        <!-- Remote Dev Activity -->
+        <activity android:name=".RemoteDevActivity" android:exported="false" />
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
 
