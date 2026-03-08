@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.39 (2026-03-08)
+- **Enhancement: Screenshot Expense — Tap Notification to Edit**
+  - Modified `NotificationHelper.java` — Added `sendExpenseNotification(context, merchant, amount, category, expenseId)` overload; when expenseId > 0, notification includes PendingIntent opening AddExpenseActivity in edit mode
+  - Modified `FloatingCaptureService.java` — Captures inserted expense ID from `db.insert()` and passes to notification
+  - Modified `app/build.gradle` — versionCode 61, versionName 3.39
+
 ## v3.38 (2026-03-08)
 - **New Feature: Remote Development Control (遠端開發)**
   - Added `RemoteDevActivity.java` — Remote dev UI with multi-line task input, project path picker (stored in SharedPreferences), run/reset buttons, monospace result display; sends tasks via Bridge to Slack Bot on work PC running Claude Code CLI

@@ -413,14 +413,14 @@ public class FloatingCaptureService extends Service {
                 String description = r.optString("description", "");
 
                 ExpenseDbHelper db = new ExpenseDbHelper(this);
-                db.insert(amount, currency, category, merchant, description,
+                long insertedId = db.insert(amount, currency, category, merchant, description,
                         "截圖", "", System.currentTimeMillis());
 
                 handler.post(() -> {
                     String msg = String.format("已記錄: %s $%.0f", merchant, amount);
                     if (!category.isEmpty()) msg += " (" + category + ")";
                     Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-                    NotificationHelper.sendExpenseNotification(this, merchant, amount, category);
+                    NotificationHelper.sendExpenseNotification(this, merchant, amount, category, insertedId);
                 });
             } catch (Exception e) {
                 handler.post(() -> Toast.makeText(this,
