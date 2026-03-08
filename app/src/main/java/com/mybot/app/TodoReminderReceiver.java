@@ -20,6 +20,9 @@ public class TodoReminderReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        // Reschedule next day (exact alarms are one-shot)
+        ReminderHelper.scheduleTodoCheck(context);
+
         NotificationHelper.createNotificationChannel(context);
 
         TodoDbHelper db = new TodoDbHelper(context);

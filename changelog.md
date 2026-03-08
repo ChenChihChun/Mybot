@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.41 (2026-03-08)
+- **Fix: All Reminders — Use Exact Alarms for Doze Reliability**
+  - Modified `ReminderHelper.java` — Replaced all `setRepeating()` with `setExactAndAllowWhileIdle()` for daily expense reminder, fitness reminder, and TODO check; added `scheduleNextDailyReminder()` and `scheduleNextFitnessReminder()` for receiver-driven rescheduling
+  - Modified `ReminderReceiver.java` — Reschedules next daily expense reminder on receive
+  - Modified `FitnessReminderReceiver.java` — Reschedules next fitness reminder on receive
+  - Modified `TodoReminderReceiver.java` — Reschedules next TODO check on receive
+  - Modified `app/build.gradle` — versionCode 63, versionName 3.41
+
 ## v3.40 (2026-03-08)
 - **Fix: Water Reminder Not Firing + Settings Dialog Visibility**
   - Modified `ReminderHelper.java` — Replaced `setRepeating()` with `setExactAndAllowWhileIdle()` for water reminders (Doze-safe); added `scheduleNextWaterAlarm()` for one-shot exact scheduling

@@ -78,8 +78,17 @@ public class ReminderHelper {
         }
 
         PendingIntent pi = getPendingIntent(context);
-        am.setRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(),
-                AlarmManager.INTERVAL_DAY, pi);
+        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+    }
+
+    /** Reschedule daily reminder for the next day. Called from ReminderReceiver. */
+    public static void scheduleNextDailyReminder(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        if (prefs.getBoolean(KEY_ENABLED, false)) {
+            int hour = prefs.getInt(KEY_HOUR, 21);
+            int minute = prefs.getInt(KEY_MINUTE, 0);
+            setAlarm(context, hour, minute);
+        }
     }
 
     private static PendingIntent getPendingIntent(Context context) {
@@ -100,6 +109,10 @@ public class ReminderHelper {
                 .putInt(KEY_MINUTE, minute)
                 .apply();
 
+        setFitnessAlarm(context, hour, minute);
+    }
+
+    private static void setFitnessAlarm(Context context, int hour, int minute) {
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (am == null) return;
 
@@ -115,8 +128,15 @@ public class ReminderHelper {
         Intent intent = new Intent(context, FitnessReminderReceiver.class);
         PendingIntent pi = PendingIntent.getBroadcast(context, FITNESS_REQUEST_CODE, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        am.setRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(),
-                AlarmManager.INTERVAL_DAY, pi);
+        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+    }
+
+    /** Reschedule fitness reminder for the next day. Called from FitnessReminderReceiver. */
+    public static void scheduleNextFitnessReminder(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(FITNESS_PREFS, Context.MODE_PRIVATE);
+        if (prefs.getBoolean(KEY_ENABLED, false)) {
+            setFitnessAlarm(context, prefs.getInt(KEY_HOUR, 18), prefs.getInt(KEY_MINUTE, 0));
+        }
     }
 
     public static void cancelFitnessReminder(Context context) {
@@ -212,7 +232,6 @@ public class ReminderHelper {
         Intent intent = new Intent(context, TodoReminderReceiver.class);
         PendingIntent pi = PendingIntent.getBroadcast(context, TODO_REQUEST_CODE, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        am.setRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(),
-                AlarmManager.INTERVAL_DAY, pi);
+        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
     }
 }

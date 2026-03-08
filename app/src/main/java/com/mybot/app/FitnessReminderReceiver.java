@@ -15,6 +15,9 @@ public class FitnessReminderReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        // Reschedule next day (exact alarms are one-shot)
+        ReminderHelper.scheduleNextFitnessReminder(context);
+
         NotificationHelper.createNotificationChannel(context);
 
         FitnessDbHelper db = new FitnessDbHelper(context);

@@ -15,6 +15,9 @@ public class ReminderReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        // Reschedule next day (exact alarms are one-shot)
+        ReminderHelper.scheduleNextDailyReminder(context);
+
         NotificationHelper.createNotificationChannel(context);
 
         ExpenseDbHelper db = new ExpenseDbHelper(context);
