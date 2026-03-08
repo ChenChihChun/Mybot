@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.42 (2026-03-08)
+- **Fix: App Crash on Launch — SCHEDULE_EXACT_ALARM Permission**
+  - Modified `AndroidManifest.xml` — Added `SCHEDULE_EXACT_ALARM` permission (required on Android 12+ for exact alarms)
+  - Modified `ReminderHelper.java` — Added `safeSetExact()` wrapper: checks `canScheduleExactAlarms()` on API 31+, falls back to `setAndAllowWhileIdle()` on SecurityException; all 4 alarm schedulers now use this safe wrapper
+  - Modified `app/build.gradle` — versionCode 64, versionName 3.42
+
 ## v3.41 (2026-03-08)
 - **Fix: All Reminders — Use Exact Alarms for Doze Reliability**
   - Modified `ReminderHelper.java` — Replaced all `setRepeating()` with `setExactAndAllowWhileIdle()` for daily expense reminder, fitness reminder, and TODO check; added `scheduleNextDailyReminder()` and `scheduleNextFitnessReminder()` for receiver-driven rescheduling

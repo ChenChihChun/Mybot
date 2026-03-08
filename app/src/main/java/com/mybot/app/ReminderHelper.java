@@ -6,9 +6,25 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 
+import android.os.Build;
+
 import java.util.Calendar;
 
 public class ReminderHelper {
+
+    /** Safely schedule an exact alarm, falling back to setAndAllowWhileIdle on SecurityException. */
+    private static void safeSetExact(AlarmManager am, long triggerAtMillis, PendingIntent pi) {
+        try {
+            if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi);
+                return;
+            }
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi);
+        } catch (SecurityException e) {
+            // Fallback: inexact but Doze-friendly
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi);
+        }
+    }
 
     private static final String PREFS_NAME = "mybot_reminder";
     private static final String KEY_ENABLED = "enabled";
@@ -78,7 +94,7 @@ public class ReminderHelper {
         }
 
         PendingIntent pi = getPendingIntent(context);
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+        safeSetExact(am, cal.getTimeInMillis(), pi);
     }
 
     /** Reschedule daily reminder for the next day. Called from ReminderReceiver. */
@@ -128,7 +144,7 @@ public class ReminderHelper {
         Intent intent = new Intent(context, FitnessReminderReceiver.class);
         PendingIntent pi = PendingIntent.getBroadcast(context, FITNESS_REQUEST_CODE, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+        safeSetExact(am, cal.getTimeInMillis(), pi);
     }
 
     /** Reschedule fitness reminder for the next day. Called from FitnessReminderReceiver. */
@@ -195,7 +211,7 @@ public class ReminderHelper {
         long intervalMs = intervalMin * 60 * 1000L;
         long triggerAt = System.currentTimeMillis() + intervalMs;
 
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi);
+        safeSetExact(am, triggerAt, pi);
     }
 
     public static void cancelWaterReminder(Context context) {
@@ -232,6 +248,6 @@ public class ReminderHelper {
         Intent intent = new Intent(context, TodoReminderReceiver.class);
         PendingIntent pi = PendingIntent.getBroadcast(context, TODO_REQUEST_CODE, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+        safeSetExact(am, cal.getTimeInMillis(), pi);
     }
 }
