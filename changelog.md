@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.50 (2026-03-10)
+- **Fix: Stock Chart Not Updating with Real-time Price**
+  - Modified `StockActivity.java` — Chart now updates on every quote fetch (removed `isHistoricalPeriod()` guard that blocked chart refresh for day/week/month views); last candle's close/high/low now updates with real-time price so K-line chart follows current stock price
+  - Modified `app/build.gradle` — versionCode 72, versionName 3.50
+
 ## v3.49 (2026-03-10)
 - **Fix: Revert Stock API Changes + Fix Screenshot Analysis**
   - Reverted `StockClient.java` — Restored to original TWSE API (v3.45 state); Yahoo Finance rewrite caused English stock names and broken chart updates

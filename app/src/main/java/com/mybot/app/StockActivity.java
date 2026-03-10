@@ -574,6 +574,13 @@ public class StockActivity extends AppCompatActivity {
                 chartView.setData(null, null, null, null, null, null, null, 0);
                 return;
             }
+            // Update last candle with real-time price so chart follows current price
+            if (price > 0 && !historicalCandles.isEmpty()) {
+                StockData.CandleBar last = historicalCandles.get(historicalCandles.size() - 1);
+                last.close = price;
+                last.high = Math.max(last.high, price);
+                last.low = Math.min(last.low, price);
+            }
             if ("week".equals(currentPeriod)) {
                 candles = StockData.aggregateWeekly(historicalCandles);
             } else if ("month".equals(currentPeriod)) {
@@ -766,7 +773,7 @@ public class StockActivity extends AppCompatActivity {
                 }
                 refreshChips();
                 updateInfoCard();
-                if (!isHistoricalPeriod()) updateChart();
+                updateChart();
             }
             updateStatus();
         });
