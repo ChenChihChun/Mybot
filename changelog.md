@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.48 (2026-03-10)
+- **Fix: Stock Tracker — Switch to Yahoo Finance API**
+  - Rewritten `StockClient.java` — Replaced TWSE mis API (unreliable, requires session cookies) with Yahoo Finance v8 chart API; auto-detects `.TW` (上市) vs `.TWO` (上櫃) suffix per stock with cache; realtime quotes via `interval=1m&range=1d`; historical candles via `interval=1d&range=6mo/1y` (single request instead of monthly loop); removed TWSE/TPEx-specific code, rate limiting, and session management
+  - Modified `app/build.gradle` — versionCode 70, versionName 3.48
+
 ## v3.47 (2026-03-10)
 - **Enhancement: Stock Tracker — Pull-to-Refresh + Update Time + API Fix**
   - Modified `StockActivity.java` — Added SwipeRefreshLayout for pull-to-refresh (orange/blue spinner); shows last update time in status bar (HH:mm:ss format); tracks `lastUpdateTime`; dismisses refresh indicator on callback
