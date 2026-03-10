@@ -21,6 +21,7 @@ public class StockChartView extends View {
     private double[][] bollinger; // [upper, middle, lower]
     private double[] rsi5, rsi10;
     private double currentPrice = 0;
+    private double volMaLastValue = 0;
 
     // Visibility toggles
     public boolean showMA = true;
@@ -51,6 +52,7 @@ public class StockChartView extends View {
     private final Paint paintVolUp = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintVolDown = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint paintRefLine = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paintVolMa = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private static final int COLOR_UP = Color.parseColor("#EF5350");    // 紅漲
     private static final int COLOR_DOWN = Color.parseColor("#66BB6A");  // 綠跌
@@ -60,6 +62,7 @@ public class StockChartView extends View {
     private static final int COLOR_BBAND = Color.parseColor("#80DEEA");
     private static final int COLOR_RSI5 = Color.parseColor("#4FC3F7");
     private static final int COLOR_RSI10 = Color.parseColor("#FFA726");
+    private static final int COLOR_VOL_MA = Color.parseColor("#FFD54F");  // 黃色
     private static final int COLOR_GRID = Color.parseColor("#1E3040");
     private static final int COLOR_TEXT = Color.parseColor("#90A4AE");
     private static final int COLOR_PRICE_LINE = Color.parseColor("#4FC3F7");
@@ -147,6 +150,11 @@ public class StockChartView extends View {
         paintRefLine.setStyle(Paint.Style.STROKE);
         paintRefLine.setStrokeWidth(0.5f * density);
         paintRefLine.setPathEffect(new DashPathEffect(new float[]{4 * density, 4 * density}, 0));
+
+        paintVolMa.setColor(COLOR_VOL_MA);
+        paintVolMa.setStyle(Paint.Style.STROKE);
+        paintVolMa.setStrokeWidth(1.2f * density);
+        paintVolMa.setPathEffect(new DashPathEffect(new float[]{6 * density, 4 * density}, 0));
 
         setBackgroundColor(Color.parseColor("#0F1923"));
     }
@@ -392,7 +400,7 @@ public class StockChartView extends View {
             }
         }
 
-        // Volume bars
+        // Volume bars + MA5
         if (showVol && maxVol > 0) {
             for (int i = 0; i < count; i++) {
                 StockData.CandleBar c = candles.get(i);
@@ -402,6 +410,27 @@ public class StockChartView extends View {
                 RectF bar = new RectF(x - bodyWidth / 2, volBottom - barH, x + bodyWidth / 2, volBottom);
                 canvas.drawRect(bar, up ? paintVolUp : paintVolDown);
             }
+
+            // Volume MA5 dashed line
+            int vMaPeriod = 5;
+            Path volMaPath = new Path();
+            boolean volMaStarted = false;
+            double lastVolMa = 0;
+            long volSum = 0;
+            for (int i = 0; i < count; i++) {
+                volSum += candles.get(i).volume;
+                if (i >= vMaPeriod) volSum -= candles.get(i - vMaPeriod).volume;
+                if (i >= vMaPeriod - 1) {
+                    double avg = (double) volSum / vMaPeriod;
+                    float x = margin + candleWidth * i + candleWidth / 2;
+                    float y = volBottom - (float) (avg / maxVol * volHeight);
+                    if (!volMaStarted) { volMaPath.moveTo(x, y); volMaStarted = true; }
+                    else volMaPath.lineTo(x, y);
+                    lastVolMa = avg;
+                }
+            }
+            canvas.drawPath(volMaPath, paintVolMa);
+            volMaLastValue = lastVolMa;
         }
 
         // RSI lines (scaled)
@@ -433,10 +462,20 @@ public class StockChartView extends View {
             canvas.drawText(formatPrice(currentPrice), w - rightMargin + 4 * density, yPrice + 4 * density, labelPaint);
         }
 
-        // Volume grid lines
+        // Volume grid lines + MA label
         if (showVol) {
             canvas.drawLine(margin, volTop, w - rightMargin, volTop, paintGrid);
             canvas.drawLine(margin, volBottom, w - rightMargin, volBottom, paintGrid);
+
+            // Volume MA5 value label on right margin
+            if (volMaLastValue > 0 && maxVol > 0) {
+                float yMa = volBottom - (float) (volMaLastValue / maxVol * volHeight);
+                paintText.setTextSize(8 * density);
+                paintText.setColor(COLOR_VOL_MA);
+                canvas.drawText(formatVolume(volMaLastValue), w - rightMargin + 4 * density, yMa + 3 * density, paintText);
+                paintText.setColor(COLOR_TEXT);
+                paintText.setTextSize(10 * density);
+            }
         }
 
         // RSI grid + ref lines
@@ -530,5 +569,11 @@ public class StockChartView extends View {
         if (price >= 100) return String.format("%.0f", price);
         if (price >= 10) return String.format("%.1f", price);
         return String.format("%.2f", price);
+    }
+
+    private String formatVolume(double vol) {
+        if (vol >= 1_0000_0000) return String.format("%.1f億", vol / 1_0000_0000);
+        if (vol >= 1_0000) return String.format("%.0f萬", vol / 1_0000);
+        return String.format("%.0f", vol);
     }
 }

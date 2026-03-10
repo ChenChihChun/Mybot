@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.52 (2026-03-10)
+- **Enhancement: Volume MA5 Line on Stock Chart**
+  - Modified `StockChartView.java` — Added volume 5-period moving average as yellow dashed line over volume bars; displays MA value label on right margin (formatted as 萬/億); added `paintVolMa` paint, `volMaLastValue` field, `formatVolume()` helper
+  - Modified `app/build.gradle` — versionCode 74, versionName 3.52
+
 ## v3.51 (2026-03-10)
 - **Enhancement: Stock Chart Cache — Smart Refresh Tied to Market Hours**
   - Modified `StockCache.java` — Rewrote `isFresh()` logic: during market hours (9:00-13:30) cache is stale if fetched before today's open; after close (≥13:30) cache is stale if fetched before close (triggers one final re-fetch for closing data); weekend/pre-open logic unchanged
