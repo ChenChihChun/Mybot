@@ -245,6 +245,9 @@ public class FlightActivity extends AppCompatActivity {
         } else {
             dateStr += " 單程";
         }
+        if (watch.directOnly) {
+            dateStr += " | 直飛";
+        }
         dateTv.setText(dateStr);
         dateTv.setTextSize(13);
         dateTv.setTextColor(UIHelper.TEXT_SECONDARY);
@@ -381,7 +384,7 @@ public class FlightActivity extends AppCompatActivity {
 
         BridgeClient.searchFlights(watch.origin, watch.destination,
                 watch.departureDate, watch.returnDate, watch.searchMode,
-                watch.roundTrip, watch.preferredAirlines,
+                watch.roundTrip, watch.preferredAirlines, watch.directOnly,
                 (responseJson, offline, error) -> {
                     // Remove loading
                     View loading = card.findViewWithTag("loading");
@@ -787,6 +790,26 @@ public class FlightActivity extends AppCompatActivity {
         rtRow.addView(rtSwitch);
         dialogLayout.addView(rtRow);
 
+        // Direct only toggle
+        LinearLayout doRow = new LinearLayout(this);
+        doRow.setOrientation(LinearLayout.HORIZONTAL);
+        doRow.setGravity(Gravity.CENTER_VERTICAL);
+        doRow.setPadding(0, UIHelper.dp(this, 10), 0, 0);
+
+        TextView doLabel = new TextView(this);
+        doLabel.setText("僅直飛（不接受轉機）");
+        doLabel.setTextSize(14);
+        doLabel.setTextColor(UIHelper.TEXT_PRIMARY);
+        LinearLayout.LayoutParams doLabelLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        doLabel.setLayoutParams(doLabelLp);
+
+        Switch doSwitch = new Switch(this);
+        doSwitch.setChecked(false);
+        doRow.addView(doLabel);
+        doRow.addView(doSwitch);
+        dialogLayout.addView(doRow);
+
         // Search mode toggle
         TextView modeLabel = new TextView(this);
         modeLabel.setText("搜尋模式");
@@ -986,11 +1009,13 @@ public class FlightActivity extends AppCompatActivity {
                         }
                     }
 
+                    boolean isDirectOnly = doSwitch.isChecked();
                     long id = db.insert(origin, dest, depDate[0], retDate[0],
                             selectedMode[0], price, "TWD", isRoundTrip,
-                            airlines.isEmpty() ? null : airlines);
+                            airlines.isEmpty() ? null : airlines, isDirectOnly);
                     AppLog.i("Flight", "新增監控: " + origin + "→" + dest
                             + " date=" + depDate[0] + " rt=" + isRoundTrip
+                            + " direct=" + isDirectOnly
                             + " airlines=" + airlines + " target=$" + price + " id=" + id);
 
                     Toast.makeText(this, "已新增航班監控", Toast.LENGTH_SHORT).show();

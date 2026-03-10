@@ -602,7 +602,7 @@ public class BridgeClient {
     public static void searchFlights(String origin, String destination,
                                       String departureDate, String returnDate,
                                       String searchMode, boolean roundTrip,
-                                      String preferredAirlines,
+                                      String preferredAirlines, boolean directOnly,
                                       FlightSearchCallback callback) {
         executor.execute(() -> {
             AppLog.i("Flight", "searchFlights: " + origin + "→" + destination
@@ -622,6 +622,7 @@ public class BridgeClient {
                 if (preferredAirlines != null && !preferredAirlines.isEmpty()) {
                     body.put("preferred_airlines", preferredAirlines);
                 }
+                body.put("direct_only", directOnly);
 
                 String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 130000);
                 String response = result[0];
@@ -651,7 +652,7 @@ public class BridgeClient {
     public static String searchFlightsSync(String origin, String destination,
                                             String departureDate, String returnDate,
                                             String searchMode, boolean roundTrip,
-                                            String preferredAirlines) {
+                                            String preferredAirlines, boolean directOnly) {
         try {
             JSONObject body = new JSONObject();
             body.put("task", "search_flights");
@@ -666,6 +667,7 @@ public class BridgeClient {
             if (preferredAirlines != null && !preferredAirlines.isEmpty()) {
                 body.put("preferred_airlines", preferredAirlines);
             }
+            body.put("direct_only", directOnly);
 
             String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 130000);
             return result[0];

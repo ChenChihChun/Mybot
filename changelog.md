@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.64 (2026-03-11)
+- **Enhancement: Flight Watch — Direct Flight Filter**
+  - Modified `FlightWatchDbHelper.java` — DB version 3: added `direct_only` (INTEGER) column; `insert()` accepts directOnly parameter; `onUpgrade()` handles v2→v3 migration; `FlightWatch` inner class has new `directOnly` field
+  - Modified `FlightActivity.java` — Add dialog: "僅直飛（不接受轉機）" Switch toggle; watch cards show "直飛" label when enabled
+  - Modified `BridgeClient.java` — `searchFlights()` and `searchFlightsSync()` pass `direct_only` parameter to Bridge
+  - Modified `FlightCheckReceiver.java` — Passes `watch.directOnly` to `searchFlightsSync()`
+  - Modified `~/bridge/bridge.py` — search_flights prompt includes direct-only constraint (max_stopovers=0) when enabled
+  - Modified `app/build.gradle` — versionCode 86, versionName 3.64
+
 ## v3.63 (2026-03-11)
 - **Enhancement: Flight Watch — Round-trip & Airline Filtering**
   - Modified `FlightWatchDbHelper.java` — DB version 2: added `preferred_airlines` (TEXT) and `round_trip` (INTEGER) columns; `insert()` now accepts roundTrip and preferredAirlines parameters; `FlightWatch` inner class has new fields; `onUpgrade()` handles v1→v2 migration with ALTER TABLE
