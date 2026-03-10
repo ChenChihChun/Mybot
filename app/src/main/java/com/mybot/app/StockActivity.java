@@ -65,6 +65,8 @@ public class StockActivity extends AppCompatActivity {
     private String currentPeriod = "day"; // 1m, 5m, 15m, day, week, month
     private List<StockData.CandleBar> historicalCandles = null;
     private boolean loadingHistory = false;
+    private long lastCacheSaveTime = 0;
+    private static final long CACHE_SAVE_INTERVAL = 5 * 60_000; // save to cache every 5 min
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -774,6 +776,21 @@ public class StockActivity extends AppCompatActivity {
                 refreshChips();
                 updateInfoCard();
                 updateChart();
+
+                // During historical period: check if cache needs re-fetch (market open / after close)
+                if (isHistoricalPeriod() && selectedCode != null) {
+                    int months = "month".equals(currentPeriod) ? 12 : 6;
+                    if (!StockCache.getInstance(StockActivity.this).isFresh(selectedCode, months)) {
+                        loadHistoricalData();
+                    } else if (historicalCandles != null && !historicalCandles.isEmpty()) {
+                        // Periodically save in-memory updates (v3.50 real-time last candle) to cache
+                        long now = System.currentTimeMillis();
+                        if (now - lastCacheSaveTime >= CACHE_SAVE_INTERVAL) {
+                            lastCacheSaveTime = now;
+                            StockCache.getInstance(StockActivity.this).save(selectedCode, historicalCandles, months);
+                        }
+                    }
+                }
             }
             updateStatus();
         });

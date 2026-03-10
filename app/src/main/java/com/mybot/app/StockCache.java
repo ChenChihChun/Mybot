@@ -158,17 +158,28 @@ public class StockCache extends SQLiteOpenHelper {
         Calendar cached = Calendar.getInstance(TimeZone.getTimeZone("Asia/Taipei"));
         cached.setTimeInMillis(fetchTime);
 
-        // Same date = fresh
-        if (now.get(Calendar.YEAR) == cached.get(Calendar.YEAR)
-                && now.get(Calendar.DAY_OF_YEAR) == cached.get(Calendar.DAY_OF_YEAR)) {
-            return true;
+        int nowDow = now.get(Calendar.DAY_OF_WEEK);
+        int nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
+        boolean isWeekday = nowDow >= Calendar.MONDAY && nowDow <= Calendar.FRIDAY;
+
+        boolean sameDay = now.get(Calendar.YEAR) == cached.get(Calendar.YEAR)
+                && now.get(Calendar.DAY_OF_YEAR) == cached.get(Calendar.DAY_OF_YEAR);
+
+        if (sameDay) {
+            int cachedMinutes = cached.get(Calendar.HOUR_OF_DAY) * 60 + cached.get(Calendar.MINUTE);
+            if (isWeekday && nowMinutes >= 9 * 60 && nowMinutes < 13 * 60 + 30) {
+                // Market hours: fresh only if fetched after 9:00 today
+                return cachedMinutes >= 9 * 60;
+            }
+            if (isWeekday && nowMinutes >= 13 * 60 + 30) {
+                // After close: fresh only if fetched after 13:30 today (has closing data)
+                return cachedMinutes >= 13 * 60 + 30;
+            }
+            return true; // same day, before market open or weekend
         }
 
-        int nowDow = now.get(Calendar.DAY_OF_WEEK);
-        int nowTime = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
-
         // Before market open: yesterday's cache is OK
-        if (nowTime < 9 * 60) {
+        if (nowMinutes < 9 * 60) {
             Calendar yesterday = (Calendar) now.clone();
             yesterday.add(Calendar.DAY_OF_YEAR, -1);
             if (cached.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR)

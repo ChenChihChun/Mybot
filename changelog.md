@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.51 (2026-03-10)
+- **Enhancement: Stock Chart Cache — Smart Refresh Tied to Market Hours**
+  - Modified `StockCache.java` — Rewrote `isFresh()` logic: during market hours (9:00-13:30) cache is stale if fetched before today's open; after close (≥13:30) cache is stale if fetched before close (triggers one final re-fetch for closing data); weekend/pre-open logic unchanged
+  - Modified `StockActivity.java` — `fetchQuotes()` now checks cache freshness on each cycle for historical periods, triggers `loadHistoricalData()` when stale (market open + post-close); periodically saves in-memory real-time candle updates back to cache every 5 minutes during market hours
+  - Modified `app/build.gradle` — versionCode 73, versionName 3.51
+
 ## v3.50 (2026-03-10)
 - **Fix: Stock Chart Not Updating with Real-time Price**
   - Modified `StockActivity.java` — Chart now updates on every quote fetch (removed `isHistoricalPeriod()` guard that blocked chart refresh for day/week/month views); last candle's close/high/low now updates with real-time price so K-line chart follows current stock price
