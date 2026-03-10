@@ -40,10 +40,10 @@ public class YouTubeActivity extends AppCompatActivity {
     private void buildUI() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(UIHelper.BG_MAIN);
+        root.setBackgroundColor(UIHelper.BG_PRIMARY);
 
         // Top bar
-        root.addView(UIHelper.topBar(this, "\uD83C\uDFAC 影片摘要", v -> finish()));
+        root.addView(UIHelper.topBar(this, "\uD83C\uDFAC 影片摘要"));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
