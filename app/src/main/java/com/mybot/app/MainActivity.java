@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
         ReminderHelper.scheduleTodoCheck(this);
         ReminderHelper.restoreFitnessIfEnabled(this);
         ReminderHelper.restoreWaterIfEnabled(this);
+        ReminderHelper.restoreFlightIfEnabled(this);
 
         getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
 
@@ -221,9 +222,8 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, YouTubeActivity.class)), 0);
         addCompact(fRow4, "\uD83D\uDCDA", "知識庫", UIHelper.ACCENT_BLUE,
                 v -> startActivity(new Intent(this, KnowledgeActivity.class)), g);
-        View ph1 = new View(this);
-        ph1.setVisibility(View.INVISIBLE);
-        fRow4.addView(ph1, gridCellLp(g));
+        addCompact(fRow4, "✈", "航班監控", UIHelper.ACCENT_ORANGE,
+                v -> startActivity(new Intent(this, FlightActivity.class)), g);
         content.addView(fRow4);
 
         // ── Tools (3 columns) ──

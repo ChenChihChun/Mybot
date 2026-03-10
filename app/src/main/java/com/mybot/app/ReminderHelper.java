@@ -229,6 +229,46 @@ public class ReminderHelper {
         }
     }
 
+    // --- Flight price check (every 6 hours) ---
+    private static final int FLIGHT_REQUEST_CODE = 9100;
+    private static final long FLIGHT_INTERVAL_MS = 6 * 60 * 60 * 1000L; // 6 hours
+
+    public static void scheduleFlightCheck(Context context) {
+        FlightWatchDbHelper.setFlightCheckEnabled(context, true);
+        scheduleNextFlightCheck(context);
+    }
+
+    public static void scheduleNextFlightCheck(Context context) {
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Intent intent = new Intent(context, FlightCheckReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, FLIGHT_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        long triggerAt = System.currentTimeMillis() + FLIGHT_INTERVAL_MS;
+        safeSetExact(am, triggerAt, pi);
+    }
+
+    public static void cancelFlightCheck(Context context) {
+        FlightWatchDbHelper.setFlightCheckEnabled(context, false);
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, FlightCheckReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, FLIGHT_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        if (am != null) am.cancel(pi);
+    }
+
+    public static void restoreFlightIfEnabled(Context context) {
+        if (FlightWatchDbHelper.isFlightCheckEnabled(context)) {
+            scheduleNextFlightCheck(context);
+        }
+    }
+
+    public static long getNextFlightCheckTime() {
+        return System.currentTimeMillis() + FLIGHT_INTERVAL_MS;
+    }
+
     // --- TODO daily check (runs at 09:00 daily) ---
     private static final int TODO_REQUEST_CODE = 8877;
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.60 (2026-03-10)
+- **New Feature: Flight Price Watch (航班監控)**
+  - Added `FlightWatchDbHelper.java` — SQLite database (`mybot_flight.db`) for flight watch entries with CRUD operations; stores origin, destination, dates, target price, search mode (date/month), last check results; SharedPrefs toggle for global flight check enable/disable
+  - Added `FlightActivity.java` — Full UI with status card (6-hour check toggle), watch list (route, dates, target/lowest price, last check time), add dialog (IATA origin/dest, date picker, search mode toggle, target price), manual search with loading indicator, result detail dialog showing flight list
+  - Added `FlightCheckReceiver.java` — BroadcastReceiver with `goAsync()` for background flight checks; iterates enabled watches sequentially (2s gap); calls Bridge sync API; notifies when price ≤ target or drops >10% from last check
+  - Modified `BridgeClient.java` — Added `FlightSearchCallback` interface, `searchFlights()` async method (130s timeout), `searchFlightsSync()` for receiver use
+  - Modified `ReminderHelper.java` — Added flight check scheduling (FLIGHT_REQUEST_CODE=9100, 6-hour interval), `scheduleFlightCheck()`, `scheduleNextFlightCheck()`, `cancelFlightCheck()`, `restoreFlightIfEnabled()`
+  - Modified `BootReceiver.java` — Added `restoreFlightIfEnabled()` in `restoreAlarms()`
+  - Modified `MainActivity.java` — Replaced Row 4 placeholder with "✈ 航班監控" card (ACCENT_ORANGE); added `restoreFlightIfEnabled()` in onCreate
+  - Modified `AndroidManifest.xml` — Registered `FlightActivity` and `FlightCheckReceiver`
+  - Added `~/bridge/mcp_flight.json` — Kiwi.com MCP config (remote HTTP MCP, no API key)
+  - Modified `~/bridge/bridge.py` — Added `search_flights` task (120s timeout); added `call_claude_mcp()` function using `--mcp-config` with Kiwi MCP and `--max-turns 5`; added search_flights prompt builder and routing in `/analyze`
+  - Modified `app/build.gradle` — versionCode 82, versionName 3.60
+
 ## v3.59 (2026-03-10)
 - **Security Hardening — First Security Audit (versionCode 81)**
   - Full OWASP Mobile Top 10 audit performed on all 54 Java files. Fixed 6 of 15 findings.

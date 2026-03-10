@@ -98,6 +98,9 @@
         <!-- Knowledge Base Activity -->
         <activity android:name=".KnowledgeActivity" android:exported="false" />
 
+        <!-- Flight Activity -->
+        <activity android:name=".FlightActivity" android:exported="false" />
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
 
@@ -155,6 +158,11 @@
         <!-- Water Reminder Receiver -->
         <receiver
             android:name=".WaterReminderReceiver"
+            android:exported="false" />
+
+        <!-- Flight Check Receiver -->
+        <receiver
+            android:name=".FlightCheckReceiver"
             android:exported="false" />
 
     </application>

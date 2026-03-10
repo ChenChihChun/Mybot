@@ -595,6 +595,74 @@ public class BridgeClient {
         });
     }
 
+    public interface FlightSearchCallback {
+        void onResult(String responseJson, boolean offline, String error);
+    }
+
+    public static void searchFlights(String origin, String destination,
+                                      String departureDate, String returnDate,
+                                      String searchMode, FlightSearchCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Flight", "searchFlights: " + origin + "→" + destination
+                    + " date=" + departureDate + " mode=" + searchMode);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "search_flights");
+                body.put("origin", origin);
+                body.put("destination", destination);
+                body.put("departure_date", departureDate);
+                if (returnDate != null && !returnDate.isEmpty()) {
+                    body.put("return_date", returnDate);
+                }
+                body.put("search_mode", searchMode);
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 130000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    AppLog.i("Flight", "searchFlights完成");
+                    mainHandler.post(() -> callback.onResult(response, false, null));
+                } else {
+                    lastError = error;
+                    AppLog.e("Flight", "searchFlights失敗: " + error);
+                    mainHandler.post(() -> callback.onResult(null, true, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                AppLog.e("Flight", "searchFlights異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
+    /**
+     * Synchronous flight search for use in BroadcastReceiver (runs on background thread).
+     * Returns raw JSON response string or null on failure.
+     */
+    public static String searchFlightsSync(String origin, String destination,
+                                            String departureDate, String returnDate,
+                                            String searchMode) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("task", "search_flights");
+            body.put("origin", origin);
+            body.put("destination", destination);
+            body.put("departure_date", departureDate);
+            if (returnDate != null && !returnDate.isEmpty()) {
+                body.put("return_date", returnDate);
+            }
+            body.put("search_mode", searchMode);
+
+            String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 130000);
+            return result[0];
+        } catch (Exception e) {
+            AppLog.e("Flight", "searchFlightsSync異常: " + e.getMessage());
+            return null;
+        }
+    }
+
     private static String[] postJsonWithError(String urlStr, String jsonBody) {
         return postJsonWithError(urlStr, jsonBody, 30000);
     }
