@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.54 (2026-03-10)
+- **Fix: YouTube Summarizer — Tag Wrapping + Adaptive Summary Length**
+  - Modified `YouTubeActivity.java` — Tags now use single `TextView` with natural line wrapping instead of horizontal `LinearLayout` that overflowed
+  - Modified `bridge.py` — Summary prompt now scales with transcript length: short videos get 100-150 word summaries with 3-6 points; long videos (30k+ chars, ~90min) get 500-800 word summaries with 15-25 detailed points grouped by topic
+  - Modified `app/build.gradle` — versionCode 76, versionName 3.54
+
 ## v3.53 (2026-03-10)
 - **New Feature: YouTube Video Summarizer**
   - Added `YouTubeActivity.java` — New standalone feature page for YouTube video summarization; paste URL → fetch subtitles → AI generates summary with key points and topic tags; includes paste button, loading state, copy-to-clipboard, dark theme cards

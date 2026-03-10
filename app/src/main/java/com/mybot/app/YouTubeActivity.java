@@ -298,29 +298,22 @@ public class YouTubeActivity extends AppCompatActivity {
             resultContainer.addView(pointsCard, ptLp);
         }
 
-        // Topics
+        // Topics (as wrapping text)
         if (topics != null && topics.length() > 0) {
-            LinearLayout tagsRow = new LinearLayout(this);
-            tagsRow.setOrientation(LinearLayout.HORIZONTAL);
-            tagsRow.setPadding(0, dp(4), 0, 0);
-
+            StringBuilder tagStr = new StringBuilder();
             for (int i = 0; i < topics.length(); i++) {
                 String tag = topics.optString(i, "");
                 if (tag.isEmpty()) continue;
-
-                TextView chip = new TextView(this);
-                chip.setText("#" + tag);
-                chip.setTextColor(UIHelper.ACCENT_BLUE);
-                chip.setTextSize(12);
-                chip.setPadding(dp(10), dp(4), dp(10), dp(4));
-                chip.setBackground(UIHelper.roundRectStroke(UIHelper.BG_CARD, UIHelper.ACCENT_BLUE, 16, 1, this));
-
-                LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                chipLp.setMargins(0, 0, dp(6), 0);
-                tagsRow.addView(chip, chipLp);
+                if (tagStr.length() > 0) tagStr.append("  ");
+                tagStr.append("#").append(tag);
             }
-            resultContainer.addView(tagsRow);
+            TextView tagsView = new TextView(this);
+            tagsView.setText(tagStr.toString());
+            tagsView.setTextColor(UIHelper.ACCENT_BLUE);
+            tagsView.setTextSize(12);
+            tagsView.setLineSpacing(dp(6), 1f);
+            tagsView.setPadding(0, dp(8), 0, 0);
+            resultContainer.addView(tagsView);
         }
 
         // Copy button
