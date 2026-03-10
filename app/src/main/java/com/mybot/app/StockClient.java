@@ -25,6 +25,10 @@ public class StockClient {
 
     private static final String REALTIME_URL = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp";
     private static final String HISTORY_URL = "https://www.twse.com.tw/exchangeReport/STOCK_DAY";
+    private static final String OTC_HISTORY_URL = "https://www.tpex.org.tw/web/stock/aftertrading/daily_trading_info/st43_result.php";
+
+    // Track market type per code: true=OTC, false=TSE
+    private static final java.util.Map<String, Boolean> otcMap = new java.util.concurrent.ConcurrentHashMap<>();
 
     // Rate limiting: track last request times
     private static final long[] requestTimes = new long[3];
@@ -49,10 +53,14 @@ public class StockClient {
             try {
                 enforceRateLimit();
 
+                // Query both tse_ (上市) and otc_ (上櫃) for each code;
+                // the API returns data only for the valid market type
                 StringBuilder exCh = new StringBuilder();
                 for (int i = 0; i < codes.size(); i++) {
-                    if (i > 0) exCh.append("|");
+                    if (exCh.length() > 0) exCh.append("|");
                     exCh.append("tse_").append(codes.get(i)).append(".tw");
+                    exCh.append("|");
+                    exCh.append("otc_").append(codes.get(i)).append(".tw");
                 }
 
                 String urlStr = REALTIME_URL + "?ex_ch=" + exCh + "&json=1&delay=0";
@@ -81,7 +89,9 @@ public class StockClient {
                     return;
                 }
 
-                List<StockData.StockQuote> quotes = new ArrayList<>();
+                // Deduplicate: both tse_ and otc_ may return for same code;
+                // keep the one with valid price data
+                java.util.Map<String, StockData.StockQuote> quoteMap = new java.util.LinkedHashMap<>();
                 for (int i = 0; i < msgArray.length(); i++) {
                     JSONObject item = msgArray.getJSONObject(i);
                     StockData.StockQuote q = new StockData.StockQuote();
@@ -102,8 +112,22 @@ public class StockClient {
                         q.currentPrice = q.prevClose;
                     }
 
-                    quotes.add(q);
+                    // Track market type (tse vs otc) for history queries
+                    String ex = item.optString("ex", "");
+                    if ("otc".equals(ex) && q.currentPrice > 0) {
+                        otcMap.put(q.code, true);
+                    } else if ("tse".equals(ex) && q.currentPrice > 0) {
+                        otcMap.put(q.code, false);
+                    }
+
+                    // Keep entry with better data (has price or name)
+                    StockData.StockQuote existing = quoteMap.get(q.code);
+                    if (existing == null || (q.currentPrice > 0 && existing.currentPrice <= 0)
+                            || (q.volume > existing.volume)) {
+                        quoteMap.put(q.code, q);
+                    }
                 }
+                List<StockData.StockQuote> quotes = new ArrayList<>(quoteMap.values());
 
                 AppLog.i("Stock", "fetchStocks: " + quotes.size() + "檔報價取得成功");
                 mainHandler.post(() -> callback.onResult(quotes, null));
@@ -184,6 +208,7 @@ public class StockClient {
     public static void fetchMultiMonthHistory(String code, int months, HistoryCallback callback) {
         executor.execute(() -> {
             try {
+                boolean isOtc = Boolean.TRUE.equals(otcMap.get(code));
                 java.util.Calendar cal = java.util.Calendar.getInstance();
                 List<StockData.CandleBar> allCandles = new ArrayList<>();
 
@@ -195,14 +220,23 @@ public class StockClient {
 
                     enforceRateLimit();
 
-                    String dateStr = String.format(Locale.US, "%04d%02d01", year, month);
-                    String urlStr = HISTORY_URL + "?response=json&date=" + dateStr + "&stockNo=" + code;
+                    String urlStr;
+                    if (isOtc) {
+                        // TPEx OTC history: uses ROC year, month format "115/03"
+                        int rocYear = year - 1911;
+                        String dateStr = String.format(Locale.US, "%d/%02d", rocYear, month);
+                        urlStr = OTC_HISTORY_URL + "?l=zh-tw&d=" + dateStr + "&stkno=" + code + "&_=1";
+                    } else {
+                        String dateStr = String.format(Locale.US, "%04d%02d01", year, month);
+                        urlStr = HISTORY_URL + "?response=json&date=" + dateStr + "&stockNo=" + code;
+                    }
                     String response = httpGet(urlStr, 15000);
 
                     if (response != null && response.trim().startsWith("{")) {
                         backoffLevel = 0;
                         JSONObject json = new JSONObject(response);
-                        JSONArray data = json.optJSONArray("data");
+                        // OTC uses "aaData", TSE uses "data"
+                        JSONArray data = isOtc ? json.optJSONArray("aaData") : json.optJSONArray("data");
                         if (data != null) {
                             SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd", Locale.US);
                             for (int i = 0; i < data.length(); i++) {
@@ -210,14 +244,25 @@ public class StockClient {
                                 String dateField = row.getString(0);
                                 String[] dateParts = dateField.split("/");
                                 if (dateParts.length == 3) {
-                                    int rocYear = Integer.parseInt(dateParts[0].trim());
-                                    String fullDate = (rocYear + 1911) + "/" + dateParts[1] + "/" + dateParts[2];
+                                    int rocYr = Integer.parseInt(dateParts[0].trim());
+                                    String fullDate = (rocYr + 1911) + "/" + dateParts[1] + "/" + dateParts[2];
                                     long timestamp = sdf.parse(fullDate).getTime();
-                                    double open = parseDouble(row.getString(3).replace(",", ""));
-                                    double high = parseDouble(row.getString(4).replace(",", ""));
-                                    double low = parseDouble(row.getString(5).replace(",", ""));
-                                    double close = parseDouble(row.getString(6).replace(",", ""));
-                                    long volume = parseLong(row.getString(1).replace(",", ""));
+                                    double open, high, low, close;
+                                    long volume;
+                                    if (isOtc) {
+                                        // OTC format: [日期, 成交股數, 成交金額, 開盤價, 最高價, 最低價, 收盤價, 漲跌, 成交筆數]
+                                        open = parseDouble(row.getString(3).replace(",", ""));
+                                        high = parseDouble(row.getString(4).replace(",", ""));
+                                        low = parseDouble(row.getString(5).replace(",", ""));
+                                        close = parseDouble(row.getString(6).replace(",", ""));
+                                        volume = parseLong(row.getString(1).replace(",", ""));
+                                    } else {
+                                        open = parseDouble(row.getString(3).replace(",", ""));
+                                        high = parseDouble(row.getString(4).replace(",", ""));
+                                        low = parseDouble(row.getString(5).replace(",", ""));
+                                        close = parseDouble(row.getString(6).replace(",", ""));
+                                        volume = parseLong(row.getString(1).replace(",", ""));
+                                    }
                                     if (open > 0 && close > 0) {
                                         allCandles.add(new StockData.CandleBar(timestamp, open, high, low, close, volume));
                                     }

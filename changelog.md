@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.46 (2026-03-10)
+- **Fix: Stock Tracker — Support OTC (上櫃) Stocks**
+  - Modified `StockClient.java` — Realtime quotes now query both `tse_` and `otc_` prefixes for each code, with deduplication; tracks market type via `ex` field in API response; `fetchMultiMonthHistory()` uses TPEx API (`tpex.org.tw`) for OTC stocks with correct ROC date format and `aaData` field; added `OTC_HISTORY_URL` and `otcMap` for market type tracking
+  - Modified `app/build.gradle` — versionCode 68, versionName 3.46
+
 ## v3.45 (2026-03-10)
 - **Enhancement: Stock Tracker — Comma-Formatted Cost Display**
   - Modified `StockActivity.java` — Added `formatComma()` helper with `DecimalFormat("#,###")` for thousands separator; cost display now shows formatted shares (e.g. 1,000股) and P&L (e.g. +15,000); imported `java.text.DecimalFormat`
