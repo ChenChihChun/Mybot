@@ -95,6 +95,9 @@
         <!-- YouTube Summary Activity -->
         <activity android:name=".YouTubeActivity" android:exported="false" />
 
+        <!-- Knowledge Base Activity -->
+        <activity android:name=".KnowledgeActivity" android:exported="false" />
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
 

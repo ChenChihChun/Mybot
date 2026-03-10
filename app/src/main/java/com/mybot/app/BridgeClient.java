@@ -480,6 +480,76 @@ public class BridgeClient {
         });
     }
 
+    public interface KnowledgeCategoryCallback {
+        void onResult(String category, String error);
+    }
+
+    public static void categorizeKnowledge(String title, String summary, KnowledgeCategoryCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "categorizeKnowledge: " + (title.length() > 50 ? title.substring(0, 50) + "..." : title));
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "categorize_knowledge");
+                body.put("title", title);
+                body.put("summary", summary);
+                body.put("prompt", "根據以下內容的標題和摘要，判斷它屬於哪個知識類別。\n"
+                        + "標題：" + title + "\n"
+                        + "摘要：" + summary + "\n\n"
+                        + "類別請從以下選擇一個最適合的：科技、投資、財經、健康、醫療、教育、學習、"
+                        + "娛樂、商業、創業、生活、心理、心靈、其他\n\n"
+                        + "請以 JSON 格式回傳：{\"category\": \"類別名稱\"}");
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 30000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    JSONObject json = new JSONObject(response);
+                    if (json.optBoolean("success", false)) {
+                        Object resultObj = json.opt("result");
+                        String category = "";
+                        if (resultObj instanceof JSONObject) {
+                            category = ((JSONObject) resultObj).optString("category", "其他");
+                        } else if (resultObj instanceof String) {
+                            // Try to parse JSON from text
+                            String text = (String) resultObj;
+                            int start = text.indexOf("{");
+                            int end = text.lastIndexOf("}");
+                            if (start >= 0 && end > start) {
+                                try {
+                                    JSONObject parsed = new JSONObject(text.substring(start, end + 1));
+                                    category = parsed.optString("category", "其他");
+                                } catch (Exception ignored) {
+                                    category = "其他";
+                                }
+                            } else {
+                                category = "其他";
+                            }
+                        } else {
+                            category = "其他";
+                        }
+                        AppLog.i("Bridge", "categorizeKnowledge結果: " + category);
+                        final String cat = category;
+                        mainHandler.post(() -> callback.onResult(cat, null));
+                        return;
+                    }
+                    String errMsg = json.optString("error", "unknown error");
+                    AppLog.w("Bridge", "categorizeKnowledge失敗: " + errMsg);
+                    mainHandler.post(() -> callback.onResult("其他", null));
+                    return;
+                }
+                lastError = error;
+                AppLog.e("Bridge", "categorizeKnowledge連線失敗: " + error);
+                mainHandler.post(() -> callback.onResult("其他", error));
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                AppLog.e("Bridge", "categorizeKnowledge異常: " + err);
+                mainHandler.post(() -> callback.onResult("其他", err));
+            }
+        });
+    }
+
     public interface RemoteCodeCallback {
         void onResult(String result, boolean offline, String error);
     }

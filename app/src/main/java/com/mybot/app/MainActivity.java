@@ -218,6 +218,20 @@ public class MainActivity extends AppCompatActivity {
         row5f.addView(cardYouTube, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row5f);
 
+        // Row 6
+        LinearLayout row6f = gridRow();
+        LinearLayout cardKnowledge = UIHelper.featureCard(this,
+                "\uD83D\uDCDA", "知識庫", "影片摘要·AI分類·搜尋", UIHelper.ACCENT_BLUE, 40);
+        cardKnowledge.setOnClickListener(v -> startActivity(new Intent(this, KnowledgeActivity.class)));
+
+        // Empty placeholder for grid alignment
+        View knowledgePlaceholder = new View(this);
+        knowledgePlaceholder.setVisibility(View.INVISIBLE);
+
+        row6f.addView(cardKnowledge, gridCellLp(0));
+        row6f.addView(knowledgePlaceholder, gridCellLp(UIHelper.dp(this, 10)));
+        content.addView(row6f);
+
         // ── Tools ──
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));
 

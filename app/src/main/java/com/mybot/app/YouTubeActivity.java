@@ -316,6 +316,24 @@ public class YouTubeActivity extends AppCompatActivity {
             resultContainer.addView(tagsView);
         }
 
+        // Button row: copy + save to knowledge base
+        LinearLayout resultBtnRow = new LinearLayout(this);
+        resultBtnRow.setOrientation(LinearLayout.HORIZONTAL);
+        resultBtnRow.setGravity(Gravity.END);
+        resultBtnRow.setPadding(0, dp(12), 0, 0);
+
+        // Save to knowledge base button
+        TextView saveKbBtn = new TextView(this);
+        saveKbBtn.setText("\uD83D\uDCDA 儲存到知識庫");
+        saveKbBtn.setTextColor(UIHelper.ACCENT_GREEN);
+        saveKbBtn.setTextSize(12);
+        saveKbBtn.setPadding(dp(14), dp(8), dp(14), dp(8));
+        saveKbBtn.setBackground(UIHelper.roundRectStroke(UIHelper.BG_CARD, UIHelper.ACCENT_GREEN, 8, 1, this));
+        saveKbBtn.setOnClickListener(v -> {
+            String sourceUrl = urlInput.getText().toString().trim();
+            saveToKnowledgeBase(title, summaryText, keyPoints, sourceUrl, saveKbBtn);
+        });
+
         // Copy button
         TextView copyBtn = new TextView(this);
         copyBtn.setText("複製摘要");
@@ -338,11 +356,59 @@ public class YouTubeActivity extends AppCompatActivity {
             Toast.makeText(this, "已複製", Toast.LENGTH_SHORT).show();
         });
 
-        LinearLayout.LayoutParams copyLp = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams saveLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        copyLp.setMargins(0, dp(12), 0, 0);
-        copyLp.gravity = Gravity.END;
-        resultContainer.addView(copyBtn, copyLp);
+        saveLp.setMargins(0, 0, dp(8), 0);
+        resultBtnRow.addView(saveKbBtn, saveLp);
+        resultBtnRow.addView(copyBtn);
+
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowLp.gravity = Gravity.END;
+        resultContainer.addView(resultBtnRow, rowLp);
+    }
+
+    private void saveToKnowledgeBase(String title, String summaryText,
+                                     JSONArray keyPoints, String sourceUrl, TextView saveBtn) {
+        AppLog.i("Knowledge", "儲存到知識庫: " + title);
+        saveBtn.setText("儲存中...");
+        saveBtn.setEnabled(false);
+
+        // Build key_points string
+        StringBuilder kpBuilder = new StringBuilder();
+        if (keyPoints != null) {
+            for (int i = 0; i < keyPoints.length(); i++) {
+                String pt = keyPoints.optString(i, "");
+                if (!pt.isEmpty()) {
+                    if (kpBuilder.length() > 0) kpBuilder.append("\n");
+                    kpBuilder.append("\u2022 ").append(pt);
+                }
+            }
+        }
+        String keyPointsStr = kpBuilder.toString();
+
+        // AI categorize then save
+        BridgeClient.categorizeKnowledge(title, summaryText, (category, error) -> {
+            if (error != null) {
+                AppLog.w("Knowledge", "AI分類失敗，使用預設: " + error);
+            }
+
+            KnowledgeDbHelper dbHelper = new KnowledgeDbHelper(this);
+            long id = dbHelper.insert(title, summaryText, keyPointsStr, sourceUrl, category);
+            dbHelper.close();
+
+            if (id > 0) {
+                AppLog.i("Knowledge", "儲存成功: id=" + id + " category=" + category);
+                saveBtn.setText("\u2705 已儲存");
+                saveBtn.setTextColor(UIHelper.ACCENT_GREEN);
+                Toast.makeText(this, "已儲存到知識庫 [" + category + "]", Toast.LENGTH_SHORT).show();
+            } else {
+                AppLog.e("Knowledge", "儲存失敗");
+                saveBtn.setText("\uD83D\uDCDA 儲存到知識庫");
+                saveBtn.setEnabled(true);
+                Toast.makeText(this, "儲存失敗", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private int dp(int v) {

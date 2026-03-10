@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.55 (2026-03-10)
+- **New Feature: Knowledge Base — Save & Browse AI-Categorized Knowledge**
+  - Added `KnowledgeDbHelper.java` — SQLite database helper for knowledge entries; stores title, summary, key_points, source_url, AI-determined category, created_at; supports getAll, getByCategory, search (title/summary/key_points LIKE), getAllCategories, getCount
+  - Added `KnowledgeActivity.java` — Standalone browse/search UI with search bar, horizontal category filter chips (auto-populated from DB), knowledge cards with category badge, date, truncated summary, action buttons (source link, detail dialog, delete with confirmation); detail dialog shows full summary, key points, source URL
+  - Modified `YouTubeActivity.java` — Added "儲存到知識庫" button in result area alongside existing copy button; calls BridgeClient.categorizeKnowledge() for AI auto-categorization then saves to KnowledgeDbHelper; button shows loading state and success confirmation
+  - Modified `BridgeClient.java` — Added `KnowledgeCategoryCallback` interface and `categorizeKnowledge()` method; sends title+summary to Bridge for AI classification into predefined categories (科技/投資/健康/教育/etc.); falls back to "其他" on error
+  - Modified `bridge.py` — Added `categorize_knowledge` task type with 30s timeout; added prompt builder that classifies content into knowledge categories and returns JSON
+  - Modified `MainActivity.java` — Added "知識庫" feature card (blue accent) in new row 6 under Features section
+  - Modified `AndroidManifest.xml` — Registered `KnowledgeActivity`
+  - Modified `app/build.gradle` — versionCode 77, versionName 3.55
+
 ## v3.54 (2026-03-10)
 - **Fix: YouTube Summarizer — Tag Wrapping + Adaptive Summary Length**
   - Modified `YouTubeActivity.java` — Tags now use single `TextView` with natural line wrapping instead of horizontal `LinearLayout` that overflowed
