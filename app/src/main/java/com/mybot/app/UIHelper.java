@@ -294,6 +294,83 @@ public class UIHelper {
         return card;
     }
 
+    /**
+     * Compact card for 3-column grid: small icon + label, no subtitle.
+     */
+    public static LinearLayout compactCard(Context ctx, String icon, String label, int accentColor) {
+        LinearLayout card = new LinearLayout(ctx);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER);
+        card.setBackground(roundRect(BG_CARD, 16, ctx));
+        card.setElevation(dp(ctx, 3));
+        int pad = dp(ctx, 10);
+        card.setPadding(pad, dp(ctx, 14), pad, dp(ctx, 12));
+        card.setClickable(true);
+        card.setFocusable(true);
+
+        TextView iconView = new TextView(ctx);
+        iconView.setText(icon);
+        iconView.setTextSize(24);
+        iconView.setGravity(Gravity.CENTER);
+        int bgColor = Color.argb(35,
+                Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor));
+        iconView.setBackground(roundRect(bgColor, 14, ctx));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(ctx, 44), dp(ctx, 44));
+        iconLp.gravity = Gravity.CENTER;
+        iconLp.setMargins(0, 0, 0, dp(ctx, 8));
+        iconView.setLayoutParams(iconLp);
+
+        TextView labelView = new TextView(ctx);
+        labelView.setText(label);
+        labelView.setTextSize(12);
+        labelView.setTextColor(TEXT_PRIMARY);
+        labelView.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        labelView.setGravity(Gravity.CENTER);
+        labelView.setMaxLines(1);
+
+        card.addView(iconView);
+        card.addView(labelView);
+        return card;
+    }
+
+    /**
+     * Dashboard summary card with value and label.
+     */
+    public static LinearLayout dashboardCard(Context ctx, String icon, String value, String label, int accentColor) {
+        LinearLayout card = new LinearLayout(ctx);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(roundRect(BG_CARD, 14, ctx));
+        card.setElevation(dp(ctx, 3));
+        int pad = dp(ctx, 12);
+        card.setPadding(pad, pad, pad, pad);
+
+        // Top row: icon
+        TextView iconView = new TextView(ctx);
+        iconView.setText(icon);
+        iconView.setTextSize(16);
+
+        // Value
+        TextView valueView = new TextView(ctx);
+        valueView.setText(value);
+        valueView.setTextSize(20);
+        valueView.setTextColor(accentColor);
+        valueView.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        valueView.setPadding(0, dp(ctx, 4), 0, dp(ctx, 2));
+        valueView.setTag("dashboard_value"); // for dynamic update
+
+        // Label
+        TextView labelView = new TextView(ctx);
+        labelView.setText(label);
+        labelView.setTextSize(11);
+        labelView.setTextColor(TEXT_SECONDARY);
+        labelView.setTag("dashboard_label");
+
+        card.addView(iconView);
+        card.addView(valueView);
+        card.addView(labelView);
+        return card;
+    }
+
     public static Button smallButton(Context ctx, String text, int color) {
         Button btn = new Button(ctx);
         btn.setText(text);

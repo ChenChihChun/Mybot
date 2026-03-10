@@ -145,121 +145,108 @@ public class MainActivity extends AppCompatActivity {
         int cp = UIHelper.dp(this, 16);
         content.setPadding(cp, UIHelper.dp(this, 16), cp, cp);
 
-        // ── Feature grid ──
+        // ── Dashboard ──
+        content.addView(UIHelper.sectionHeader(this, "DASHBOARD"));
+
+        LinearLayout dashRow1 = gridRow();
+        int gap = UIHelper.dp(this, 8);
+
+        LinearLayout dashExpense = UIHelper.dashboardCard(this,
+                "\uD83D\uDCB0", "--", "今日消費", UIHelper.ACCENT_RED);
+        dashExpense.setOnClickListener(v -> startActivity(new Intent(this, ExpenseActivity.class)));
+
+        LinearLayout dashTodo = UIHelper.dashboardCard(this,
+                "\u2705", "--", "待辦事項", UIHelper.ACCENT_GREEN);
+        dashTodo.setOnClickListener(v -> startActivity(new Intent(this, TodoActivity.class)));
+
+        dashRow1.addView(dashExpense, gridCellLp(0));
+        dashRow1.addView(dashTodo, gridCellLp(gap));
+        content.addView(dashRow1);
+
+        LinearLayout dashRow2 = gridRow();
+
+        LinearLayout dashKnowledge = UIHelper.dashboardCard(this,
+                "\uD83D\uDCDA", "--", "知識庫", UIHelper.ACCENT_BLUE);
+        dashKnowledge.setOnClickListener(v -> startActivity(new Intent(this, KnowledgeActivity.class)));
+
+        LinearLayout dashStock = UIHelper.dashboardCard(this,
+                "\uD83D\uDCC8", "--", "台股追蹤", UIHelper.ACCENT_ORANGE);
+        dashStock.setOnClickListener(v -> startActivity(new Intent(this, StockActivity.class)));
+
+        dashRow2.addView(dashKnowledge, gridCellLp(0));
+        dashRow2.addView(dashStock, gridCellLp(gap));
+        content.addView(dashRow2);
+
+        // Load dashboard data async
+        loadDashboardData(dashExpense, dashTodo, dashKnowledge);
+
+        // ── Feature grid (3 columns) ──
         content.addView(UIHelper.sectionHeader(this, "FEATURES"));
+        int g = UIHelper.dp(this, 8);
 
-        // Row 1
-        LinearLayout row1 = gridRow();
-        LinearLayout cardExpense = UIHelper.featureCard(this,
-                "\uD83D\uDCB0", "消費紀錄", "消費明細·報表·提醒", UIHelper.ACCENT_RED, 40);
-        cardExpense.setOnClickListener(v -> startActivity(new Intent(this, ExpenseActivity.class)));
+        // Row 1: 消費紀錄, 待辦事項, 日曆
+        LinearLayout fRow1 = gridRow3();
+        addCompact(fRow1, "\uD83D\uDCB0", "消費紀錄", UIHelper.ACCENT_RED,
+                v -> startActivity(new Intent(this, ExpenseActivity.class)), 0);
+        addCompact(fRow1, "\u2705", "待辦事項", UIHelper.ACCENT_GREEN,
+                v -> startActivity(new Intent(this, TodoActivity.class)), g);
+        addCompact(fRow1, "\uD83D\uDCC5", "日曆", UIHelper.ACCENT_BLUE,
+                v -> startActivity(new Intent(this, CalendarActivity.class)), g);
+        content.addView(fRow1);
 
-        LinearLayout cardTodo = UIHelper.featureCard(this,
-                "\u2705", "待辦事項", "TODO·時間管理", UIHelper.ACCENT_GREEN, 40);
-        cardTodo.setOnClickListener(v -> startActivity(new Intent(this, TodoActivity.class)));
+        // Row 2: 健身教練, 台股追蹤, 倒數日
+        LinearLayout fRow2 = gridRow3();
+        addCompact(fRow2, "\uD83D\uDCAA", "健身教練", UIHelper.ACCENT_PURPLE,
+                v -> startActivity(new Intent(this, FitnessActivity.class)), 0);
+        addCompact(fRow2, "\uD83D\uDCC8", "台股追蹤", UIHelper.ACCENT_ORANGE,
+                v -> startActivity(new Intent(this, StockActivity.class)), g);
+        addCompact(fRow2, "\u23F3", "倒數日", UIHelper.ACCENT_BLUE,
+                v -> startActivity(new Intent(this, CountdownActivity.class)), g);
+        content.addView(fRow2);
 
-        row1.addView(cardExpense, gridCellLp(0));
-        row1.addView(cardTodo, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row1);
+        // Row 3: 習慣追蹤, 喝水提醒, 音樂管理
+        LinearLayout fRow3 = gridRow3();
+        addCompact(fRow3, "\uD83D\uDCCA", "習慣追蹤", UIHelper.ACCENT_PURPLE,
+                v -> startActivity(new Intent(this, HabitActivity.class)), 0);
+        addCompact(fRow3, "\uD83D\uDCA7", "喝水提醒", UIHelper.ACCENT_BLUE,
+                v -> startActivity(new Intent(this, WaterActivity.class)), g);
+        addCompact(fRow3, "\uD83C\uDFB5", "音樂管理", UIHelper.ACCENT_ORANGE,
+                v -> startActivity(new Intent(this, MusicActivity.class)), g);
+        content.addView(fRow3);
 
-        // Row 2
-        LinearLayout row2 = gridRow();
-        LinearLayout cardCalendar = UIHelper.featureCard(this,
-                "\uD83D\uDCC5", "Google 日曆", "AI 行事曆管理", UIHelper.ACCENT_BLUE, 40);
-        cardCalendar.setOnClickListener(v -> startActivity(new Intent(this, CalendarActivity.class)));
+        // Row 4: 影片摘要, 知識庫
+        LinearLayout fRow4 = gridRow3();
+        addCompact(fRow4, "\uD83C\uDFAC", "影片摘要", UIHelper.ACCENT_RED,
+                v -> startActivity(new Intent(this, YouTubeActivity.class)), 0);
+        addCompact(fRow4, "\uD83D\uDCDA", "知識庫", UIHelper.ACCENT_BLUE,
+                v -> startActivity(new Intent(this, KnowledgeActivity.class)), g);
+        View ph1 = new View(this);
+        ph1.setVisibility(View.INVISIBLE);
+        fRow4.addView(ph1, gridCellLp(g));
+        content.addView(fRow4);
 
-        LinearLayout cardFitness = UIHelper.featureCard(this,
-                "\uD83D\uDCAA", "健身教練", "AI 居家運動計畫", UIHelper.ACCENT_PURPLE, 40);
-        cardFitness.setOnClickListener(v -> startActivity(new Intent(this, FitnessActivity.class)));
-
-        row2.addView(cardCalendar, gridCellLp(0));
-        row2.addView(cardFitness, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row2);
-
-        // Row 3
-        LinearLayout row3 = gridRow();
-        LinearLayout cardStock = UIHelper.featureCard(this,
-                "\uD83D\uDCC8", "台股追蹤", "即時行情·技術分析", UIHelper.ACCENT_ORANGE, 40);
-        cardStock.setOnClickListener(v -> startActivity(new Intent(this, StockActivity.class)));
-
-        LinearLayout cardCountdown = UIHelper.featureCard(this,
-                "\u23F3", "\u5012\u6578\u65E5", "\u91CD\u8981\u65E5\u671F\u5012\u6578", UIHelper.ACCENT_BLUE, 40);
-        cardCountdown.setOnClickListener(v -> startActivity(new Intent(this, CountdownActivity.class)));
-
-        row3.addView(cardStock, gridCellLp(0));
-        row3.addView(cardCountdown, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row3);
-
-        // Row 4
-        LinearLayout row4f = gridRow();
-        LinearLayout cardHabit = UIHelper.featureCard(this,
-                "\uD83D\uDCCA", "\u7FD2\u6163\u8FFD\u8E64", "\u6BCF\u65E5\u6253\u5361\u00B7\u9023\u7E8C\u7D00\u9304", UIHelper.ACCENT_PURPLE, 40);
-        cardHabit.setOnClickListener(v -> startActivity(new Intent(this, HabitActivity.class)));
-
-        LinearLayout cardWater = UIHelper.featureCard(this,
-                "\uD83D\uDCA7", "\u559D\u6C34\u63D0\u9192", "\u6BCF\u65E5\u98F2\u6C34\u00B7\u5B9A\u6642\u63D0\u9192", UIHelper.ACCENT_BLUE, 40);
-        cardWater.setOnClickListener(v -> startActivity(new Intent(this, WaterActivity.class)));
-
-        row4f.addView(cardHabit, gridCellLp(0));
-        row4f.addView(cardWater, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row4f);
-
-        // Row 5
-        LinearLayout row5f = gridRow();
-        LinearLayout cardMusic = UIHelper.featureCard(this,
-                "\uD83C\uDFB5", "\u97F3\u6A02\u7BA1\u7406", "YouTube\u00B7\u5206\u985E\u00B7\u64AD\u653E", UIHelper.ACCENT_ORANGE, 40);
-        cardMusic.setOnClickListener(v -> startActivity(new Intent(this, MusicActivity.class)));
-
-        LinearLayout cardYouTube = UIHelper.featureCard(this,
-                "\uD83C\uDFAC", "影片摘要", "YouTube·字幕·AI重點", UIHelper.ACCENT_RED, 40);
-        cardYouTube.setOnClickListener(v -> startActivity(new Intent(this, YouTubeActivity.class)));
-
-        row5f.addView(cardMusic, gridCellLp(0));
-        row5f.addView(cardYouTube, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row5f);
-
-        // Row 6
-        LinearLayout row6f = gridRow();
-        LinearLayout cardKnowledge = UIHelper.featureCard(this,
-                "\uD83D\uDCDA", "知識庫", "影片摘要·AI分類·搜尋", UIHelper.ACCENT_BLUE, 40);
-        cardKnowledge.setOnClickListener(v -> startActivity(new Intent(this, KnowledgeActivity.class)));
-
-        // Empty placeholder for grid alignment
-        View knowledgePlaceholder = new View(this);
-        knowledgePlaceholder.setVisibility(View.INVISIBLE);
-
-        row6f.addView(cardKnowledge, gridCellLp(0));
-        row6f.addView(knowledgePlaceholder, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row6f);
-
-        // ── Tools ──
+        // ── Tools (3 columns) ──
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));
 
-        LinearLayout row4 = gridRow();
-        LinearLayout cardCapture = UIHelper.featureCard(this,
-                "\uD83D\uDCF7", "截圖分析消費", "懸浮按鈕·AI 辨識", UIHelper.ACCENT_RED, 35);
-        cardCapture.setOnClickListener(v -> toggleFloatingCapture());
+        LinearLayout tRow1 = gridRow3();
+        addCompact(tRow1, "\uD83D\uDCF7", "截圖分析", UIHelper.ACCENT_RED,
+                v -> toggleFloatingCapture(), 0);
+        addCompact(tRow1, "\uD83E\uDDFE", "發票掃描", UIHelper.ACCENT_ORANGE,
+                v -> startActivity(new Intent(this, InvoiceActivity.class)), g);
+        addCompact(tRow1, "\uD83D\uDCBB", "遠端開發", UIHelper.ACCENT_BLUE,
+                v -> startActivity(new Intent(this, RemoteDevActivity.class)), g);
+        content.addView(tRow1);
 
-        LinearLayout cardLog = UIHelper.featureCard(this,
-                "\uD83D\uDCCB", "系統日誌", "操作記錄·除錯資訊", UIHelper.TEXT_SECONDARY, 30);
-        cardLog.setOnClickListener(v -> startActivity(new Intent(this, LogActivity.class)));
-
-        row4.addView(cardCapture, gridCellLp(0));
-        row4.addView(cardLog, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row4);
-
-        LinearLayout row5 = gridRow();
-        LinearLayout cardInvoice = UIHelper.featureCard(this,
-                "\uD83E\uDDFE", "\u767C\u7968\u6383\u63CF\u8A18\u5E33", "\u62CD\u7167/\u76F8\u7C3F\u00B7AI \u8FA8\u8B58", UIHelper.ACCENT_ORANGE, 35);
-        cardInvoice.setOnClickListener(v -> startActivity(new Intent(this, InvoiceActivity.class)));
-
-        LinearLayout cardRemoteDev = UIHelper.featureCard(this,
-                "\uD83D\uDCBB", "\u9060\u7AEF\u958B\u767C", "Slack Bot\u00B7Claude Code", UIHelper.ACCENT_BLUE, 35);
-        cardRemoteDev.setOnClickListener(v -> startActivity(new Intent(this, RemoteDevActivity.class)));
-
-        row5.addView(cardInvoice, gridCellLp(0));
-        row5.addView(cardRemoteDev, gridCellLp(UIHelper.dp(this, 10)));
-        content.addView(row5);
+        LinearLayout tRow2 = gridRow3();
+        addCompact(tRow2, "\uD83D\uDCCB", "系統日誌", UIHelper.TEXT_SECONDARY,
+                v -> startActivity(new Intent(this, LogActivity.class)), 0);
+        View ph2 = new View(this);
+        ph2.setVisibility(View.INVISIBLE);
+        tRow2.addView(ph2, gridCellLp(g));
+        View ph3 = new View(this);
+        ph3.setVisibility(View.INVISIBLE);
+        tRow2.addView(ph3, gridCellLp(g));
+        content.addView(tRow2);
 
         // ── Version footer ──
         LinearLayout versionRow = new LinearLayout(this);
@@ -366,15 +353,70 @@ public class MainActivity extends AppCompatActivity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0, UIHelper.dp(this, 5), 0, UIHelper.dp(this, 5));
+        lp.setMargins(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 4));
         row.setLayoutParams(lp);
         return row;
+    }
+
+    private LinearLayout gridRow3() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 4));
+        row.setLayoutParams(lp);
+        return row;
+    }
+
+    private void addCompact(LinearLayout row, String icon, String label, int color,
+                            View.OnClickListener listener, int leftMargin) {
+        LinearLayout card = UIHelper.compactCard(this, icon, label, color);
+        card.setOnClickListener(listener);
+        row.addView(card, gridCellLp(leftMargin));
     }
 
     private LinearLayout.LayoutParams gridCellLp(int leftMargin) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         lp.setMargins(leftMargin, 0, 0, 0);
         return lp;
+    }
+
+    private void loadDashboardData(LinearLayout dashExpense, LinearLayout dashTodo, LinearLayout dashKnowledge) {
+        new Thread(() -> {
+            // Today's expenses
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+            cal.set(java.util.Calendar.MINUTE, 0);
+            cal.set(java.util.Calendar.SECOND, 0);
+            cal.set(java.util.Calendar.MILLISECOND, 0);
+            long dayStart = cal.getTimeInMillis();
+            long dayEnd = dayStart + 86400_000L;
+
+            ExpenseDbHelper expDb = new ExpenseDbHelper(this);
+            double todaySum = expDb.sumByDateRange(dayStart, dayEnd);
+            String expText = todaySum > 0 ? "$" + String.format("%.0f", todaySum) : "$0";
+
+            // Pending todos
+            TodoDbHelper todoDb = new TodoDbHelper(this);
+            int pending = todoDb.countPending();
+            String todoText = String.valueOf(pending);
+
+            // Knowledge count
+            KnowledgeDbHelper kDb = new KnowledgeDbHelper(this);
+            int kCount = kDb.getCount();
+            String kText = String.valueOf(kCount);
+
+            runOnUiThread(() -> {
+                TextView ev = dashExpense.findViewWithTag("dashboard_value");
+                if (ev != null) ev.setText(expText);
+
+                TextView tv = dashTodo.findViewWithTag("dashboard_value");
+                if (tv != null) tv.setText(todoText);
+
+                TextView kv = dashKnowledge.findViewWithTag("dashboard_value");
+                if (kv != null) kv.setText(kText);
+            });
+        }).start();
     }
 
     private void requestPermissions() {

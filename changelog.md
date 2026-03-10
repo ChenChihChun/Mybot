@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.56 (2026-03-10)
+- **Redesign: Home Page — Section-Based Compact Layout with Dashboard**
+  - Modified `MainActivity.java` — Replaced 2-column large feature cards with 3-column compact icon grid; added DASHBOARD section with 2x2 summary cards (today's expenses, pending todos, knowledge count, stock shortcut) with async data loading; FEATURES section now uses compact cards (44dp icon + label); TOOLS section also 3-column compact; added `gridRow3()`, `addCompact()`, `loadDashboardData()` helper methods
+  - Modified `UIHelper.java` — Added `compactCard()` method (small 44dp icon circle + 12sp label, 3-per-row); added `dashboardCard()` method (icon + large value + label, with `dashboard_value` tag for dynamic updates)
+  - Modified `app/build.gradle` — versionCode 78, versionName 3.56
+
 ## v3.55 (2026-03-10)
 - **New Feature: Knowledge Base — Save & Browse AI-Categorized Knowledge**
   - Added `KnowledgeDbHelper.java` — SQLite database helper for knowledge entries; stores title, summary, key_points, source_url, AI-determined category, created_at; supports getAll, getByCategory, search (title/summary/key_points LIKE), getAllCategories, getCount
