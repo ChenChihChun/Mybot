@@ -72,7 +72,8 @@ public class FlightCheckReceiver extends BroadcastReceiver {
 
         String response = BridgeClient.searchFlightsSync(
                 watch.origin, watch.destination,
-                watch.departureDate, watch.returnDate, watch.searchMode);
+                watch.departureDate, watch.returnDate, watch.searchMode,
+                watch.roundTrip, watch.preferredAirlines);
 
         if (response == null) {
             AppLog.w("Flight", "搜尋失敗 id=" + watch.id);

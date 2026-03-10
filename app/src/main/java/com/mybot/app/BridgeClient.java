@@ -601,10 +601,13 @@ public class BridgeClient {
 
     public static void searchFlights(String origin, String destination,
                                       String departureDate, String returnDate,
-                                      String searchMode, FlightSearchCallback callback) {
+                                      String searchMode, boolean roundTrip,
+                                      String preferredAirlines,
+                                      FlightSearchCallback callback) {
         executor.execute(() -> {
             AppLog.i("Flight", "searchFlights: " + origin + "→" + destination
-                    + " date=" + departureDate + " mode=" + searchMode);
+                    + " date=" + departureDate + " mode=" + searchMode
+                    + " roundTrip=" + roundTrip);
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "search_flights");
@@ -615,6 +618,10 @@ public class BridgeClient {
                     body.put("return_date", returnDate);
                 }
                 body.put("search_mode", searchMode);
+                body.put("round_trip", roundTrip);
+                if (preferredAirlines != null && !preferredAirlines.isEmpty()) {
+                    body.put("preferred_airlines", preferredAirlines);
+                }
 
                 String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 130000);
                 String response = result[0];
@@ -643,7 +650,8 @@ public class BridgeClient {
      */
     public static String searchFlightsSync(String origin, String destination,
                                             String departureDate, String returnDate,
-                                            String searchMode) {
+                                            String searchMode, boolean roundTrip,
+                                            String preferredAirlines) {
         try {
             JSONObject body = new JSONObject();
             body.put("task", "search_flights");
@@ -654,6 +662,10 @@ public class BridgeClient {
                 body.put("return_date", returnDate);
             }
             body.put("search_mode", searchMode);
+            body.put("round_trip", roundTrip);
+            if (preferredAirlines != null && !preferredAirlines.isEmpty()) {
+                body.put("preferred_airlines", preferredAirlines);
+            }
 
             String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 130000);
             return result[0];

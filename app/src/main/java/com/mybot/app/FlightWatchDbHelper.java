@@ -13,7 +13,7 @@ import java.util.List;
 public class FlightWatchDbHelper extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "mybot_flight.db";
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
 
     public static final String TABLE = "flight_watches";
     public static final String COL_ID = "id";
@@ -28,6 +28,8 @@ public class FlightWatchDbHelper extends SQLiteOpenHelper {
     public static final String COL_LAST_CHECKED = "last_checked";
     public static final String COL_LAST_LOWEST_PRICE = "last_lowest_price";
     public static final String COL_LAST_RESULT_JSON = "last_result_json";
+    public static final String COL_PREFERRED_AIRLINES = "preferred_airlines";
+    public static final String COL_ROUND_TRIP = "round_trip";
     public static final String COL_CREATED_AT = "created_at";
 
     private static final String PREFS_NAME = "mybot_flight_settings";
@@ -52,17 +54,22 @@ public class FlightWatchDbHelper extends SQLiteOpenHelper {
                 + COL_LAST_CHECKED + " INTEGER DEFAULT 0, "
                 + COL_LAST_LOWEST_PRICE + " REAL DEFAULT 0, "
                 + COL_LAST_RESULT_JSON + " TEXT, "
+                + COL_PREFERRED_AIRLINES + " TEXT, "
+                + COL_ROUND_TRIP + " INTEGER NOT NULL DEFAULT 0, "
                 + COL_CREATED_AT + " INTEGER NOT NULL)");
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE);
-        onCreate(db);
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE " + TABLE + " ADD COLUMN " + COL_PREFERRED_AIRLINES + " TEXT");
+            db.execSQL("ALTER TABLE " + TABLE + " ADD COLUMN " + COL_ROUND_TRIP + " INTEGER NOT NULL DEFAULT 0");
+        }
     }
 
     public long insert(String origin, String destination, String departureDate,
-                       String returnDate, String searchMode, double targetPrice, String currency) {
+                       String returnDate, String searchMode, double targetPrice,
+                       String currency, boolean roundTrip, String preferredAirlines) {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put(COL_ORIGIN, origin);
@@ -72,6 +79,8 @@ public class FlightWatchDbHelper extends SQLiteOpenHelper {
         cv.put(COL_SEARCH_MODE, searchMode);
         cv.put(COL_TARGET_PRICE, targetPrice);
         cv.put(COL_CURRENCY, currency);
+        cv.put(COL_ROUND_TRIP, roundTrip ? 1 : 0);
+        cv.put(COL_PREFERRED_AIRLINES, preferredAirlines);
         cv.put(COL_ENABLED, 1);
         cv.put(COL_CREATED_AT, System.currentTimeMillis());
         return db.insert(TABLE, null, cv);
@@ -145,6 +154,10 @@ public class FlightWatchDbHelper extends SQLiteOpenHelper {
         fw.lastChecked = c.getLong(c.getColumnIndexOrThrow(COL_LAST_CHECKED));
         fw.lastLowestPrice = c.getDouble(c.getColumnIndexOrThrow(COL_LAST_LOWEST_PRICE));
         fw.lastResultJson = c.getString(c.getColumnIndexOrThrow(COL_LAST_RESULT_JSON));
+        int aiIdx = c.getColumnIndex(COL_PREFERRED_AIRLINES);
+        fw.preferredAirlines = aiIdx >= 0 ? c.getString(aiIdx) : null;
+        int rtIdx = c.getColumnIndex(COL_ROUND_TRIP);
+        fw.roundTrip = rtIdx >= 0 && c.getInt(rtIdx) == 1;
         fw.createdAt = c.getLong(c.getColumnIndexOrThrow(COL_CREATED_AT));
         return fw;
     }
@@ -173,6 +186,8 @@ public class FlightWatchDbHelper extends SQLiteOpenHelper {
         public long lastChecked;
         public double lastLowestPrice;
         public String lastResultJson;
+        public String preferredAirlines;
+        public boolean roundTrip;
         public long createdAt;
     }
 }

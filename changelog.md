@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.63 (2026-03-11)
+- **Enhancement: Flight Watch — Round-trip & Airline Filtering**
+  - Modified `FlightWatchDbHelper.java` — DB version 2: added `preferred_airlines` (TEXT) and `round_trip` (INTEGER) columns; `insert()` now accepts roundTrip and preferredAirlines parameters; `FlightWatch` inner class has new fields; `onUpgrade()` handles v1→v2 migration with ALTER TABLE
+  - Modified `FlightActivity.java` — Add dialog: round-trip Switch toggle (shows/hides return date fields), airline preference EditText, dark-themed dialog (BG_PRIMARY background, BG_CARD styled inputs); watch cards show round-trip/single-way label and preferred airlines; passes roundTrip and preferredAirlines to BridgeClient
+  - Modified `BridgeClient.java` — `searchFlights()` and `searchFlightsSync()` now accept and pass `roundTrip` (boolean) and `preferredAirlines` (String) parameters to Bridge server
+  - Modified `FlightCheckReceiver.java` — Passes `watch.roundTrip` and `watch.preferredAirlines` to `searchFlightsSync()`
+  - Modified `~/bridge/bridge.py` — search_flights prompt updated for round-trip total price and airline preference filtering; MCP calls use `--model sonnet` and `--max-turns 10` for reliable Kiwi tool use; `call_claude_web()` also uses `--model sonnet` explicitly
+  - Modified `app/build.gradle` — versionCode 85, versionName 3.63
+
 ## v3.62 (2026-03-10)
 - **Enhancement: Flight Watch — UX Improvements**
   - Modified `FlightActivity.java` — Airport picker dialog now uses dark theme (BG_PRIMARY background, BG_CARD_ALT item cards, ACCENT_BLUE codes, ACCENT_ORANGE country headers); search input styled with BG_INPUT background; each airport is a distinct card row for better readability

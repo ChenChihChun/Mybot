@@ -231,7 +231,7 @@ public class FlightActivity extends AppCompatActivity {
         routeRow.addView(enabledBadge);
         card.addView(routeRow);
 
-        // Row 2: date + mode
+        // Row 2: date + mode + round-trip
         TextView dateTv = new TextView(this);
         String dateStr = watch.departureDate;
         if (watch.returnDate != null && !watch.returnDate.isEmpty()) {
@@ -240,11 +240,26 @@ public class FlightActivity extends AppCompatActivity {
         if ("month".equals(watch.searchMode)) {
             dateStr += " (整月)";
         }
+        if (watch.roundTrip) {
+            dateStr += " 來回";
+        } else {
+            dateStr += " 單程";
+        }
         dateTv.setText(dateStr);
         dateTv.setTextSize(13);
         dateTv.setTextColor(UIHelper.TEXT_SECONDARY);
         dateTv.setPadding(0, UIHelper.dp(this, 4), 0, 0);
         card.addView(dateTv);
+
+        // Row 2b: preferred airlines
+        if (watch.preferredAirlines != null && !watch.preferredAirlines.isEmpty()) {
+            TextView airlineTv = new TextView(this);
+            airlineTv.setText("✈ " + watch.preferredAirlines);
+            airlineTv.setTextSize(12);
+            airlineTv.setTextColor(UIHelper.ACCENT_BLUE);
+            airlineTv.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+            card.addView(airlineTv);
+        }
 
         // Row 3: prices
         LinearLayout priceRow = new LinearLayout(this);
@@ -366,6 +381,7 @@ public class FlightActivity extends AppCompatActivity {
 
         BridgeClient.searchFlights(watch.origin, watch.destination,
                 watch.departureDate, watch.returnDate, watch.searchMode,
+                watch.roundTrip, watch.preferredAirlines,
                 (responseJson, offline, error) -> {
                     // Remove loading
                     View loading = card.findViewWithTag("loading");
@@ -706,20 +722,28 @@ public class FlightActivity extends AppCompatActivity {
     private void showAddDialog() {
         LinearLayout dialogLayout = new LinearLayout(this);
         dialogLayout.setOrientation(LinearLayout.VERTICAL);
+        dialogLayout.setBackgroundColor(UIHelper.BG_PRIMARY);
         int dp = UIHelper.dp(this, 16);
-        dialogLayout.setPadding(dp, dp, dp, 0);
+        dialogLayout.setPadding(dp, dp, dp, dp);
 
         // Origin
         TextView originLabel = new TextView(this);
         originLabel.setText("出發地");
         originLabel.setTextSize(13);
+        originLabel.setTextColor(UIHelper.TEXT_SECONDARY);
         dialogLayout.addView(originLabel);
 
         TextView originPicker = new TextView(this);
-        originPicker.setText("點擊選擇出發機場");
-        originPicker.setTextSize(14);
+        originPicker.setText("▼ 點擊選擇出發機場");
+        originPicker.setTextSize(15);
         originPicker.setTextColor(UIHelper.ACCENT_BLUE);
-        originPicker.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 8));
+        originPicker.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 8, this));
+        int pp = UIHelper.dp(this, 10);
+        originPicker.setPadding(pp, pp, pp, pp);
+        LinearLayout.LayoutParams pickerLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        pickerLp.setMargins(0, UIHelper.dp(this, 4), 0, 0);
+        originPicker.setLayoutParams(pickerLp);
         final String[] originCode = {""};
         originPicker.setOnClickListener(v -> showAirportPicker("選擇出發機場", originPicker, originCode));
         dialogLayout.addView(originPicker);
@@ -728,23 +752,47 @@ public class FlightActivity extends AppCompatActivity {
         TextView destLabel = new TextView(this);
         destLabel.setText("目的地");
         destLabel.setTextSize(13);
-        destLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        destLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        destLabel.setPadding(0, UIHelper.dp(this, 10), 0, 0);
         dialogLayout.addView(destLabel);
 
         TextView destPicker = new TextView(this);
-        destPicker.setText("點擊選擇目的地機場");
-        destPicker.setTextSize(14);
+        destPicker.setText("▼ 點擊選擇目的地機場");
+        destPicker.setTextSize(15);
         destPicker.setTextColor(UIHelper.ACCENT_BLUE);
-        destPicker.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 8));
+        destPicker.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 8, this));
+        destPicker.setPadding(pp, pp, pp, pp);
+        destPicker.setLayoutParams(pickerLp);
         final String[] destCode = {""};
         destPicker.setOnClickListener(v -> showAirportPicker("選擇目的地機場", destPicker, destCode));
         dialogLayout.addView(destPicker);
+
+        // Round-trip toggle
+        LinearLayout rtRow = new LinearLayout(this);
+        rtRow.setOrientation(LinearLayout.HORIZONTAL);
+        rtRow.setGravity(Gravity.CENTER_VERTICAL);
+        rtRow.setPadding(0, UIHelper.dp(this, 10), 0, 0);
+
+        TextView rtLabel = new TextView(this);
+        rtLabel.setText("來回票");
+        rtLabel.setTextSize(14);
+        rtLabel.setTextColor(UIHelper.TEXT_PRIMARY);
+        LinearLayout.LayoutParams rtLabelLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        rtLabel.setLayoutParams(rtLabelLp);
+
+        Switch rtSwitch = new Switch(this);
+        rtSwitch.setChecked(false);
+        rtRow.addView(rtLabel);
+        rtRow.addView(rtSwitch);
+        dialogLayout.addView(rtRow);
 
         // Search mode toggle
         TextView modeLabel = new TextView(this);
         modeLabel.setText("搜尋模式");
         modeLabel.setTextSize(13);
-        modeLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        modeLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        modeLabel.setPadding(0, UIHelper.dp(this, 10), 0, 0);
         dialogLayout.addView(modeLabel);
 
         LinearLayout modeRow = new LinearLayout(this);
@@ -768,33 +816,45 @@ public class FlightActivity extends AppCompatActivity {
         TextView depLabel = new TextView(this);
         depLabel.setText("出發日期");
         depLabel.setTextSize(13);
-        depLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        depLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        depLabel.setPadding(0, UIHelper.dp(this, 10), 0, 0);
 
         TextView depDatePicker = new TextView(this);
-        depDatePicker.setText("點擊選擇日期");
+        depDatePicker.setText("▼ 點擊選擇日期");
         depDatePicker.setTextSize(14);
         depDatePicker.setTextColor(UIHelper.ACCENT_BLUE);
-        depDatePicker.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 8));
+        depDatePicker.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 8, this));
+        depDatePicker.setPadding(pp, pp, pp, pp);
         final String[] depDate = {""};
 
-        // Return date (optional)
+        // Return date
         TextView retLabel = new TextView(this);
-        retLabel.setText("回程日期（選填，空白=單程）");
+        retLabel.setText("回程日期");
         retLabel.setTextSize(13);
-        retLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        retLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        retLabel.setPadding(0, UIHelper.dp(this, 10), 0, 0);
 
         TextView retDatePicker = new TextView(this);
-        retDatePicker.setText("點擊選擇日期（可跳過）");
+        retDatePicker.setText("▼ 點擊選擇回程日期");
         retDatePicker.setTextSize(14);
-        retDatePicker.setTextColor(UIHelper.TEXT_HINT);
-        retDatePicker.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 8));
+        retDatePicker.setTextColor(UIHelper.ACCENT_BLUE);
+        retDatePicker.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 8, this));
+        retDatePicker.setPadding(pp, pp, pp, pp);
         final String[] retDate = {""};
+
+        // Initially hide return date (shown when round-trip toggled on)
+        retLabel.setVisibility(View.GONE);
+        retDatePicker.setVisibility(View.GONE);
+        rtSwitch.setOnCheckedChangeListener((btn, isChecked) -> {
+            retLabel.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+            retDatePicker.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+            if (!isChecked) { retDate[0] = ""; retDatePicker.setText("▼ 點擊選擇回程日期"); }
+        });
 
         // Date picker click handler — changes behavior based on mode
         View.OnClickListener depDateClick = v -> {
             Calendar cal = Calendar.getInstance();
             if ("month".equals(selectedMode[0])) {
-                // Month mode: show year-month picker
                 showMonthPicker(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), (y, m) -> {
                     depDate[0] = String.format(Locale.US, "%04d-%02d", y, m + 1);
                     depDatePicker.setText(depDate[0] + " (整月)");
@@ -826,7 +886,7 @@ public class FlightActivity extends AppCompatActivity {
             monthMode.setTextColor(UIHelper.TEXT_HINT);
             monthMode.setBackground(null);
             depLabel.setText("出發日期");
-            depDatePicker.setText("點擊選擇日期");
+            depDatePicker.setText("▼ 點擊選擇日期");
             depDatePicker.setTextColor(UIHelper.ACCENT_BLUE);
             depDate[0] = "";
         });
@@ -837,7 +897,7 @@ public class FlightActivity extends AppCompatActivity {
             dateMode.setTextColor(UIHelper.TEXT_HINT);
             dateMode.setBackground(null);
             depLabel.setText("出發月份（搜尋整月最低價）");
-            depDatePicker.setText("點擊選擇月份");
+            depDatePicker.setText("▼ 點擊選擇月份");
             depDatePicker.setTextColor(UIHelper.ACCENT_BLUE);
             depDate[0] = "";
         });
@@ -851,33 +911,71 @@ public class FlightActivity extends AppCompatActivity {
         dialogLayout.addView(retLabel);
         dialogLayout.addView(retDatePicker);
 
+        // Preferred airlines (optional)
+        TextView airlineLabel = new TextView(this);
+        airlineLabel.setText("偏好航空公司（選填，用逗號分隔）");
+        airlineLabel.setTextSize(13);
+        airlineLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        airlineLabel.setPadding(0, UIHelper.dp(this, 10), 0, 0);
+        dialogLayout.addView(airlineLabel);
+
+        EditText airlineInput = new EditText(this);
+        airlineInput.setHint("如: China Airlines, Peach");
+        airlineInput.setHintTextColor(UIHelper.TEXT_HINT);
+        airlineInput.setTextSize(13);
+        airlineInput.setTextColor(UIHelper.TEXT_PRIMARY);
+        airlineInput.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 8, this));
+        airlineInput.setPadding(pp, pp, pp, pp);
+        dialogLayout.addView(airlineInput);
+
+        TextView airlineHint = new TextView(this);
+        airlineHint.setText("提示：先新增監控並搜尋一次，即可看到該航線的航空公司清單");
+        airlineHint.setTextSize(11);
+        airlineHint.setTextColor(UIHelper.TEXT_HINT);
+        airlineHint.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+        dialogLayout.addView(airlineHint);
+
         // Target price (optional)
         TextView priceLabel = new TextView(this);
-        priceLabel.setText("目標價格（選填，不填則自動追蹤降價通知）");
+        priceLabel.setText("目標價格（選填）");
         priceLabel.setTextSize(13);
-        priceLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        priceLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        priceLabel.setPadding(0, UIHelper.dp(this, 10), 0, 0);
         dialogLayout.addView(priceLabel);
 
         EditText priceInput = new EditText(this);
         priceInput.setHint("不填 = 自動追蹤，降價 10% 就通知");
+        priceInput.setHintTextColor(UIHelper.TEXT_HINT);
         priceInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         priceInput.setTextSize(13);
+        priceInput.setTextColor(UIHelper.TEXT_PRIMARY);
+        priceInput.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 8, this));
+        priceInput.setPadding(pp, pp, pp, pp);
         dialogLayout.addView(priceInput);
 
-        new AlertDialog.Builder(this)
-                .setTitle("新增航班監控")
-                .setView(dialogLayout)
+        // Wrap in ScrollView for smaller screens
+        ScrollView dialogScroll = new ScrollView(this);
+        dialogScroll.addView(dialogLayout);
+
+        AlertDialog addDialog = new AlertDialog.Builder(this)
+                .setView(dialogScroll)
                 .setPositiveButton("新增", (dialog, which) -> {
                     String origin = originCode[0].trim().toUpperCase();
                     String dest = destCode[0].trim().toUpperCase();
                     String priceStr = priceInput.getText().toString().trim();
+                    String airlines = airlineInput.getText().toString().trim();
+                    boolean isRoundTrip = rtSwitch.isChecked();
 
                     if (origin.isEmpty() || dest.isEmpty() || depDate[0].isEmpty()) {
                         Toast.makeText(this, "請選擇出發地、目的地和日期", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
-                    // Target price: 0 means auto-track (no specific target)
+                    if (isRoundTrip && retDate[0].isEmpty()) {
+                        Toast.makeText(this, "來回票請選擇回程日期", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
                     double price = 0;
                     if (!priceStr.isEmpty()) {
                         try {
@@ -889,15 +987,21 @@ public class FlightActivity extends AppCompatActivity {
                     }
 
                     long id = db.insert(origin, dest, depDate[0], retDate[0],
-                            selectedMode[0], price, "TWD");
+                            selectedMode[0], price, "TWD", isRoundTrip,
+                            airlines.isEmpty() ? null : airlines);
                     AppLog.i("Flight", "新增監控: " + origin + "→" + dest
-                            + " date=" + depDate[0] + " target=$" + price + " id=" + id);
+                            + " date=" + depDate[0] + " rt=" + isRoundTrip
+                            + " airlines=" + airlines + " target=$" + price + " id=" + id);
 
                     Toast.makeText(this, "已新增航班監控", Toast.LENGTH_SHORT).show();
                     refreshList();
                 })
                 .setNegativeButton("取消", null)
-                .show();
+                .create();
+        addDialog.show();
+        if (addDialog.getWindow() != null) {
+            addDialog.getWindow().setBackgroundDrawable(UIHelper.roundRect(UIHelper.BG_PRIMARY, 12, this));
+        }
     }
 
     /** Year-Month picker dialog (no day selection). */
