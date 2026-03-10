@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.59 (2026-03-10)
+- **Security Hardening — First Security Audit (versionCode 81)**
+  - Full OWASP Mobile Top 10 audit performed on all 54 Java files. Fixed 6 of 15 findings.
+  - **[HIGH] Network Security**: Added `res/xml/network_security_config.xml` — cleartext traffic now restricted to localhost only (127.0.0.1/localhost for Bridge); all other connections require HTTPS. Removed global `usesCleartextTraffic="true"` from AndroidManifest.
+  - **[HIGH] OAuth Secrets Encrypted**: Added `SecurePrefs.java` — wrapper around `EncryptedSharedPreferences` (AES256-GCM) for storing OAuth client_secret, access_token, token_expiry; auto-migrates from legacy plaintext `calendar_prefs` and removes old keys.
+  - Modified `GoogleAuthHelper.java` — All token read/write now uses `SecurePrefs.get()` instead of plaintext SharedPreferences; email in log masked (e.g. "che***@gmail.com")
+  - Modified `CalendarActivity.java` — Settings dialog reads/writes client_secret via `SecurePrefs`
+  - **[MEDIUM] Backup Disabled**: `AndroidManifest.xml` — `allowBackup` set to `false` to prevent `adb backup` extraction of databases and preferences
+  - **APK Cleanup**: Added `UpdateChecker.cleanOldApks()` — deletes `mybot-v*.apk` files from Downloads on app startup; called from `MainActivity.onCreate`
+  - Modified `app/build.gradle` — Added `androidx.security:security-crypto:1.0.0` dependency; versionCode 81, versionName 3.59
+  - **Remaining items for future audits**: Bridge auth token (#9), APK download checksum (#2), R8 minification (#7), targetSdk upgrade (#8), SQLCipher (#6)
+
 ## v3.58 (2026-03-10)
 - **Change: Dashboard — Replace Stock Card with Fitness Streak**
   - Modified `MainActivity.java` — Replaced "台股追蹤" dashboard card with "健身連續" card showing workout streak days from `FitnessDbHelper.getStreak()`; updated `loadDashboardData()` to accept 4th parameter for fitness card; displays streak as "N天" format

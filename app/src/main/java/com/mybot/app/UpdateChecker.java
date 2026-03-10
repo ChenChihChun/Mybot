@@ -238,6 +238,31 @@ public class UpdateChecker {
         ctx.startActivity(intent);
     }
 
+    /**
+     * Delete old mybot APK files from Downloads directory.
+     * Call on app startup to clean up after successful update.
+     */
+    public static void cleanOldApks(Context ctx) {
+        try {
+            File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            if (downloads == null || !downloads.exists()) return;
+
+            File[] apks = downloads.listFiles((dir, name) ->
+                    name.startsWith("mybot-v") && name.endsWith(".apk"));
+            if (apks == null) return;
+
+            int deleted = 0;
+            for (File apk : apks) {
+                if (apk.delete()) deleted++;
+            }
+            if (deleted > 0) {
+                AppLog.i("Update", "已清理 " + deleted + " 個舊 APK 檔案");
+            }
+        } catch (Exception e) {
+            AppLog.w("Update", "清理舊APK失敗: " + e.getMessage());
+        }
+    }
+
     public static void showNoUpdateDialog(Context ctx) {
         String currentVer = getCurrentVersionName(ctx);
         int currentCode = getCurrentVersionCode(ctx);

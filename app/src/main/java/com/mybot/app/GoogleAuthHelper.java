@@ -85,7 +85,11 @@ public class GoogleAuthHelper {
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             GoogleSignInAccount account = task.getResult(ApiException.class);
             if (account != null) {
-                AppLog.i("Auth", "Google登入成功: " + account.getEmail());
+                String email = account.getEmail();
+                String masked = (email != null && email.contains("@"))
+                        ? email.substring(0, Math.min(3, email.indexOf("@"))) + "***" + email.substring(email.indexOf("@"))
+                        : "***";
+                AppLog.i("Auth", "Google登入成功: " + masked);
                 callback.onResult(true, null);
             } else {
                 AppLog.w("Auth", "Google登入失敗: null account");
@@ -139,8 +143,8 @@ public class GoogleAuthHelper {
         try {
             String webClientId = getWebClientId(ctx);
             // Read client secret from prefs (set during setup)
-            String clientSecret = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    .getString("web_client_secret", "");
+            String clientSecret = SecurePrefs.get(ctx)
+                    .getString(SecurePrefs.KEY_WEB_CLIENT_SECRET, "");
 
             java.net.URL url = new java.net.URL("https://oauth2.googleapis.com/token");
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
@@ -179,9 +183,9 @@ public class GoogleAuthHelper {
                 org.json.JSONObject json = new org.json.JSONObject(sb.toString());
                 String accessToken = json.getString("access_token");
                 // Cache token
-                ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                        .putString("access_token", accessToken)
-                        .putLong("token_expiry", System.currentTimeMillis() + json.optLong("expires_in", 3600) * 1000)
+                SecurePrefs.get(ctx).edit()
+                        .putString(SecurePrefs.KEY_ACCESS_TOKEN, accessToken)
+                        .putLong(SecurePrefs.KEY_TOKEN_EXPIRY, System.currentTimeMillis() + json.optLong("expires_in", 3600) * 1000)
                         .apply();
                 AppLog.i("Auth", "Token交換成功");
                 return new String[]{accessToken, null};
@@ -196,9 +200,9 @@ public class GoogleAuthHelper {
     }
 
     public static void getCachedOrFreshToken(Context ctx, TokenCallback callback) {
-        SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        String cached = prefs.getString("access_token", "");
-        long expiry = prefs.getLong("token_expiry", 0);
+        SharedPreferences prefs = SecurePrefs.get(ctx);
+        String cached = prefs.getString(SecurePrefs.KEY_ACCESS_TOKEN, "");
+        long expiry = prefs.getLong(SecurePrefs.KEY_TOKEN_EXPIRY, 0);
 
         if (!cached.isEmpty() && System.currentTimeMillis() < expiry - 60000) {
             callback.onResult(cached, null);
@@ -220,8 +224,9 @@ public class GoogleAuthHelper {
                 .build();
         GoogleSignIn.getClient(ctx, gso).signOut()
                 .addOnCompleteListener(task -> {
-                    ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                            .remove("access_token").remove("token_expiry").apply();
+                    SecurePrefs.get(ctx).edit()
+                            .remove(SecurePrefs.KEY_ACCESS_TOKEN)
+                            .remove(SecurePrefs.KEY_TOKEN_EXPIRY).apply();
                     AppLog.i("Auth", "已登出Google帳號");
                     callback.onResult(true, null);
                 });

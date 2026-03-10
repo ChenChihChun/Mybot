@@ -616,8 +616,8 @@ public class CalendarActivity extends AppCompatActivity {
         layout.addView(labelSecret);
 
         EditText inputSecret = UIHelper.styledInput(this, "GOCSPX-...");
-        inputSecret.setText(getSharedPreferences("calendar_prefs", MODE_PRIVATE)
-                .getString("web_client_secret", ""));
+        inputSecret.setText(SecurePrefs.get(this)
+                .getString(SecurePrefs.KEY_WEB_CLIENT_SECRET, ""));
         inputSecret.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         layout.addView(inputSecret);
 
@@ -713,8 +713,8 @@ public class CalendarActivity extends AppCompatActivity {
                     String secret = inputSecret.getText().toString().trim();
                     String oldId = GoogleAuthHelper.getWebClientId(this);
                     GoogleAuthHelper.saveWebClientId(this, webId);
-                    getSharedPreferences("calendar_prefs", MODE_PRIVATE).edit()
-                            .putString("web_client_secret", secret).apply();
+                    SecurePrefs.get(this).edit()
+                            .putString(SecurePrefs.KEY_WEB_CLIENT_SECRET, secret).apply();
                     Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
                     if (!webId.equals(oldId) && GoogleAuthHelper.isSignedIn(this)) {
                         CalendarCache.clearAll();

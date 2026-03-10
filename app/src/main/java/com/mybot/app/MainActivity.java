@@ -48,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
 
         AppLog.init(this);
         AppLog.i("System", "App啟動 v" + UpdateChecker.getCurrentVersionName(this));
+        UpdateChecker.cleanOldApks(this);
 
         NotificationHelper.createNotificationChannel(this);
         requestPermissions();
