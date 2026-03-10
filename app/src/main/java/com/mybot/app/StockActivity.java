@@ -35,6 +35,8 @@ public class StockActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "stock_prefs";
     private static final String KEY_WATCHLIST = "watchlist";
     private static final String KEY_AI_PREFIX = "ai_analysis_";
+    private static final String KEY_COST_PREFIX = "cost_";
+    private static final String KEY_SHARES_PREFIX = "shares_";
 
     private Handler updateHandler;
     private boolean isRunning = false;
@@ -56,6 +58,8 @@ public class StockActivity extends AppCompatActivity {
     private TextView aiDeleteBtn;
     private TextView statusText;
     private TextView tvName, tvPrice, tvChange, tvOpen, tvHigh, tvLow, tvPrevClose, tvVolume;
+    private LinearLayout costRow;
+    private TextView tvCost;
 
     private String currentPeriod = "day"; // 1m, 5m, 15m, day, week, month
     private List<StockData.CandleBar> historicalCandles = null;
@@ -178,6 +182,29 @@ public class StockActivity extends AppCompatActivity {
         detailGrid.addView(col1, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         detailGrid.addView(col2, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         infoCard.addView(detailGrid);
+
+        // Cost / P&L row
+        costRow = new LinearLayout(this);
+        costRow.setOrientation(LinearLayout.HORIZONTAL);
+        costRow.setGravity(Gravity.CENTER_VERTICAL);
+        costRow.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+        costRow.setVisibility(View.GONE);
+
+        tvCost = new TextView(this);
+        tvCost.setTextSize(13);
+        tvCost.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        costRow.addView(tvCost);
+
+        TextView costEditBtn = new TextView(this);
+        costEditBtn.setText("✏ 成本");
+        costEditBtn.setTextSize(12);
+        costEditBtn.setTextColor(UIHelper.ACCENT_BLUE);
+        costEditBtn.setPadding(UIHelper.dp(this, 8), UIHelper.dp(this, 4),
+                UIHelper.dp(this, 8), UIHelper.dp(this, 4));
+        costEditBtn.setOnClickListener(v -> showCostDialog());
+        costRow.addView(costEditBtn);
+
+        infoCard.addView(costRow);
 
         content.addView(infoCard);
 
@@ -425,27 +452,45 @@ public class StockActivity extends AppCompatActivity {
             });
 
             chip.setOnLongClickListener(v -> {
+                StockData.StockQuote sq = quoteMap.get(code);
+                String label = code + (sq != null ? " " + sq.name : "");
+                String[] items = {"設定成本", "刪除"};
                 new AlertDialog.Builder(this)
-                        .setTitle("刪除 " + code + "?")
-                        .setPositiveButton("刪除", (d, w) -> {
-                            watchlist.remove(code);
-                            saveWatchlist();
-                            AppLog.i("Stock", "移除自選股: " + code);
-                            tickMap.remove(code);
-                            quoteMap.remove(code);
-                            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                                    .edit().remove(KEY_AI_PREFIX + code).apply();
-                            StockCache.getInstance(StockActivity.this).remove(code);
-                            if (code.equals(selectedCode)) {
-                                selectedCode = watchlist.isEmpty() ? null : watchlist.get(0);
-                                historicalCandles = null;
-                                if (selectedCode != null) loadAiAnalysis(selectedCode);
+                        .setTitle(label)
+                        .setItems(items, (d, which) -> {
+                            if (which == 0) {
+                                selectedCode = code;
+                                refreshChips();
+                                updateInfoCard();
+                                showCostDialog();
+                            } else {
+                                new AlertDialog.Builder(this)
+                                        .setTitle("確定刪除 " + code + "?")
+                                        .setPositiveButton("刪除", (dd, ww) -> {
+                                            watchlist.remove(code);
+                                            saveWatchlist();
+                                            AppLog.i("Stock", "移除自選股: " + code);
+                                            tickMap.remove(code);
+                                            quoteMap.remove(code);
+                                            SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
+                                            editor.remove(KEY_AI_PREFIX + code);
+                                            editor.remove(KEY_COST_PREFIX + code);
+                                            editor.remove(KEY_SHARES_PREFIX + code);
+                                            editor.apply();
+                                            StockCache.getInstance(StockActivity.this).remove(code);
+                                            if (code.equals(selectedCode)) {
+                                                selectedCode = watchlist.isEmpty() ? null : watchlist.get(0);
+                                                historicalCandles = null;
+                                                if (selectedCode != null) loadAiAnalysis(selectedCode);
+                                            }
+                                            refreshChips();
+                                            updateInfoCard();
+                                            updateChart();
+                                        })
+                                        .setNegativeButton("取消", null)
+                                        .show();
                             }
-                            refreshChips();
-                            updateInfoCard();
-                            updateChart();
                         })
-                        .setNegativeButton("取消", null)
                         .show();
                 return true;
             });
@@ -506,6 +551,9 @@ public class StockActivity extends AppCompatActivity {
         tvLow.setText(q.low > 0 ? formatPrice(q.low) : "--");
         tvPrevClose.setText(q.prevClose > 0 ? formatPrice(q.prevClose) : "--");
         tvVolume.setText(q.volume > 0 ? formatVolume(q.volume) : "--");
+
+        // Cost / P&L
+        updateCostDisplay(q);
     }
 
     private void updateChart() {
@@ -744,6 +792,109 @@ public class StockActivity extends AppCompatActivity {
         return time >= 9 * 60 && time <= 13 * 60 + 30;
     }
 
+    private void updateCostDisplay(StockData.StockQuote q) {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        float cost = prefs.getFloat(KEY_COST_PREFIX + selectedCode, 0);
+        int shares = prefs.getInt(KEY_SHARES_PREFIX + selectedCode, 0);
+
+        if (cost > 0 && shares > 0 && q.currentPrice > 0) {
+            costRow.setVisibility(View.VISIBLE);
+            double totalCost = cost * shares;
+            double marketValue = q.currentPrice * shares;
+            double pnl = marketValue - totalCost;
+            double pnlPct = (pnl / totalCost) * 100;
+            String sign = pnl >= 0 ? "+" : "";
+
+            tvCost.setText(String.format("成本 %s × %d股 | 損益: %s%s (%s%.1f%%)",
+                    formatPrice(cost), shares,
+                    sign, formatPrice(Math.abs(pnl) >= 1000 ? Math.round(pnl) : pnl),
+                    sign, pnlPct));
+            tvCost.setTextColor(pnl >= 0 ? UIHelper.ACCENT_RED : UIHelper.ACCENT_GREEN);
+        } else if (cost > 0 || shares > 0) {
+            costRow.setVisibility(View.VISIBLE);
+            tvCost.setText(String.format("成本 %s × %d股", cost > 0 ? formatPrice(cost) : "--", shares));
+            tvCost.setTextColor(UIHelper.TEXT_SECONDARY);
+        } else {
+            costRow.setVisibility(View.GONE);
+        }
+    }
+
+    private void showCostDialog() {
+        if (selectedCode == null) return;
+
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        float savedCost = prefs.getFloat(KEY_COST_PREFIX + selectedCode, 0);
+        int savedShares = prefs.getInt(KEY_SHARES_PREFIX + selectedCode, 0);
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setBackgroundColor(UIHelper.BG_CARD);
+        int pad = UIHelper.dp(this, 16);
+        layout.setPadding(pad, pad, pad, pad);
+
+        TextView costLabel = new TextView(this);
+        costLabel.setText("每股成本");
+        costLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        costLabel.setTextSize(13);
+        layout.addView(costLabel);
+
+        EditText costInput = UIHelper.styledInput(this, "例: 580.5");
+        costInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        if (savedCost > 0) costInput.setText(String.valueOf(savedCost));
+        layout.addView(costInput);
+
+        TextView sharesLabel = new TextView(this);
+        sharesLabel.setText("持有股數");
+        sharesLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        sharesLabel.setTextSize(13);
+        sharesLabel.setPadding(0, UIHelper.dp(this, 12), 0, 0);
+        layout.addView(sharesLabel);
+
+        EditText sharesInput = UIHelper.styledInput(this, "例: 1000");
+        sharesInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+        if (savedShares > 0) sharesInput.setText(String.valueOf(savedShares));
+        layout.addView(sharesInput);
+
+        StockData.StockQuote q = quoteMap.get(selectedCode);
+        String title = "設定成本 — " + selectedCode + (q != null ? " " + q.name : "");
+
+        new androidx.appcompat.app.AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
+                .setTitle(title)
+                .setView(layout)
+                .setPositiveButton("儲存", (d, w) -> {
+                    String costStr = costInput.getText().toString().trim();
+                    String sharesStr = sharesInput.getText().toString().trim();
+                    SharedPreferences.Editor editor = prefs.edit();
+                    if (!costStr.isEmpty()) {
+                        try {
+                            editor.putFloat(KEY_COST_PREFIX + selectedCode, Float.parseFloat(costStr));
+                        } catch (NumberFormatException ignored) {}
+                    } else {
+                        editor.remove(KEY_COST_PREFIX + selectedCode);
+                    }
+                    if (!sharesStr.isEmpty()) {
+                        try {
+                            editor.putInt(KEY_SHARES_PREFIX + selectedCode, Integer.parseInt(sharesStr));
+                        } catch (NumberFormatException ignored) {}
+                    } else {
+                        editor.remove(KEY_SHARES_PREFIX + selectedCode);
+                    }
+                    editor.apply();
+                    AppLog.i("Stock", "設定成本: " + selectedCode + " cost=" + costStr + " shares=" + sharesStr);
+                    if (q != null) updateCostDisplay(q);
+                })
+                .setNeutralButton("清除", (d, w) -> {
+                    prefs.edit()
+                            .remove(KEY_COST_PREFIX + selectedCode)
+                            .remove(KEY_SHARES_PREFIX + selectedCode)
+                            .apply();
+                    AppLog.i("Stock", "清除成本: " + selectedCode);
+                    costRow.setVisibility(View.GONE);
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
     private void requestAiAnalysis() {
         if (selectedCode == null) return;
         StockData.StockQuote q = quoteMap.get(selectedCode);
@@ -792,6 +943,23 @@ public class StockActivity extends AppCompatActivity {
                 info.append(formatPrice(dc.get(i).close));
             }
             info.append("\n");
+        }
+
+        // Add cost position info if available
+        SharedPreferences costPrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        float costVal = costPrefs.getFloat(KEY_COST_PREFIX + selectedCode, 0);
+        int sharesVal = costPrefs.getInt(KEY_SHARES_PREFIX + selectedCode, 0);
+        if (costVal > 0 && sharesVal > 0) {
+            double totalCost = costVal * sharesVal;
+            double marketVal = q.currentPrice * sharesVal;
+            double pnl = marketVal - totalCost;
+            double pnlPct = (pnl / totalCost) * 100;
+            info.append("\n【持倉資訊】\n");
+            info.append("持有股數: ").append(sharesVal).append("股\n");
+            info.append("每股成本: ").append(formatPrice(costVal)).append("\n");
+            info.append("總成本: ").append(String.format("%.0f", totalCost)).append("\n");
+            info.append("市值: ").append(String.format("%.0f", marketVal)).append("\n");
+            info.append("未實現損益: ").append(String.format("%+.0f (%.1f%%)", pnl, pnlPct)).append("\n");
         }
 
         BridgeClient.analyzeStock(info.toString(), (result, offline, error) -> {

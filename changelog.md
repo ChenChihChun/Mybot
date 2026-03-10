@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.43 (2026-03-10)
+- **Enhancement: Stock Tracker — Cost Basis Input + AI Web Search**
+  - Modified `StockActivity.java` — Added cost/shares input dialog (long-press stock → 設定成本); cost/P&L display row in info card with real-time unrealized gain/loss; cost data included in AI analysis prompt; long-press menu now shows "設定成本" and "刪除" options; delete also cleans up cost/shares prefs
+  - Modified `BridgeClient.java` — AI prompt now includes cost position analysis (point 4: 加碼/減碼/持有 strategy); web search instructions for latest news/trends
+  - Modified `bridge.py` — Added `call_claude_web()` function using `--tools WebSearch,WebFetch` for stock analysis with real-time web data; routed `analyze_stock` task through web-enabled Claude; increased timeout to 120s
+  - Modified `bridge/start.sh` — Added `unset CLAUDECODE` to prevent nested session detection error
+  - Modified `app/build.gradle` — versionCode 65, versionName 3.43
+
 ## v3.42 (2026-03-08)
 - **Fix: App Crash on Launch — SCHEDULE_EXACT_ALARM Permission**
   - Modified `AndroidManifest.xml` — Added `SCHEDULE_EXACT_ALARM` permission (required on Android 12+ for exact alarms)
