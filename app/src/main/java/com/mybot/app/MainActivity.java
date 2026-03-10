@@ -210,10 +210,12 @@ public class MainActivity extends AppCompatActivity {
                 "\uD83C\uDFB5", "\u97F3\u6A02\u7BA1\u7406", "YouTube\u00B7\u5206\u985E\u00B7\u64AD\u653E", UIHelper.ACCENT_ORANGE, 40);
         cardMusic.setOnClickListener(v -> startActivity(new Intent(this, MusicActivity.class)));
 
-        View musicSpacer = new View(this);
+        LinearLayout cardYouTube = UIHelper.featureCard(this,
+                "\uD83C\uDFAC", "影片摘要", "YouTube·字幕·AI重點", UIHelper.ACCENT_RED, 40);
+        cardYouTube.setOnClickListener(v -> startActivity(new Intent(this, YouTubeActivity.class)));
 
         row5f.addView(cardMusic, gridCellLp(0));
-        row5f.addView(musicSpacer, gridCellLp(UIHelper.dp(this, 10)));
+        row5f.addView(cardYouTube, gridCellLp(UIHelper.dp(this, 10)));
         content.addView(row5f);
 
         // ── Tools ──

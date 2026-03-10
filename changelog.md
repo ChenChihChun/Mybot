@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.53 (2026-03-10)
+- **New Feature: YouTube Video Summarizer**
+  - Added `YouTubeActivity.java` — New standalone feature page for YouTube video summarization; paste URL → fetch subtitles → AI generates summary with key points and topic tags; includes paste button, loading state, copy-to-clipboard, dark theme cards
+  - Modified `BridgeClient.java` — Added `VideoSummaryCallback` interface and `summarizeVideo()` method; handles JSON result parsing with fallback to text
+  - Modified `MainActivity.java` — Added "影片摘要" feature card (red accent) in row 5 alongside Music
+  - Modified `AndroidManifest.xml` — Registered `YouTubeActivity`
+  - Modified `bridge.py` — Added `fetch_youtube_transcript()` using `youtube_transcript_api` (prefers zh-Hant > en, manual > auto-generated); added `summarize_video` task type with 180s timeout; yt-dlp for title extraction
+  - Modified `app/build.gradle` — versionCode 75, versionName 3.53
+  - **Dependencies**: `youtube-transcript-api` (pip), `yt-dlp` (pip) on Termux
+
 ## v3.52 (2026-03-10)
 - **Enhancement: Volume MA5 Line on Stock Chart**
   - Modified `StockChartView.java` — Added volume 5-period moving average as yellow dashed line over volume bars; displays MA value label on right margin (formatted as 萬/億); added `paintVolMa` paint, `volMaLastValue` field, `formatVolume()` helper

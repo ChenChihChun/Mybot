@@ -414,6 +414,72 @@ public class BridgeClient {
         return null;
     }
 
+    public interface VideoSummaryCallback {
+        void onResult(JSONObject summary, String error);
+    }
+
+    public static void summarizeVideo(String url, VideoSummaryCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "summarizeVideo: " + url);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "summarize_video");
+                body.put("url", url);
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 200000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    JSONObject json = new JSONObject(response);
+                    if (json.optBoolean("success", false)) {
+                        Object resultObj = json.opt("result");
+                        if (resultObj instanceof JSONObject) {
+                            JSONObject summary = (JSONObject) resultObj;
+                            AppLog.i("Bridge", "videoSummary成功: " + summary.optString("title", ""));
+                            mainHandler.post(() -> callback.onResult(summary, null));
+                            return;
+                        }
+                        // result might be text that contains JSON
+                        String text = extractText(resultObj);
+                        if (text != null) {
+                            // Try to parse JSON from text
+                            int start = text.indexOf("{");
+                            int end = text.lastIndexOf("}");
+                            if (start >= 0 && end > start) {
+                                try {
+                                    JSONObject summary = new JSONObject(text.substring(start, end + 1));
+                                    AppLog.i("Bridge", "videoSummary成功(parsed): " + summary.optString("title", ""));
+                                    mainHandler.post(() -> callback.onResult(summary, null));
+                                    return;
+                                } catch (Exception ignored) {}
+                            }
+                            // Fallback: wrap plain text as summary
+                            JSONObject fallback = new JSONObject();
+                            fallback.put("title", "");
+                            fallback.put("summary", text);
+                            fallback.put("key_points", new JSONArray());
+                            mainHandler.post(() -> callback.onResult(fallback, null));
+                            return;
+                        }
+                    }
+                    String errMsg = json.optString("error", "unknown error");
+                    AppLog.w("Bridge", "videoSummary失敗: " + errMsg);
+                    mainHandler.post(() -> callback.onResult(null, errMsg));
+                    return;
+                }
+                lastError = error;
+                AppLog.e("Bridge", "videoSummary連線失敗: " + error);
+                mainHandler.post(() -> callback.onResult(null, error));
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                AppLog.e("Bridge", "videoSummary異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
     public interface RemoteCodeCallback {
         void onResult(String result, boolean offline, String error);
     }
