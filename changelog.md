@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.44 (2026-03-10)
+- **Fix: Stock Tracker — Cost/Shares Button Always Visible**
+  - Modified `StockActivity.java` — Cost row now always visible with "點擊設定成本與股數" hint and 📝設定 button (orange outline); entire row clickable to open cost dialog; no longer hidden when no data set
+  - Modified `app/build.gradle` — versionCode 66, versionName 3.44
+
 ## v3.43 (2026-03-10)
 - **Enhancement: Stock Tracker — Cost Basis Input + AI Web Search**
   - Modified `StockActivity.java` — Added cost/shares input dialog (long-press stock → 設定成本); cost/P&L display row in info card with real-time unrealized gain/loss; cost data included in AI analysis prompt; long-press menu now shows "設定成本" and "刪除" options; delete also cleans up cost/shares prefs

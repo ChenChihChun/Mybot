@@ -183,24 +183,28 @@ public class StockActivity extends AppCompatActivity {
         detailGrid.addView(col2, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         infoCard.addView(detailGrid);
 
-        // Cost / P&L row
+        // Cost / P&L row — always visible
         costRow = new LinearLayout(this);
         costRow.setOrientation(LinearLayout.HORIZONTAL);
         costRow.setGravity(Gravity.CENTER_VERTICAL);
-        costRow.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
-        costRow.setVisibility(View.GONE);
+        costRow.setPadding(0, UIHelper.dp(this, 10), 0, UIHelper.dp(this, 4));
+        costRow.setOnClickListener(v -> showCostDialog());
 
         tvCost = new TextView(this);
         tvCost.setTextSize(13);
+        tvCost.setTextColor(UIHelper.TEXT_HINT);
+        tvCost.setText("點擊設定成本與股數");
         tvCost.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         costRow.addView(tvCost);
 
         TextView costEditBtn = new TextView(this);
-        costEditBtn.setText("✏ 成本");
-        costEditBtn.setTextSize(12);
-        costEditBtn.setTextColor(UIHelper.ACCENT_BLUE);
-        costEditBtn.setPadding(UIHelper.dp(this, 8), UIHelper.dp(this, 4),
-                UIHelper.dp(this, 8), UIHelper.dp(this, 4));
+        costEditBtn.setText("📝設定");
+        costEditBtn.setTextSize(13);
+        costEditBtn.setTextColor(UIHelper.ACCENT_ORANGE);
+        costEditBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        costEditBtn.setPadding(UIHelper.dp(this, 10), UIHelper.dp(this, 6),
+                UIHelper.dp(this, 10), UIHelper.dp(this, 6));
+        costEditBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_ORANGE, 8, 1, this));
         costEditBtn.setOnClickListener(v -> showCostDialog());
         costRow.addView(costEditBtn);
 
@@ -798,7 +802,6 @@ public class StockActivity extends AppCompatActivity {
         int shares = prefs.getInt(KEY_SHARES_PREFIX + selectedCode, 0);
 
         if (cost > 0 && shares > 0 && q.currentPrice > 0) {
-            costRow.setVisibility(View.VISIBLE);
             double totalCost = cost * shares;
             double marketValue = q.currentPrice * shares;
             double pnl = marketValue - totalCost;
@@ -811,11 +814,11 @@ public class StockActivity extends AppCompatActivity {
                     sign, pnlPct));
             tvCost.setTextColor(pnl >= 0 ? UIHelper.ACCENT_RED : UIHelper.ACCENT_GREEN);
         } else if (cost > 0 || shares > 0) {
-            costRow.setVisibility(View.VISIBLE);
             tvCost.setText(String.format("成本 %s × %d股", cost > 0 ? formatPrice(cost) : "--", shares));
             tvCost.setTextColor(UIHelper.TEXT_SECONDARY);
         } else {
-            costRow.setVisibility(View.GONE);
+            tvCost.setText("點擊設定成本與股數");
+            tvCost.setTextColor(UIHelper.TEXT_HINT);
         }
     }
 
@@ -889,7 +892,8 @@ public class StockActivity extends AppCompatActivity {
                             .remove(KEY_SHARES_PREFIX + selectedCode)
                             .apply();
                     AppLog.i("Stock", "清除成本: " + selectedCode);
-                    costRow.setVisibility(View.GONE);
+                    tvCost.setText("點擊設定成本與股數");
+                    tvCost.setTextColor(UIHelper.TEXT_HINT);
                 })
                 .setNegativeButton("取消", null)
                 .show();
