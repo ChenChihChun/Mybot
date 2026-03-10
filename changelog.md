@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.58 (2026-03-10)
+- **Change: Dashboard — Replace Stock Card with Fitness Streak**
+  - Modified `MainActivity.java` — Replaced "台股追蹤" dashboard card with "健身連續" card showing workout streak days from `FitnessDbHelper.getStreak()`; updated `loadDashboardData()` to accept 4th parameter for fitness card; displays streak as "N天" format
+  - Modified `app/build.gradle` — versionCode 80, versionName 3.58
+
 ## v3.57 (2026-03-10)
 - **Fix: Dashboard Knowledge Count Not Displaying**
   - Modified `MainActivity.java` — Wrapped each DB query in separate try-catch to prevent one failure from blocking all dashboard updates; added `updateDashValue()` with fallback to direct child index access if `findViewWithTag` fails; added AppLog error logging for dashboard data loading

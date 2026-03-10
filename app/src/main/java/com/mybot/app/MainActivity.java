@@ -169,16 +169,16 @@ public class MainActivity extends AppCompatActivity {
                 "\uD83D\uDCDA", "--", "知識庫", UIHelper.ACCENT_BLUE);
         dashKnowledge.setOnClickListener(v -> startActivity(new Intent(this, KnowledgeActivity.class)));
 
-        LinearLayout dashStock = UIHelper.dashboardCard(this,
-                "\uD83D\uDCC8", "--", "台股追蹤", UIHelper.ACCENT_ORANGE);
-        dashStock.setOnClickListener(v -> startActivity(new Intent(this, StockActivity.class)));
+        LinearLayout dashFitness = UIHelper.dashboardCard(this,
+                "\uD83D\uDCAA", "--", "健身連續", UIHelper.ACCENT_PURPLE);
+        dashFitness.setOnClickListener(v -> startActivity(new Intent(this, FitnessActivity.class)));
 
         dashRow2.addView(dashKnowledge, gridCellLp(0));
-        dashRow2.addView(dashStock, gridCellLp(gap));
+        dashRow2.addView(dashFitness, gridCellLp(gap));
         content.addView(dashRow2);
 
         // Load dashboard data async
-        loadDashboardData(dashExpense, dashTodo, dashKnowledge);
+        loadDashboardData(dashExpense, dashTodo, dashKnowledge, dashFitness);
 
         // ── Feature grid (3 columns) ──
         content.addView(UIHelper.sectionHeader(this, "FEATURES"));
@@ -381,14 +381,15 @@ public class MainActivity extends AppCompatActivity {
         return lp;
     }
 
-    private void loadDashboardData(LinearLayout dashExpense, LinearLayout dashTodo, LinearLayout dashKnowledge) {
+    private void loadDashboardData(LinearLayout dashExpense, LinearLayout dashTodo,
+                                    LinearLayout dashKnowledge, LinearLayout dashFitness) {
         new Thread(() -> {
             String expText = "$0";
             String todoText = "0";
             String kText = "0";
+            String fitText = "0天";
 
             try {
-                // Today's expenses
                 java.util.Calendar cal = java.util.Calendar.getInstance();
                 cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
                 cal.set(java.util.Calendar.MINUTE, 0);
@@ -420,11 +421,20 @@ public class MainActivity extends AppCompatActivity {
                 AppLog.e("Dashboard", "載入知識庫資料失敗: " + e.getMessage());
             }
 
-            final String fe = expText, ft = todoText, fk = kText;
+            try {
+                FitnessDbHelper fitDb = new FitnessDbHelper(this);
+                int streak = fitDb.getStreak();
+                fitText = streak + "天";
+            } catch (Exception e) {
+                AppLog.e("Dashboard", "載入健身資料失敗: " + e.getMessage());
+            }
+
+            final String fe = expText, ft = todoText, fk = kText, ff = fitText;
             runOnUiThread(() -> {
                 updateDashValue(dashExpense, fe);
                 updateDashValue(dashTodo, ft);
                 updateDashValue(dashKnowledge, fk);
+                updateDashValue(dashFitness, ff);
             });
         }).start();
     }
