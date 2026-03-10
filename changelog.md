@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.49 (2026-03-10)
+- **Fix: Revert Stock API Changes + Fix Screenshot Analysis**
+  - Reverted `StockClient.java` — Restored to original TWSE API (v3.45 state); Yahoo Finance rewrite caused English stock names and broken chart updates
+  - Reverted `StockActivity.java` — Restored to v3.45 state (cost/shares + comma formatting retained, removed broken SwipeRefreshLayout)
+  - Removed `swiperefreshlayout` dependency from `app/build.gradle`
+  - Modified `bridge.py` — Added `cli_path=CLAUDE_PATH` to `ClaudeAgentOptions` so Agent SDK uses `claude-fix` wrapper instead of broken system `claude` (shebang `/usr/bin/env` not available in Termux)
+  - Modified `bridge/start.sh` — Added `export CLAUDE_CODE_TMPDIR` and auto-patch cli.js `/tmp` paths for Termux compatibility
+  - Modified `app/build.gradle` — versionCode 71, versionName 3.49
+
 ## v3.48 (2026-03-10)
 - **Fix: Stock Tracker — Switch to Yahoo Finance API**
   - Rewritten `StockClient.java` — Replaced TWSE mis API (unreliable, requires session cookies) with Yahoo Finance v8 chart API; auto-detects `.TW` (上市) vs `.TWO` (上櫃) suffix per stock with cache; realtime quotes via `interval=1m&range=1d`; historical candles via `interval=1d&range=6mo/1y` (single request instead of monthly loop); removed TWSE/TPEx-specific code, rate limiting, and session management

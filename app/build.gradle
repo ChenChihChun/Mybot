@@ -10,8 +10,8 @@ android {
         applicationId "com.mybot.app"
         minSdk 26
         targetSdk 33
-        versionCode 70
-        versionName "3.48"
+        versionCode 71
+        versionName "3.49"
     }
 
     lintOptions {
@@ -42,6 +42,5 @@ configurations.all {
 dependencies {
     implementation 'androidx.core:core:1.10.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     implementation 'com.google.android.gms:play-services-auth:20.7.0'
 }

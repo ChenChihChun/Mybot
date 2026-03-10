@@ -20,13 +20,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,8 +41,6 @@ public class StockActivity extends AppCompatActivity {
 
     private Handler updateHandler;
     private boolean isRunning = false;
-    private SwipeRefreshLayout swipeRefresh;
-    private long lastUpdateTime = 0;
 
     private List<String> watchlist = new ArrayList<>();
     private String selectedCode = null;
@@ -354,22 +349,7 @@ public class StockActivity extends AppCompatActivity {
         content.addView(statusText);
 
         scroll.addView(content);
-
-        // Wrap in SwipeRefreshLayout for pull-to-refresh
-        swipeRefresh = new SwipeRefreshLayout(this);
-        swipeRefresh.setColorSchemeColors(UIHelper.ACCENT_ORANGE, UIHelper.ACCENT_BLUE);
-        swipeRefresh.setProgressBackgroundColorSchemeColor(UIHelper.BG_CARD);
-        swipeRefresh.addView(scroll);
-        swipeRefresh.setOnRefreshListener(() -> {
-            AppLog.i("Stock", "手動刷新");
-            historicalCandles = null;
-            fetchQuotes();
-            if (selectedCode != null && isHistoricalPeriod()) loadHistoricalData();
-            // Auto-dismiss after 3s in case callback doesn't fire
-            updateHandler.postDelayed(() -> swipeRefresh.setRefreshing(false), 3000);
-        });
-
-        root.addView(swipeRefresh, new LinearLayout.LayoutParams(
+        root.addView(scroll, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
@@ -770,9 +750,7 @@ public class StockActivity extends AppCompatActivity {
         }
 
         StockClient.fetchStocks(watchlist, (quotes, error) -> {
-            swipeRefresh.setRefreshing(false);
-            if (quotes != null && !quotes.isEmpty()) {
-                lastUpdateTime = System.currentTimeMillis();
+            if (quotes != null) {
                 for (StockData.StockQuote q : quotes) {
                     quoteMap.put(q.code, q);
                     // Record tick
@@ -789,31 +767,23 @@ public class StockActivity extends AppCompatActivity {
                 refreshChips();
                 updateInfoCard();
                 if (!isHistoricalPeriod()) updateChart();
-            } else if (error != null) {
-                AppLog.w("Stock", "fetchQuotes error: " + error);
             }
             updateStatus();
         });
     }
 
     private void updateStatus() {
-        String timeStr = "";
-        if (lastUpdateTime > 0) {
-            timeStr = " | 更新: " + new SimpleDateFormat("HH:mm:ss", java.util.Locale.TAIWAN)
-                    .format(new Date(lastUpdateTime));
-        }
-
         int bl = StockClient.getBackoffLevel();
         if (bl > 0) {
-            statusText.setText("API 限速中 (" + getUpdateInterval() / 1000 + "秒)" + timeStr);
+            statusText.setText("API 限速中，降低更新頻率 (" + getUpdateInterval() / 1000 + "秒)");
             statusText.setTextColor(UIHelper.ACCENT_ORANGE);
             return;
         }
         statusText.setTextColor(UIHelper.TEXT_HINT);
         if (isMarketOpen()) {
-            statusText.setText("開盤中 (每10秒更新)" + timeStr);
+            statusText.setText("開盤中 (每10秒更新)");
         } else {
-            statusText.setText("休市" + timeStr + "  ↓下拉刷新");
+            statusText.setText("休市");
         }
     }
 
