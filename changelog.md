@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.57 (2026-03-10)
+- **Fix: Dashboard Knowledge Count Not Displaying**
+  - Modified `MainActivity.java` — Wrapped each DB query in separate try-catch to prevent one failure from blocking all dashboard updates; added `updateDashValue()` with fallback to direct child index access if `findViewWithTag` fails; added AppLog error logging for dashboard data loading
+  - Modified `UIHelper.java` — Added `clickable` and `focusable` to `dashboardCard()` for proper click handling
+  - Modified `app/build.gradle` — versionCode 79, versionName 3.57
+
 ## v3.56 (2026-03-10)
 - **Redesign: Home Page — Section-Based Compact Layout with Dashboard**
   - Modified `MainActivity.java` — Replaced 2-column large feature cards with 3-column compact icon grid; added DASHBOARD section with 2x2 summary cards (today's expenses, pending todos, knowledge count, stock shortcut) with async data loading; FEATURES section now uses compact cards (44dp icon + label); TOOLS section also 3-column compact; added `gridRow3()`, `addCompact()`, `loadDashboardData()` helper methods

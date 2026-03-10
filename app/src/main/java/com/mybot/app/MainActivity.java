@@ -383,40 +383,63 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadDashboardData(LinearLayout dashExpense, LinearLayout dashTodo, LinearLayout dashKnowledge) {
         new Thread(() -> {
-            // Today's expenses
-            java.util.Calendar cal = java.util.Calendar.getInstance();
-            cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
-            cal.set(java.util.Calendar.MINUTE, 0);
-            cal.set(java.util.Calendar.SECOND, 0);
-            cal.set(java.util.Calendar.MILLISECOND, 0);
-            long dayStart = cal.getTimeInMillis();
-            long dayEnd = dayStart + 86400_000L;
+            String expText = "$0";
+            String todoText = "0";
+            String kText = "0";
 
-            ExpenseDbHelper expDb = new ExpenseDbHelper(this);
-            double todaySum = expDb.sumByDateRange(dayStart, dayEnd);
-            String expText = todaySum > 0 ? "$" + String.format("%.0f", todaySum) : "$0";
+            try {
+                // Today's expenses
+                java.util.Calendar cal = java.util.Calendar.getInstance();
+                cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+                cal.set(java.util.Calendar.MINUTE, 0);
+                cal.set(java.util.Calendar.SECOND, 0);
+                cal.set(java.util.Calendar.MILLISECOND, 0);
+                long dayStart = cal.getTimeInMillis();
+                long dayEnd = dayStart + 86400_000L;
 
-            // Pending todos
-            TodoDbHelper todoDb = new TodoDbHelper(this);
-            int pending = todoDb.countPending();
-            String todoText = String.valueOf(pending);
+                ExpenseDbHelper expDb = new ExpenseDbHelper(this);
+                double todaySum = expDb.sumByDateRange(dayStart, dayEnd);
+                expText = todaySum > 0 ? "$" + String.format("%.0f", todaySum) : "$0";
+            } catch (Exception e) {
+                AppLog.e("Dashboard", "載入消費資料失敗: " + e.getMessage());
+            }
 
-            // Knowledge count
-            KnowledgeDbHelper kDb = new KnowledgeDbHelper(this);
-            int kCount = kDb.getCount();
-            String kText = String.valueOf(kCount);
+            try {
+                TodoDbHelper todoDb = new TodoDbHelper(this);
+                int pending = todoDb.countPending();
+                todoText = String.valueOf(pending);
+            } catch (Exception e) {
+                AppLog.e("Dashboard", "載入待辦資料失敗: " + e.getMessage());
+            }
 
+            try {
+                KnowledgeDbHelper kDb = new KnowledgeDbHelper(this);
+                int kCount = kDb.getCount();
+                kText = String.valueOf(kCount);
+            } catch (Exception e) {
+                AppLog.e("Dashboard", "載入知識庫資料失敗: " + e.getMessage());
+            }
+
+            final String fe = expText, ft = todoText, fk = kText;
             runOnUiThread(() -> {
-                TextView ev = dashExpense.findViewWithTag("dashboard_value");
-                if (ev != null) ev.setText(expText);
-
-                TextView tv = dashTodo.findViewWithTag("dashboard_value");
-                if (tv != null) tv.setText(todoText);
-
-                TextView kv = dashKnowledge.findViewWithTag("dashboard_value");
-                if (kv != null) kv.setText(kText);
+                updateDashValue(dashExpense, fe);
+                updateDashValue(dashTodo, ft);
+                updateDashValue(dashKnowledge, fk);
             });
         }).start();
+    }
+
+    private void updateDashValue(LinearLayout card, String value) {
+        // findViewWithTag searches children recursively
+        TextView tv = card.findViewWithTag("dashboard_value");
+        if (tv != null) {
+            tv.setText(value);
+        } else {
+            // Fallback: directly access second child (index 1 = value view)
+            if (card.getChildCount() > 1 && card.getChildAt(1) instanceof TextView) {
+                ((TextView) card.getChildAt(1)).setText(value);
+            }
+        }
     }
 
     private void requestPermissions() {

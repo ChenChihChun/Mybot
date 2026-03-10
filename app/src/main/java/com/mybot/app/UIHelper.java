@@ -343,6 +343,8 @@ public class UIHelper {
         card.setElevation(dp(ctx, 3));
         int pad = dp(ctx, 12);
         card.setPadding(pad, pad, pad, pad);
+        card.setClickable(true);
+        card.setFocusable(true);
 
         // Top row: icon
         TextView iconView = new TextView(ctx);
