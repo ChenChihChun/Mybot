@@ -115,17 +115,25 @@ public class FlightCheckReceiver extends BroadcastReceiver {
                     + " 目標價=" + watch.targetPrice
                     + " 上次最低=" + watch.lastLowestPrice);
 
-            // Notify if: price <= target OR price dropped >10% from last check
+            // Notify logic:
+            // - If target_price > 0: notify when price <= target OR drop >10%
+            // - If target_price == 0 (auto-track): notify on first result + every >10% drop
             boolean shouldNotify = false;
             String reason = "";
 
-            if (cheapestPrice > 0 && cheapestPrice <= watch.targetPrice) {
+            if (cheapestPrice > 0 && watch.targetPrice > 0
+                    && cheapestPrice <= watch.targetPrice) {
                 shouldNotify = true;
-                reason = "達到目標價格";
+                reason = "達到目標價 $" + String.format("%.0f", watch.targetPrice);
             } else if (cheapestPrice > 0 && watch.lastLowestPrice > 0
                     && cheapestPrice < watch.lastLowestPrice * 0.9) {
                 shouldNotify = true;
-                reason = "價格下降超過10%";
+                long drop = Math.round((1 - cheapestPrice / watch.lastLowestPrice) * 100);
+                reason = "降價 " + drop + "% (前次 $" + String.format("%.0f", watch.lastLowestPrice) + ")";
+            } else if (cheapestPrice > 0 && watch.lastLowestPrice <= 0) {
+                // First check — send initial price notification
+                shouldNotify = true;
+                reason = "首次查詢結果";
             }
 
             if (shouldNotify) {

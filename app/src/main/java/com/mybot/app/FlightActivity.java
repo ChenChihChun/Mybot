@@ -252,9 +252,14 @@ public class FlightActivity extends AppCompatActivity {
         priceRow.setPadding(0, UIHelper.dp(this, 6), 0, 0);
 
         TextView targetTv = new TextView(this);
-        targetTv.setText("目標: $" + String.format("%.0f", watch.targetPrice));
+        if (watch.targetPrice > 0) {
+            targetTv.setText("目標: $" + String.format("%.0f", watch.targetPrice));
+            targetTv.setTextColor(UIHelper.ACCENT_ORANGE);
+        } else {
+            targetTv.setText("自動追蹤降價");
+            targetTv.setTextColor(UIHelper.TEXT_SECONDARY);
+        }
         targetTv.setTextSize(13);
-        targetTv.setTextColor(UIHelper.ACCENT_ORANGE);
         LinearLayout.LayoutParams priceLp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         targetTv.setLayoutParams(priceLp);
@@ -262,8 +267,10 @@ public class FlightActivity extends AppCompatActivity {
         TextView lowestTv = new TextView(this);
         if (watch.lastLowestPrice > 0) {
             lowestTv.setText("最低: $" + String.format("%.0f", watch.lastLowestPrice));
-            lowestTv.setTextColor(watch.lastLowestPrice <= watch.targetPrice
-                    ? UIHelper.ACCENT_GREEN : UIHelper.TEXT_SECONDARY);
+            boolean isGood = watch.targetPrice > 0
+                    ? watch.lastLowestPrice <= watch.targetPrice
+                    : false; // auto mode — just show price
+            lowestTv.setTextColor(isGood ? UIHelper.ACCENT_GREEN : UIHelper.TEXT_PRIMARY);
         } else {
             lowestTv.setText("尚未查詢");
             lowestTv.setTextColor(UIHelper.TEXT_HINT);
@@ -561,28 +568,34 @@ public class FlightActivity extends AppCompatActivity {
     }
 
     private void showAirportPicker(String title, TextView targetView, String[] selectedCode) {
-        // Build filterable list with search
+        // Dark-themed picker layout
         LinearLayout pickerLayout = new LinearLayout(this);
         pickerLayout.setOrientation(LinearLayout.VERTICAL);
+        pickerLayout.setBackgroundColor(UIHelper.BG_PRIMARY);
         int dp = UIHelper.dp(this, 16);
         pickerLayout.setPadding(dp, dp, dp, 0);
 
         EditText searchInput = new EditText(this);
         searchInput.setHint("搜尋城市、國家或代碼...");
+        searchInput.setHintTextColor(UIHelper.TEXT_HINT);
         searchInput.setTextSize(14);
+        searchInput.setTextColor(UIHelper.TEXT_PRIMARY);
+        searchInput.setBackground(UIHelper.roundRect(UIHelper.BG_INPUT, 8, this));
+        int sp = UIHelper.dp(this, 10);
+        searchInput.setPadding(sp, sp, sp, sp);
         pickerLayout.addView(searchInput);
 
         ScrollView scrollView = new ScrollView(this);
         scrollView.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, UIHelper.dp(this, 350)));
+                ViewGroup.LayoutParams.MATCH_PARENT, UIHelper.dp(this, 380)));
 
         LinearLayout listContainer = new LinearLayout(this);
         listContainer.setOrientation(LinearLayout.VERTICAL);
+        listContainer.setPadding(0, UIHelper.dp(this, 8), 0, 0);
         scrollView.addView(listContainer);
         pickerLayout.addView(scrollView);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(title)
                 .setView(pickerLayout)
                 .setNegativeButton("取消", null)
                 .create();
@@ -599,7 +612,6 @@ public class FlightActivity extends AppCompatActivity {
                 String country = airport[2];
                 String flag = airport[3];
 
-                // Filter by search query
                 if (!query.isEmpty()) {
                     if (!code.toLowerCase().contains(query)
                             && !city.toLowerCase().contains(query)
@@ -612,29 +624,55 @@ public class FlightActivity extends AppCompatActivity {
                 if (!country.equals(lastCountry)) {
                     TextView header = new TextView(FlightActivity.this);
                     header.setText(flag + " " + country);
-                    header.setTextSize(12);
-                    header.setTextColor(UIHelper.ACCENT_BLUE);
+                    header.setTextSize(13);
+                    header.setTextColor(UIHelper.ACCENT_ORANGE);
                     header.setTypeface(Typeface.DEFAULT_BOLD);
-                    header.setPadding(0, UIHelper.dp(FlightActivity.this, 10), 0,
-                            UIHelper.dp(FlightActivity.this, 4));
+                    header.setBackgroundColor(UIHelper.BG_CARD);
+                    int hp = UIHelper.dp(FlightActivity.this, 8);
+                    header.setPadding(hp, UIHelper.dp(FlightActivity.this, 10), hp,
+                            UIHelper.dp(FlightActivity.this, 6));
+                    LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    hlp.setMargins(0, UIHelper.dp(FlightActivity.this, 4), 0, 0);
+                    header.setLayoutParams(hlp);
                     listContainer.addView(header);
                     lastCountry = country;
                 }
 
-                // Airport item
-                TextView item = new TextView(FlightActivity.this);
-                item.setText(code + "  " + city);
-                item.setTextSize(15);
-                item.setTextColor(UIHelper.TEXT_PRIMARY);
-                int itemPad = UIHelper.dp(FlightActivity.this, 10);
-                item.setPadding(UIHelper.dp(FlightActivity.this, 8), itemPad, 0, itemPad);
-                item.setOnClickListener(v -> {
+                // Airport item — dark card style
+                LinearLayout itemRow = new LinearLayout(FlightActivity.this);
+                itemRow.setOrientation(LinearLayout.HORIZONTAL);
+                itemRow.setGravity(Gravity.CENTER_VERTICAL);
+                int ip = UIHelper.dp(FlightActivity.this, 12);
+                itemRow.setPadding(ip, ip, ip, ip);
+                itemRow.setBackground(UIHelper.roundRect(UIHelper.BG_CARD_ALT, 8, FlightActivity.this));
+                LinearLayout.LayoutParams itemLp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                itemLp.setMargins(0, UIHelper.dp(FlightActivity.this, 2), 0, 0);
+                itemRow.setLayoutParams(itemLp);
+
+                TextView codeTv = new TextView(FlightActivity.this);
+                codeTv.setText(code);
+                codeTv.setTextSize(16);
+                codeTv.setTextColor(UIHelper.ACCENT_BLUE);
+                codeTv.setTypeface(Typeface.DEFAULT_BOLD);
+                codeTv.setMinWidth(UIHelper.dp(FlightActivity.this, 48));
+
+                TextView cityTv = new TextView(FlightActivity.this);
+                cityTv.setText(city);
+                cityTv.setTextSize(15);
+                cityTv.setTextColor(UIHelper.TEXT_PRIMARY);
+                cityTv.setPadding(UIHelper.dp(FlightActivity.this, 10), 0, 0, 0);
+
+                itemRow.addView(codeTv);
+                itemRow.addView(cityTv);
+                itemRow.setOnClickListener(v -> {
                     selectedCode[0] = code;
-                    targetView.setText(code + " " + city + " (" + country + ")");
+                    targetView.setText(flag + " " + code + " " + city);
                     targetView.setTextColor(UIHelper.TEXT_PRIMARY);
                     dialog.dismiss();
                 });
-                listContainer.addView(item);
+                listContainer.addView(itemRow);
             }
 
             if (listContainer.getChildCount() == 0) {
@@ -650,7 +688,6 @@ public class FlightActivity extends AppCompatActivity {
 
         populateList.run();
 
-        // Live search filter
         searchInput.addTextChangedListener(new android.text.TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
@@ -660,6 +697,10 @@ public class FlightActivity extends AppCompatActivity {
         });
 
         dialog.show();
+        // Force dark background on dialog window
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(UIHelper.roundRect(UIHelper.BG_PRIMARY, 12, this));
+        }
     }
 
     private void showAddDialog() {
@@ -714,35 +755,20 @@ public class FlightActivity extends AppCompatActivity {
         dateMode.setText("📅 指定日期");
         dateMode.setTextSize(14);
         dateMode.setTextColor(UIHelper.ACCENT_BLUE);
+        dateMode.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 8, this));
         dateMode.setPadding(dp, UIHelper.dp(this, 8), dp, UIHelper.dp(this, 8));
 
         TextView monthMode = new TextView(this);
-        monthMode.setText("📆 整月搜尋");
+        monthMode.setText("📆 整月最低價");
         monthMode.setTextSize(14);
         monthMode.setTextColor(UIHelper.TEXT_HINT);
         monthMode.setPadding(dp, UIHelper.dp(this, 8), dp, UIHelper.dp(this, 8));
 
-        dateMode.setOnClickListener(v -> {
-            selectedMode[0] = "date";
-            dateMode.setTextColor(UIHelper.ACCENT_BLUE);
-            monthMode.setTextColor(UIHelper.TEXT_HINT);
-        });
-        monthMode.setOnClickListener(v -> {
-            selectedMode[0] = "month";
-            monthMode.setTextColor(UIHelper.ACCENT_BLUE);
-            dateMode.setTextColor(UIHelper.TEXT_HINT);
-        });
-
-        modeRow.addView(dateMode);
-        modeRow.addView(monthMode);
-        dialogLayout.addView(modeRow);
-
-        // Departure date
+        // Departure date/month picker
         TextView depLabel = new TextView(this);
         depLabel.setText("出發日期");
         depLabel.setTextSize(13);
         depLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
-        dialogLayout.addView(depLabel);
 
         TextView depDatePicker = new TextView(this);
         depDatePicker.setText("點擊選擇日期");
@@ -750,22 +776,12 @@ public class FlightActivity extends AppCompatActivity {
         depDatePicker.setTextColor(UIHelper.ACCENT_BLUE);
         depDatePicker.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 8));
         final String[] depDate = {""};
-        depDatePicker.setOnClickListener(v -> {
-            Calendar cal = Calendar.getInstance();
-            new DatePickerDialog(this, (view, y, m, d) -> {
-                depDate[0] = String.format(Locale.US, "%04d-%02d-%02d", y, m + 1, d);
-                depDatePicker.setText(depDate[0]);
-                depDatePicker.setTextColor(UIHelper.TEXT_PRIMARY);
-            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
-        });
-        dialogLayout.addView(depDatePicker);
 
         // Return date (optional)
         TextView retLabel = new TextView(this);
         retLabel.setText("回程日期（選填，空白=單程）");
         retLabel.setTextSize(13);
         retLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
-        dialogLayout.addView(retLabel);
 
         TextView retDatePicker = new TextView(this);
         retDatePicker.setText("點擊選擇日期（可跳過）");
@@ -773,6 +789,27 @@ public class FlightActivity extends AppCompatActivity {
         retDatePicker.setTextColor(UIHelper.TEXT_HINT);
         retDatePicker.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 8));
         final String[] retDate = {""};
+
+        // Date picker click handler — changes behavior based on mode
+        View.OnClickListener depDateClick = v -> {
+            Calendar cal = Calendar.getInstance();
+            if ("month".equals(selectedMode[0])) {
+                // Month mode: show year-month picker
+                showMonthPicker(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), (y, m) -> {
+                    depDate[0] = String.format(Locale.US, "%04d-%02d", y, m + 1);
+                    depDatePicker.setText(depDate[0] + " (整月)");
+                    depDatePicker.setTextColor(UIHelper.TEXT_PRIMARY);
+                });
+            } else {
+                new DatePickerDialog(this, (view, y, m, d) -> {
+                    depDate[0] = String.format(Locale.US, "%04d-%02d-%02d", y, m + 1, d);
+                    depDatePicker.setText(depDate[0]);
+                    depDatePicker.setTextColor(UIHelper.TEXT_PRIMARY);
+                }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
+            }
+        };
+        depDatePicker.setOnClickListener(depDateClick);
+
         retDatePicker.setOnClickListener(v -> {
             Calendar cal = Calendar.getInstance();
             new DatePickerDialog(this, (view, y, m, d) -> {
@@ -781,18 +818,50 @@ public class FlightActivity extends AppCompatActivity {
                 retDatePicker.setTextColor(UIHelper.TEXT_PRIMARY);
             }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
         });
+
+        dateMode.setOnClickListener(v -> {
+            selectedMode[0] = "date";
+            dateMode.setTextColor(UIHelper.ACCENT_BLUE);
+            dateMode.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 8, this));
+            monthMode.setTextColor(UIHelper.TEXT_HINT);
+            monthMode.setBackground(null);
+            depLabel.setText("出發日期");
+            depDatePicker.setText("點擊選擇日期");
+            depDatePicker.setTextColor(UIHelper.ACCENT_BLUE);
+            depDate[0] = "";
+        });
+        monthMode.setOnClickListener(v -> {
+            selectedMode[0] = "month";
+            monthMode.setTextColor(UIHelper.ACCENT_BLUE);
+            monthMode.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 8, this));
+            dateMode.setTextColor(UIHelper.TEXT_HINT);
+            dateMode.setBackground(null);
+            depLabel.setText("出發月份（搜尋整月最低價）");
+            depDatePicker.setText("點擊選擇月份");
+            depDatePicker.setTextColor(UIHelper.ACCENT_BLUE);
+            depDate[0] = "";
+        });
+
+        modeRow.addView(dateMode);
+        modeRow.addView(monthMode);
+        dialogLayout.addView(modeRow);
+
+        dialogLayout.addView(depLabel);
+        dialogLayout.addView(depDatePicker);
+        dialogLayout.addView(retLabel);
         dialogLayout.addView(retDatePicker);
 
-        // Target price
+        // Target price (optional)
         TextView priceLabel = new TextView(this);
-        priceLabel.setText("目標價格 (TWD)");
+        priceLabel.setText("目標價格（選填，不填則自動追蹤降價通知）");
         priceLabel.setTextSize(13);
         priceLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
         dialogLayout.addView(priceLabel);
 
         EditText priceInput = new EditText(this);
-        priceInput.setHint("例如 5000");
+        priceInput.setHint("不填 = 自動追蹤，降價 10% 就通知");
         priceInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        priceInput.setTextSize(13);
         dialogLayout.addView(priceInput);
 
         new AlertDialog.Builder(this)
@@ -803,17 +872,20 @@ public class FlightActivity extends AppCompatActivity {
                     String dest = destCode[0].trim().toUpperCase();
                     String priceStr = priceInput.getText().toString().trim();
 
-                    if (origin.isEmpty() || dest.isEmpty() || depDate[0].isEmpty() || priceStr.isEmpty()) {
-                        Toast.makeText(this, "請填寫所有必填欄位", Toast.LENGTH_SHORT).show();
+                    if (origin.isEmpty() || dest.isEmpty() || depDate[0].isEmpty()) {
+                        Toast.makeText(this, "請選擇出發地、目的地和日期", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
-                    double price;
-                    try {
-                        price = Double.parseDouble(priceStr);
-                    } catch (NumberFormatException e) {
-                        Toast.makeText(this, "價格格式不正確", Toast.LENGTH_SHORT).show();
-                        return;
+                    // Target price: 0 means auto-track (no specific target)
+                    double price = 0;
+                    if (!priceStr.isEmpty()) {
+                        try {
+                            price = Double.parseDouble(priceStr);
+                        } catch (NumberFormatException e) {
+                            Toast.makeText(this, "價格格式不正確", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
                     }
 
                     long id = db.insert(origin, dest, depDate[0], retDate[0],
@@ -826,5 +898,109 @@ public class FlightActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    /** Year-Month picker dialog (no day selection). */
+    private void showMonthPicker(int initYear, int initMonth, MonthPickerCallback callback) {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setGravity(Gravity.CENTER);
+        layout.setBackgroundColor(UIHelper.BG_PRIMARY);
+        int dp = UIHelper.dp(this, 20);
+        layout.setPadding(dp, dp, dp, dp);
+
+        final int[] selectedYear = {initYear};
+        final int[] selectedMonth = {initMonth};
+        String[] monthNames = {"1月", "2月", "3月", "4月", "5月", "6月",
+                "7月", "8月", "9月", "10月", "11月", "12月"};
+
+        // Year row
+        LinearLayout yearRow = new LinearLayout(this);
+        yearRow.setOrientation(LinearLayout.HORIZONTAL);
+        yearRow.setGravity(Gravity.CENTER);
+
+        TextView yearLeft = new TextView(this);
+        yearLeft.setText("◀");
+        yearLeft.setTextSize(20);
+        yearLeft.setTextColor(UIHelper.ACCENT_BLUE);
+        yearLeft.setPadding(UIHelper.dp(this, 16), 0, UIHelper.dp(this, 16), 0);
+
+        TextView yearLabel = new TextView(this);
+        yearLabel.setText(String.valueOf(initYear));
+        yearLabel.setTextSize(20);
+        yearLabel.setTextColor(UIHelper.TEXT_PRIMARY);
+        yearLabel.setTypeface(Typeface.DEFAULT_BOLD);
+        yearLabel.setMinWidth(UIHelper.dp(this, 80));
+        yearLabel.setGravity(Gravity.CENTER);
+
+        TextView yearRight = new TextView(this);
+        yearRight.setText("▶");
+        yearRight.setTextSize(20);
+        yearRight.setTextColor(UIHelper.ACCENT_BLUE);
+        yearRight.setPadding(UIHelper.dp(this, 16), 0, UIHelper.dp(this, 16), 0);
+
+        yearLeft.setOnClickListener(v -> {
+            selectedYear[0]--;
+            yearLabel.setText(String.valueOf(selectedYear[0]));
+        });
+        yearRight.setOnClickListener(v -> {
+            selectedYear[0]++;
+            yearLabel.setText(String.valueOf(selectedYear[0]));
+        });
+
+        yearRow.addView(yearLeft);
+        yearRow.addView(yearLabel);
+        yearRow.addView(yearRight);
+        layout.addView(yearRow);
+
+        // Month grid (4x3)
+        LinearLayout monthGrid = new LinearLayout(this);
+        monthGrid.setOrientation(LinearLayout.VERTICAL);
+        monthGrid.setPadding(0, UIHelper.dp(this, 12), 0, 0);
+
+        AlertDialog[] dialogRef = new AlertDialog[1];
+
+        for (int row = 0; row < 4; row++) {
+            LinearLayout monthRow = new LinearLayout(this);
+            monthRow.setOrientation(LinearLayout.HORIZONTAL);
+            monthRow.setGravity(Gravity.CENTER);
+            for (int col = 0; col < 3; col++) {
+                int month = row * 3 + col;
+                TextView mv = new TextView(this);
+                mv.setText(monthNames[month]);
+                mv.setTextSize(16);
+                mv.setTextColor(month == initMonth ? UIHelper.ACCENT_BLUE : UIHelper.TEXT_PRIMARY);
+                mv.setGravity(Gravity.CENTER);
+                mv.setPadding(UIHelper.dp(this, 12), UIHelper.dp(this, 12),
+                        UIHelper.dp(this, 12), UIHelper.dp(this, 12));
+                mv.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 8, this));
+                LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(
+                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+                mlp.setMargins(UIHelper.dp(this, 3), UIHelper.dp(this, 3),
+                        UIHelper.dp(this, 3), UIHelper.dp(this, 3));
+                mv.setLayoutParams(mlp);
+                final int m = month;
+                mv.setOnClickListener(v -> {
+                    callback.onMonthSelected(selectedYear[0], m);
+                    if (dialogRef[0] != null) dialogRef[0].dismiss();
+                });
+                monthRow.addView(mv);
+            }
+            monthGrid.addView(monthRow);
+        }
+        layout.addView(monthGrid);
+
+        dialogRef[0] = new AlertDialog.Builder(this)
+                .setView(layout)
+                .setNegativeButton("取消", null)
+                .create();
+        dialogRef[0].show();
+        if (dialogRef[0].getWindow() != null) {
+            dialogRef[0].getWindow().setBackgroundDrawable(UIHelper.roundRect(UIHelper.BG_PRIMARY, 12, this));
+        }
+    }
+
+    private interface MonthPickerCallback {
+        void onMonthSelected(int year, int month);
     }
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.62 (2026-03-10)
+- **Enhancement: Flight Watch — UX Improvements**
+  - Modified `FlightActivity.java` — Airport picker dialog now uses dark theme (BG_PRIMARY background, BG_CARD_ALT item cards, ACCENT_BLUE codes, ACCENT_ORANGE country headers); search input styled with BG_INPUT background; each airport is a distinct card row for better readability
+  - Modified `FlightActivity.java` — Target price now optional: leave empty = auto-track mode (notify on first result + every 10% price drop); watch cards show "自動追蹤降價" for auto-track watches
+  - Modified `FlightActivity.java` — Month mode now uses custom year-month picker (4x3 month grid with year navigation arrows) instead of full DatePicker; stores "YYYY-MM" format; label changes to "出發月份（搜尋整月最低價）" when month mode selected
+  - Modified `FlightCheckReceiver.java` — Updated notification logic: auto-track mode sends first-result notification to establish baseline, then notifies on >10% drops with exact percentage; target mode still notifies at target price
+  - Modified `~/bridge/bridge.py` — Month mode prompt now instructs Kiwi to search date_from=YYYY-MM-01 to date_to=month end for true whole-month search
+  - Modified `app/build.gradle` — versionCode 84, versionName 3.62
+
 ## v3.61 (2026-03-10)
 - **Enhancement: Flight Watch — Airport Picker with Chinese Names**
   - Modified `FlightActivity.java` — Replaced origin/destination EditText with tap-to-select airport picker dialog; added 60+ airports with IATA code, Chinese city name, country, and flag emoji; airports grouped by region (台灣→日本→韓國→東南亞→港澳中國→歐洲→美洲→大洋洲→中東); live search filter by city/country/code; watch cards now show city names (e.g. "TPE 台北桃園 → NRT 東京成田"); added `getAirportLabel()` and `showAirportPicker()` helper methods
