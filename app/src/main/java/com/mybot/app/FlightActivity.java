@@ -214,7 +214,7 @@ public class FlightActivity extends AppCompatActivity {
         routeRow.setGravity(Gravity.CENTER_VERTICAL);
 
         TextView route = new TextView(this);
-        route.setText(watch.origin + " → " + watch.destination);
+        route.setText(getAirportLabel(watch.origin) + " → " + getAirportLabel(watch.destination));
         route.setTextSize(16);
         route.setTextColor(UIHelper.TEXT_PRIMARY);
         route.setTypeface(Typeface.DEFAULT_BOLD);
@@ -480,6 +480,188 @@ public class FlightActivity extends AppCompatActivity {
         }
     }
 
+    // ── Airport data: IATA, Chinese city, country, region ──
+    private static final String[][] AIRPORTS = {
+        // 台灣
+        {"TPE", "台北桃園", "台灣", "🇹🇼"},
+        {"TSA", "台北松山", "台灣", "🇹🇼"},
+        {"KHH", "高雄", "台灣", "🇹🇼"},
+        {"RMQ", "台中", "台灣", "🇹🇼"},
+        // 日本
+        {"NRT", "東京成田", "日本", "🇯🇵"},
+        {"HND", "東京羽田", "日本", "🇯🇵"},
+        {"KIX", "大阪關西", "日本", "🇯🇵"},
+        {"ITM", "大阪伊丹", "日本", "🇯🇵"},
+        {"CTS", "札幌新千歲", "日本", "🇯🇵"},
+        {"FUK", "福岡", "日本", "🇯🇵"},
+        {"NGO", "名古屋中部", "日本", "🇯🇵"},
+        {"OKA", "沖繩那霸", "日本", "🇯🇵"},
+        // 韓國
+        {"ICN", "首爾仁川", "韓國", "🇰🇷"},
+        {"GMP", "首爾金浦", "韓國", "🇰🇷"},
+        {"PUS", "釜山", "韓國", "🇰🇷"},
+        {"CJU", "濟州", "韓國", "🇰🇷"},
+        // 東南亞
+        {"BKK", "曼谷素萬那普", "泰國", "🇹🇭"},
+        {"DMK", "曼谷廊曼", "泰國", "🇹🇭"},
+        {"CNX", "清邁", "泰國", "🇹🇭"},
+        {"SIN", "新加坡樟宜", "新加坡", "🇸🇬"},
+        {"KUL", "吉隆坡", "馬來西亞", "🇲🇾"},
+        {"MNL", "馬尼拉", "菲律賓", "🇵🇭"},
+        {"CEB", "宿霧", "菲律賓", "🇵🇭"},
+        {"SGN", "胡志明市", "越南", "🇻🇳"},
+        {"HAN", "河內", "越南", "🇻🇳"},
+        {"DPS", "峇里島", "印尼", "🇮🇩"},
+        {"CGK", "雅加達", "印尼", "🇮🇩"},
+        {"REP", "暹粒(吳哥窟)", "柬埔寨", "🇰🇭"},
+        {"RGN", "仰光", "緬甸", "🇲🇲"},
+        // 港澳中國
+        {"HKG", "香港", "香港", "🇭🇰"},
+        {"MFM", "澳門", "澳門", "🇲🇴"},
+        {"PVG", "上海浦東", "中國", "🇨🇳"},
+        {"SHA", "上海虹橋", "中國", "🇨🇳"},
+        {"PEK", "北京首都", "中國", "🇨🇳"},
+        {"CAN", "廣州", "中國", "🇨🇳"},
+        {"SZX", "深圳", "中國", "🇨🇳"},
+        {"CTU", "成都", "中國", "🇨🇳"},
+        {"XMN", "廈門", "中國", "🇨🇳"},
+        // 歐洲
+        {"LHR", "倫敦希斯洛", "英國", "🇬🇧"},
+        {"CDG", "巴黎戴高樂", "法國", "🇫🇷"},
+        {"FRA", "法蘭克福", "德國", "🇩🇪"},
+        {"AMS", "阿姆斯特丹", "荷蘭", "🇳🇱"},
+        {"FCO", "羅馬", "義大利", "🇮🇹"},
+        {"BCN", "巴塞隆納", "西班牙", "🇪🇸"},
+        {"VIE", "維也納", "奧地利", "🇦🇹"},
+        {"ZRH", "蘇黎世", "瑞士", "🇨🇭"},
+        {"IST", "伊斯坦堡", "土耳其", "🇹🇷"},
+        {"PRG", "布拉格", "捷克", "🇨🇿"},
+        // 美洲
+        {"LAX", "洛杉磯", "美國", "🇺🇸"},
+        {"SFO", "舊金山", "美國", "🇺🇸"},
+        {"JFK", "紐約乘甘迺迪", "美國", "🇺🇸"},
+        {"SEA", "西雅圖", "美國", "🇺🇸"},
+        {"YVR", "溫哥華", "加拿大", "🇨🇦"},
+        // 大洋洲
+        {"SYD", "雪梨", "澳洲", "🇦🇺"},
+        {"MEL", "墨爾本", "澳洲", "🇦🇺"},
+        {"AKL", "奧克蘭", "紐西蘭", "🇳🇿"},
+        // 中東
+        {"DXB", "杜拜", "阿聯酋", "🇦🇪"},
+        {"DOH", "杜哈", "卡達", "🇶🇦"},
+    };
+
+    private static String getAirportLabel(String iata) {
+        for (String[] a : AIRPORTS) {
+            if (a[0].equalsIgnoreCase(iata)) {
+                return iata + " " + a[1];
+            }
+        }
+        return iata;
+    }
+
+    private void showAirportPicker(String title, TextView targetView, String[] selectedCode) {
+        // Build filterable list with search
+        LinearLayout pickerLayout = new LinearLayout(this);
+        pickerLayout.setOrientation(LinearLayout.VERTICAL);
+        int dp = UIHelper.dp(this, 16);
+        pickerLayout.setPadding(dp, dp, dp, 0);
+
+        EditText searchInput = new EditText(this);
+        searchInput.setHint("搜尋城市、國家或代碼...");
+        searchInput.setTextSize(14);
+        pickerLayout.addView(searchInput);
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, UIHelper.dp(this, 350)));
+
+        LinearLayout listContainer = new LinearLayout(this);
+        listContainer.setOrientation(LinearLayout.VERTICAL);
+        scrollView.addView(listContainer);
+        pickerLayout.addView(scrollView);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(pickerLayout)
+                .setNegativeButton("取消", null)
+                .create();
+
+        // Populate airport list
+        Runnable populateList = () -> {
+            listContainer.removeAllViews();
+            String query = searchInput.getText().toString().trim().toLowerCase();
+
+            String lastCountry = "";
+            for (String[] airport : AIRPORTS) {
+                String code = airport[0];
+                String city = airport[1];
+                String country = airport[2];
+                String flag = airport[3];
+
+                // Filter by search query
+                if (!query.isEmpty()) {
+                    if (!code.toLowerCase().contains(query)
+                            && !city.toLowerCase().contains(query)
+                            && !country.toLowerCase().contains(query)) {
+                        continue;
+                    }
+                }
+
+                // Country header
+                if (!country.equals(lastCountry)) {
+                    TextView header = new TextView(FlightActivity.this);
+                    header.setText(flag + " " + country);
+                    header.setTextSize(12);
+                    header.setTextColor(UIHelper.ACCENT_BLUE);
+                    header.setTypeface(Typeface.DEFAULT_BOLD);
+                    header.setPadding(0, UIHelper.dp(FlightActivity.this, 10), 0,
+                            UIHelper.dp(FlightActivity.this, 4));
+                    listContainer.addView(header);
+                    lastCountry = country;
+                }
+
+                // Airport item
+                TextView item = new TextView(FlightActivity.this);
+                item.setText(code + "  " + city);
+                item.setTextSize(15);
+                item.setTextColor(UIHelper.TEXT_PRIMARY);
+                int itemPad = UIHelper.dp(FlightActivity.this, 10);
+                item.setPadding(UIHelper.dp(FlightActivity.this, 8), itemPad, 0, itemPad);
+                item.setOnClickListener(v -> {
+                    selectedCode[0] = code;
+                    targetView.setText(code + " " + city + " (" + country + ")");
+                    targetView.setTextColor(UIHelper.TEXT_PRIMARY);
+                    dialog.dismiss();
+                });
+                listContainer.addView(item);
+            }
+
+            if (listContainer.getChildCount() == 0) {
+                TextView empty = new TextView(FlightActivity.this);
+                empty.setText("找不到符合的機場");
+                empty.setTextSize(14);
+                empty.setTextColor(UIHelper.TEXT_HINT);
+                empty.setGravity(Gravity.CENTER);
+                empty.setPadding(0, UIHelper.dp(FlightActivity.this, 20), 0, 0);
+                listContainer.addView(empty);
+            }
+        };
+
+        populateList.run();
+
+        // Live search filter
+        searchInput.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(android.text.Editable s) {
+                populateList.run();
+            }
+        });
+
+        dialog.show();
+    }
+
     private void showAddDialog() {
         LinearLayout dialogLayout = new LinearLayout(this);
         dialogLayout.setOrientation(LinearLayout.VERTICAL);
@@ -488,26 +670,34 @@ public class FlightActivity extends AppCompatActivity {
 
         // Origin
         TextView originLabel = new TextView(this);
-        originLabel.setText("出發地 (IATA代碼，如 TPE)");
+        originLabel.setText("出發地");
         originLabel.setTextSize(13);
         dialogLayout.addView(originLabel);
 
-        EditText originInput = new EditText(this);
-        originInput.setHint("TPE");
-        originInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
-        dialogLayout.addView(originInput);
+        TextView originPicker = new TextView(this);
+        originPicker.setText("點擊選擇出發機場");
+        originPicker.setTextSize(14);
+        originPicker.setTextColor(UIHelper.ACCENT_BLUE);
+        originPicker.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 8));
+        final String[] originCode = {""};
+        originPicker.setOnClickListener(v -> showAirportPicker("選擇出發機場", originPicker, originCode));
+        dialogLayout.addView(originPicker);
 
         // Destination
         TextView destLabel = new TextView(this);
-        destLabel.setText("目的地 (IATA代碼，如 NRT)");
+        destLabel.setText("目的地");
         destLabel.setTextSize(13);
         destLabel.setPadding(0, UIHelper.dp(this, 8), 0, 0);
         dialogLayout.addView(destLabel);
 
-        EditText destInput = new EditText(this);
-        destInput.setHint("NRT");
-        destInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
-        dialogLayout.addView(destInput);
+        TextView destPicker = new TextView(this);
+        destPicker.setText("點擊選擇目的地機場");
+        destPicker.setTextSize(14);
+        destPicker.setTextColor(UIHelper.ACCENT_BLUE);
+        destPicker.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 8));
+        final String[] destCode = {""};
+        destPicker.setOnClickListener(v -> showAirportPicker("選擇目的地機場", destPicker, destCode));
+        dialogLayout.addView(destPicker);
 
         // Search mode toggle
         TextView modeLabel = new TextView(this);
@@ -609,8 +799,8 @@ public class FlightActivity extends AppCompatActivity {
                 .setTitle("新增航班監控")
                 .setView(dialogLayout)
                 .setPositiveButton("新增", (dialog, which) -> {
-                    String origin = originInput.getText().toString().trim().toUpperCase();
-                    String dest = destInput.getText().toString().trim().toUpperCase();
+                    String origin = originCode[0].trim().toUpperCase();
+                    String dest = destCode[0].trim().toUpperCase();
                     String priceStr = priceInput.getText().toString().trim();
 
                     if (origin.isEmpty() || dest.isEmpty() || depDate[0].isEmpty() || priceStr.isEmpty()) {

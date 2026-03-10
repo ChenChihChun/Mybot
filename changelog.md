@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.61 (2026-03-10)
+- **Enhancement: Flight Watch — Airport Picker with Chinese Names**
+  - Modified `FlightActivity.java` — Replaced origin/destination EditText with tap-to-select airport picker dialog; added 60+ airports with IATA code, Chinese city name, country, and flag emoji; airports grouped by region (台灣→日本→韓國→東南亞→港澳中國→歐洲→美洲→大洋洲→中東); live search filter by city/country/code; watch cards now show city names (e.g. "TPE 台北桃園 → NRT 東京成田"); added `getAirportLabel()` and `showAirportPicker()` helper methods
+  - Modified `app/build.gradle` — versionCode 83, versionName 3.61
+- **Enhancement: Bridge — AI Model Cost Optimization**
+  - Modified `~/bridge/bridge.py` — Added `TASK_MODEL_MAP` routing simple tasks to Haiku (analyze_notification, summarize_sms, categorize_expense, categorize_knowledge, parse_calendar_event, analyze_expense_screenshot, analyze_invoice); complex tasks keep default Sonnet (workout_plan, summarize_video, analyze_stock, search_flights); added `model` parameter to `call_claude()`, `call_claude_vision()`, `_call_claude_vision_async()`; response includes `model` field for tracking; estimated ~50% API cost reduction
+
 ## v3.60 (2026-03-10)
 - **New Feature: Flight Price Watch (航班監控)**
   - Added `FlightWatchDbHelper.java` — SQLite database (`mybot_flight.db`) for flight watch entries with CRUD operations; stores origin, destination, dates, target price, search mode (date/month), last check results; SharedPrefs toggle for global flight check enable/disable
