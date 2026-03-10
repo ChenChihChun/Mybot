@@ -21,6 +21,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -808,13 +809,15 @@ public class StockActivity extends AppCompatActivity {
             double pnlPct = (pnl / totalCost) * 100;
             String sign = pnl >= 0 ? "+" : "";
 
-            tvCost.setText(String.format("成本 %s × %d股 | 損益: %s%s (%s%.1f%%)",
-                    formatPrice(cost), shares,
-                    sign, formatPrice(Math.abs(pnl) >= 1000 ? Math.round(pnl) : pnl),
+            tvCost.setText(String.format("成本 %s × %s股 | 損益: %s%s (%s%.1f%%)",
+                    formatPrice(cost), formatComma(shares),
+                    sign, formatComma(Math.abs(pnl)),
                     sign, pnlPct));
             tvCost.setTextColor(pnl >= 0 ? UIHelper.ACCENT_RED : UIHelper.ACCENT_GREEN);
         } else if (cost > 0 || shares > 0) {
-            tvCost.setText(String.format("成本 %s × %d股", cost > 0 ? formatPrice(cost) : "--", shares));
+            tvCost.setText(String.format("成本 %s × %s股",
+                    cost > 0 ? formatPrice(cost) : "--",
+                    shares > 0 ? formatComma(shares) : "0"));
             tvCost.setTextColor(UIHelper.TEXT_SECONDARY);
         } else {
             tvCost.setText("點擊設定成本與股數");
@@ -1037,6 +1040,11 @@ public class StockActivity extends AppCompatActivity {
         if (price >= 100) return String.format("%.0f", price);
         if (price >= 10) return String.format("%.1f", price);
         return String.format("%.2f", price);
+    }
+
+    private String formatComma(double value) {
+        if (value == (long) value) return new DecimalFormat("#,###").format((long) value);
+        return new DecimalFormat("#,###.#").format(value);
     }
 
     private String formatVolume(long vol) {

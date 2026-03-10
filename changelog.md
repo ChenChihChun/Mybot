@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.45 (2026-03-10)
+- **Enhancement: Stock Tracker — Comma-Formatted Cost Display**
+  - Modified `StockActivity.java` — Added `formatComma()` helper with `DecimalFormat("#,###")` for thousands separator; cost display now shows formatted shares (e.g. 1,000股) and P&L (e.g. +15,000); imported `java.text.DecimalFormat`
+  - Modified `bridge.py` — Increased `call_claude_web()` max-turns from 3 to 8 (fix AI analysis error_max_turns)
+  - Modified `app/build.gradle` — versionCode 67, versionName 3.45
+
 ## v3.44 (2026-03-10)
 - **Fix: Stock Tracker — Cost/Shares Button Always Visible**
   - Modified `StockActivity.java` — Cost row now always visible with "點擊設定成本與股數" hint and 📝設定 button (orange outline); entire row clickable to open cost dialog; no longer hidden when no data set
