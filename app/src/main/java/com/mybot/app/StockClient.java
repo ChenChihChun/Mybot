@@ -308,15 +308,24 @@ public class StockClient {
 
     private static String httpGet(String urlStr, int timeoutMs) {
         try {
+            // Add cache-busting timestamp
+            String separator = urlStr.contains("?") ? "&" : "?";
+            urlStr = urlStr + separator + "_=" + System.currentTimeMillis();
+
             URL url = new URL(urlStr);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(timeoutMs);
             conn.setReadTimeout(timeoutMs);
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+            conn.setRequestProperty("User-Agent",
+                    "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+            conn.setRequestProperty("Referer", "https://mis.twse.com.tw/");
+            conn.setRequestProperty("Accept", "application/json, text/javascript, */*");
+            conn.setUseCaches(false);
 
             int code = conn.getResponseCode();
             if (code != 200) {
+                AppLog.w("Stock", "HTTP " + code + " for " + urlStr.substring(0, Math.min(80, urlStr.length())));
                 conn.disconnect();
                 return null;
             }
@@ -332,6 +341,7 @@ public class StockClient {
             conn.disconnect();
             return sb.toString();
         } catch (Exception e) {
+            AppLog.e("Stock", "httpGet失敗: " + e.getClass().getSimpleName() + ": " + e.getMessage());
             return null;
         }
     }

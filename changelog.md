@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.47 (2026-03-10)
+- **Enhancement: Stock Tracker — Pull-to-Refresh + Update Time + API Fix**
+  - Modified `StockActivity.java` — Added SwipeRefreshLayout for pull-to-refresh (orange/blue spinner); shows last update time in status bar (HH:mm:ss format); tracks `lastUpdateTime`; dismisses refresh indicator on callback
+  - Modified `StockClient.java` — Fixed API headers: added realistic User-Agent, Referer, Accept headers; added `_=timestamp` cache-busting param; disabled HttpURLConnection cache; added error logging for HTTP errors and exceptions
+  - Modified `app/build.gradle` — Added `swiperefreshlayout:1.1.0` dependency; versionCode 69, versionName 3.47
+
 ## v3.46 (2026-03-10)
 - **Fix: Stock Tracker — Support OTC (上櫃) Stocks**
   - Modified `StockClient.java` — Realtime quotes now query both `tse_` and `otc_` prefixes for each code, with deduplication; tracks market type via `ex` field in API response; `fetchMultiMonthHistory()` uses TPEx API (`tpex.org.tw`) for OTC stocks with correct ROC date format and `aaData` field; added `OTC_HISTORY_URL` and `otcMap` for market type tracking
