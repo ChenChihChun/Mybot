@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.67 (2026-03-11)
+- **Enhancement: Flight Watch — Show best combo on watch cards**
+  - Modified `FlightActivity.java` — Watch cards now display best flight combo from last search: round-trip shows "🏆 最低組合" with outbound+inbound cheapest airlines/times/prices; one-way shows "🏆 最低" with cheapest airline/time/stops; displayed in ACCENT_GREEN below price row
+  - Modified `app/build.gradle` — versionCode 89, versionName 3.67
+
 ## v3.66 (2026-03-11)
 - **Fix: Flight Watch — Round-trip search and direction labels**
   - Modified `~/bridge/google_flights.py` — Round-trip now searches outbound and return as separate one-way queries then merges; fixes issue where Google Flights embedded HTML only returns 1 "best combo" for round-trip; each flight tagged with `direction` field ("outbound"/"inbound"); refactored into `_fetch_oneway_flights()` helper

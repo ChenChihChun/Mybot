@@ -299,6 +299,69 @@ public class FlightActivity extends AppCompatActivity {
         priceRow.addView(lowestTv);
         card.addView(priceRow);
 
+        // Row 3b: best combo from last search
+        if (watch.lastResultJson != null && !watch.lastResultJson.isEmpty()) {
+            try {
+                JSONObject lastResult = new JSONObject(watch.lastResultJson);
+                JSONArray flights = lastResult.optJSONArray("flights");
+                if (flights != null && flights.length() > 0) {
+                    if (watch.roundTrip) {
+                        // Find cheapest outbound + cheapest inbound
+                        JSONObject bestOut = null, bestIn = null;
+                        double outMin = Double.MAX_VALUE, inMin = Double.MAX_VALUE;
+                        for (int fi = 0; fi < flights.length(); fi++) {
+                            JSONObject f = flights.getJSONObject(fi);
+                            double p = f.optDouble("price", 0);
+                            String dir = f.optString("direction", "");
+                            if ("outbound".equals(dir) && p > 0 && p < outMin) {
+                                outMin = p; bestOut = f;
+                            } else if ("inbound".equals(dir) && p > 0 && p < inMin) {
+                                inMin = p; bestIn = f;
+                            }
+                        }
+                        if (bestOut != null && bestIn != null) {
+                            String comboText = "🏆 最低組合 $" + String.format("%.0f", outMin + inMin) + "\n"
+                                + "   去 " + bestOut.optString("airline", "?")
+                                + " $" + String.format("%.0f", outMin)
+                                + " " + bestOut.optString("departure_time", "") + "-" + bestOut.optString("arrival_time", "") + "\n"
+                                + "   回 " + bestIn.optString("airline", "?")
+                                + " $" + String.format("%.0f", inMin)
+                                + " " + bestIn.optString("departure_time", "") + "-" + bestIn.optString("arrival_time", "");
+                            TextView comboTv = new TextView(this);
+                            comboTv.setText(comboText);
+                            comboTv.setTextSize(12);
+                            comboTv.setTextColor(UIHelper.ACCENT_GREEN);
+                            comboTv.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+                            card.addView(comboTv);
+                        }
+                    } else {
+                        // Single: show cheapest flight
+                        JSONObject best = null;
+                        double bestPrice = Double.MAX_VALUE;
+                        for (int fi = 0; fi < flights.length(); fi++) {
+                            JSONObject f = flights.getJSONObject(fi);
+                            double p = f.optDouble("price", 0);
+                            if (p > 0 && p < bestPrice) {
+                                bestPrice = p; best = f;
+                            }
+                        }
+                        if (best != null) {
+                            String comboText = "🏆 最低 " + best.optString("airline", "?")
+                                + " $" + String.format("%.0f", bestPrice)
+                                + " " + best.optString("departure_time", "") + "-" + best.optString("arrival_time", "")
+                                + " " + (best.optInt("stops", 0) == 0 ? "直飛" : "轉機" + best.optInt("stops") + "次");
+                            TextView comboTv = new TextView(this);
+                            comboTv.setText(comboText);
+                            comboTv.setTextSize(12);
+                            comboTv.setTextColor(UIHelper.ACCENT_GREEN);
+                            comboTv.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+                            card.addView(comboTv);
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
         // Row 4: last checked
         if (watch.lastChecked > 0) {
             TextView checkedTv = new TextView(this);
