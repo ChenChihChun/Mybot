@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.65 (2026-03-11)
+- **Enhancement: Flight Watch — Switch to Google Flights (zero cost, faster, more airlines)**
+  - Added `~/bridge/google_flights.py` — Standalone Google Flights scraper using reverse-engineered protobuf TFS parameter + requests; parses embedded JSON from HTML script tags; supports one-way/round-trip, direct-only filter, returns all airlines including Starlux
+  - Added `~/bridge/flights_pb2.py` + `~/bridge/flights.proto` — Protobuf definitions for Google Flights query encoding (Airport, FlightData, Info, Seat, Trip, Passenger)
+  - Modified `~/bridge/bridge.py` — search_flights task now calls `google_flights.search_flights()` directly instead of Claude AI (Kiwi MCP or web search); zero API cost, ~1s response time vs ~50-90s before; 36 airlines coverage vs ~10 before
+  - Modified `app/build.gradle` — versionCode 87, versionName 3.65
+
 ## v3.64 (2026-03-11)
 - **Enhancement: Flight Watch — Direct Flight Filter**
   - Modified `FlightWatchDbHelper.java` — DB version 3: added `direct_only` (INTEGER) column; `insert()` accepts directOnly parameter; `onUpgrade()` handles v2→v3 migration; `FlightWatch` inner class has new `directOnly` field
