@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.72 (2026-03-11)
+- **Fix: Travel Planner — Increase generate_itinerary timeout to prevent SocketTimeout**
+  - Modified `BridgeClient.java` — Increased generateItinerary HTTP read timeout from 310s to 500s
+  - Modified `~/bridge/bridge.py` — Increased generate_itinerary Claude CLI timeout from 300s to 480s
+  - Modified `app/build.gradle` — versionCode 93→94, versionName 3.71→3.72
+
 ## v3.71 (2026-03-11)
 - **Enhancement: Travel Planner — Add missing optimizeRoute method**
   - Modified `BridgeClient.java` — Added `optimizeRoute(String spotsJson, String transportMode, TravelCallback)` method to complete the 4-method travel API (bridge.py already had the route handler)
