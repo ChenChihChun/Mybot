@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.68 (2026-03-11)
+- **Enhancement: Flight Watch — Price change notifications**
+  - Modified `FlightCheckReceiver.java` — Notify on any price change: 📉 降價 (with %) when cheaper than last check, 📈 漲價 (with %) when more expensive; always updates last price for next comparison; target price notification still works independently
+  - Modified `app/build.gradle` — versionCode 90, versionName 3.68
+
 ## v3.67 (2026-03-11)
 - **Enhancement: Flight Watch — Show best combo on watch cards**
   - Modified `FlightActivity.java` — Watch cards now display best flight combo from last search: round-trip shows "🏆 最低組合" with outbound+inbound cheapest airlines/times/prices; one-way shows "🏆 最低" with cheapest airline/time/stops; displayed in ACCENT_GREEN below price row
