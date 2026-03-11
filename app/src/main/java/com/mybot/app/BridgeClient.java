@@ -677,6 +677,116 @@ public class BridgeClient {
         }
     }
 
+    // ── Travel Planning ──
+
+    public interface TravelCallback {
+        void onResult(String responseJson, boolean offline, String error);
+    }
+
+    public static void generateItinerary(String destination, int days, int people,
+                                          String preferencesJson, String transportMode,
+                                          String startDate, double budget,
+                                          String accommodationType, TravelCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Travel", "generateItinerary: dest=" + destination + " days=" + days
+                    + " people=" + people + " transport=" + transportMode);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "generate_itinerary");
+                body.put("destination", destination);
+                body.put("days", days);
+                body.put("people", people);
+                body.put("preferences", preferencesJson);
+                body.put("transport_mode", transportMode);
+                body.put("start_date", startDate);
+                body.put("budget", budget);
+                body.put("accommodation_type", accommodationType);
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 310000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    AppLog.i("Travel", "行程生成成功");
+                    mainHandler.post(() -> callback.onResult(response, false, null));
+                } else {
+                    lastError = error;
+                    AppLog.e("Travel", "行程生成失敗: " + error);
+                    mainHandler.post(() -> callback.onResult(null, true, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                AppLog.e("Travel", "行程生成異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
+    public static void refineItinerary(String currentItineraryJson, String instruction,
+                                        TravelCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Travel", "refineItinerary: instruction=" + (instruction.length() > 50
+                    ? instruction.substring(0, 50) + "..." : instruction));
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "refine_itinerary");
+                body.put("current_itinerary", currentItineraryJson);
+                body.put("instruction", instruction);
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 200000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    AppLog.i("Travel", "行程調整成功");
+                    mainHandler.post(() -> callback.onResult(response, false, null));
+                } else {
+                    lastError = error;
+                    AppLog.e("Travel", "行程調整失敗: " + error);
+                    mainHandler.post(() -> callback.onResult(null, true, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                AppLog.e("Travel", "行程調整異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
+    public static void searchAttractions(String region, String type, String preferences,
+                                          TravelCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Travel", "searchAttractions: region=" + region + " type=" + type);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "search_attractions");
+                body.put("region", region);
+                body.put("type", type);
+                body.put("preferences", preferences);
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 130000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    AppLog.i("Travel", "景點搜尋成功");
+                    mainHandler.post(() -> callback.onResult(response, false, null));
+                } else {
+                    lastError = error;
+                    AppLog.e("Travel", "景點搜尋失敗: " + error);
+                    mainHandler.post(() -> callback.onResult(null, true, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                AppLog.e("Travel", "景點搜尋異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
     private static String[] postJsonWithError(String urlStr, String jsonBody) {
         return postJsonWithError(urlStr, jsonBody, 30000);
     }

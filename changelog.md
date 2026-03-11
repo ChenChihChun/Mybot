@@ -1,5 +1,20 @@
 # Changelog
 
+## v3.70 (2026-03-11)
+- **New Feature: Taiwan Travel Planner (旅遊規劃大師)**
+  - Added `TravelActivity.java` — Main trip list with status sections (planning/ongoing/completed), long-press management (start/complete/delete trips)
+  - Added `CreateTripActivity.java` — Trip creation form with destination input, region quick-select chips, date picker, transport mode toggle, preference multi-select, accommodation type, AI itinerary generation
+  - Added `TravelPlanActivity.java` — Full itinerary viewer with daily timeline, spot cards with Google Maps navigation, transport segments, meal recommendations, share and AI refine
+  - Added `TravelBudgetActivity.java` — Budget management with estimated vs actual comparison, category breakdown, expense recording, over-budget warnings
+  - Added `TravelAchievementActivity.java` — Achievement gallery with 17 achievements, stats summary, progress tracking
+  - Added `TravelAchievementManager.java` — Achievement check logic with region mapping, auto-unlock on trip completion
+  - Added `TravelDbHelper.java` — SQLite database (mybot_travel.db) with 4 tables: trips, trip_expenses, achievements, travel_stats
+  - Modified `BridgeClient.java` — Added `generateItinerary()`, `refineItinerary()`, `searchAttractions()` with TravelCallback interface
+  - Modified `MainActivity.java` — Added travel planning entry button in feature grid
+  - Modified `AndroidManifest.xml` — Registered 5 new activities
+  - Modified `~/bridge/bridge.py` — Added 4 new task types with detailed prompt engineering for Taiwan travel
+  - Modified `app/build.gradle` — versionCode 91→92, versionName 3.69→3.70
+
 ## v3.69 (2026-03-11)
 - **Enhancement: Expense — Category color differentiation**
   - Modified `UIHelper.java` — Added shared `CATEGORY_COLORS` array and `getCategoryColor(String)` method that maps category names to consistent colors via hashCode

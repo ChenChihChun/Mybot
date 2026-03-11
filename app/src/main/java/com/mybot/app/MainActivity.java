@@ -222,9 +222,21 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, YouTubeActivity.class)), 0);
         addCompact(fRow4, "\uD83D\uDCDA", "知識庫", UIHelper.ACCENT_BLUE,
                 v -> startActivity(new Intent(this, KnowledgeActivity.class)), g);
-        addCompact(fRow4, "✈", "航班監控", UIHelper.ACCENT_ORANGE,
+        addCompact(fRow4, "\u2708", "\u822A\u73ED\u76E3\u63A7", UIHelper.ACCENT_ORANGE,
                 v -> startActivity(new Intent(this, FlightActivity.class)), g);
         content.addView(fRow4);
+
+        // Row 5: 旅遊規劃
+        LinearLayout fRow5 = gridRow3();
+        addCompact(fRow5, "\uD83D\uDDFA\uFE0F", "\u65C5\u904A\u898F\u5283", UIHelper.ACCENT_GREEN,
+                v -> startActivity(new Intent(this, TravelActivity.class)), 0);
+        View ph4 = new View(this);
+        ph4.setVisibility(View.INVISIBLE);
+        fRow5.addView(ph4, gridCellLp(g));
+        View ph5 = new View(this);
+        ph5.setVisibility(View.INVISIBLE);
+        fRow5.addView(ph5, gridCellLp(g));
+        content.addView(fRow5);
 
         // ── Tools (3 columns) ──
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));
