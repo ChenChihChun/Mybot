@@ -755,6 +755,37 @@ public class BridgeClient {
         });
     }
 
+    public static void optimizeRoute(String spotsJson, String transportMode,
+                                      TravelCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Travel", "optimizeRoute: transportMode=" + transportMode);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "optimize_route");
+                body.put("spots", spotsJson);
+                body.put("transport_mode", transportMode);
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 200000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    AppLog.i("Travel", "路線優化成功");
+                    mainHandler.post(() -> callback.onResult(response, false, null));
+                } else {
+                    lastError = error;
+                    AppLog.e("Travel", "路線優化失敗: " + error);
+                    mainHandler.post(() -> callback.onResult(null, true, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                lastError = err;
+                AppLog.e("Travel", "路線優化異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, true, err));
+            }
+        });
+    }
+
     public static void searchAttractions(String region, String type, String preferences,
                                           TravelCallback callback) {
         executor.execute(() -> {

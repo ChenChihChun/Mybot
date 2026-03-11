@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.71 (2026-03-11)
+- **Enhancement: Travel Planner — Add missing optimizeRoute method**
+  - Modified `BridgeClient.java` — Added `optimizeRoute(String spotsJson, String transportMode, TravelCallback)` method to complete the 4-method travel API (bridge.py already had the route handler)
+  - Modified `app/build.gradle` — versionCode 92→93, versionName 3.70→3.71
+
 ## v3.70 (2026-03-11)
 - **New Feature: Taiwan Travel Planner (旅遊規劃大師)**
   - Added `TravelActivity.java` — Main trip list with status sections (planning/ongoing/completed), long-press management (start/complete/delete trips)
