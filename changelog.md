@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.73 (2026-03-11)
+- **Enhancement: Travel Planner — Live progress timer & increased timeout**
+  - Modified `CreateTripActivity.java` — Added real-time elapsed timer with stage indicators (🔍搜尋景點 → 🚌查詢交通 → 🍽搜尋美食 → 📝組合行程 → 💰計算預算 → ✅即將完成), updates every second showing elapsed time
+  - Modified `BridgeClient.java` — Increased generateItinerary HTTP read timeout from 500s to 630s
+  - Modified `~/bridge/bridge.py` — Increased generate_itinerary Claude CLI timeout from 480s to 600s (10 min)
+  - Modified `app/build.gradle` — versionCode 94→95, versionName 3.72→3.73
+
 ## v3.72 (2026-03-11)
 - **Fix: Travel Planner — Increase generate_itinerary timeout to prevent SocketTimeout**
   - Modified `BridgeClient.java` — Increased generateItinerary HTTP read timeout from 310s to 500s

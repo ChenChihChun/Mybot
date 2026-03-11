@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -38,8 +40,12 @@ public class CreateTripActivity extends AppCompatActivity {
     private String accommodationType = "\u98EF\u5E97";
     private final List<String> selectedPrefs = new ArrayList<>();
     private ProgressBar loading;
+    private TextView loadingText;
     private Button generateBtn;
     private TravelDbHelper db;
+    private Handler timerHandler;
+    private long generateStartTime;
+    private boolean generating = false;
 
     // Region quick buttons
     private static final String[] REGIONS = {
@@ -276,11 +282,11 @@ public class CreateTripActivity extends AppCompatActivity {
         loading.setLayoutParams(loadLp);
         form.addView(loading);
 
-        // Loading text
-        TextView loadingText = new TextView(this);
-        loadingText.setText("AI \u6B63\u5728\u898F\u5283\u884C\u7A0B\uFF0C\u9700\u8981\u7D04 2-5 \u5206\u9418...");
-        loadingText.setTextSize(13);
-        loadingText.setTextColor(UIHelper.TEXT_HINT);
+        // Loading text with timer
+        loadingText = new TextView(this);
+        loadingText.setText("\uD83E\uDD16 AI \u6B63\u5728\u898F\u5283\u884C\u7A0B...");
+        loadingText.setTextSize(14);
+        loadingText.setTextColor(UIHelper.ACCENT_BLUE);
         loadingText.setGravity(Gravity.CENTER);
         loadingText.setVisibility(View.GONE);
         form.addView(loadingText);
@@ -297,6 +303,7 @@ public class CreateTripActivity extends AppCompatActivity {
                 generateBtn.setText("\u751F\u6210\u4E2D...");
                 loading.setVisibility(View.VISIBLE);
                 loadingText.setVisibility(View.VISIBLE);
+                startProgressTimer();
                 doGenerate();
             }
         });
@@ -344,10 +351,11 @@ public class CreateTripActivity extends AppCompatActivity {
 
         BridgeClient.generateItinerary(dest, days, people, prefsStr, transportMode,
                 startDate, budget, accommodationType, (responseJson, offline, error) -> {
+                    stopProgressTimer();
                     generateBtn.setEnabled(true);
                     generateBtn.setText("\uD83E\uDD16 AI \u751F\u6210\u884C\u7A0B");
-                    findViewById(android.R.id.content).findViewWithTag("loading");
                     loading.setVisibility(View.GONE);
+                    loadingText.setVisibility(View.GONE);
 
                     if (error != null) {
                         AppLog.e("Travel", "\u884C\u7A0B\u751F\u6210\u5931\u6557: " + error);
@@ -413,6 +421,53 @@ public class CreateTripActivity extends AppCompatActivity {
                         Toast.makeText(this, "\u884C\u7A0B\u89E3\u6790\u5931\u6557\uFF0C\u8ACB\u91CD\u8A66", Toast.LENGTH_LONG).show();
                     }
                 });
+    }
+
+    private final Runnable timerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!generating) return;
+            long elapsed = (System.currentTimeMillis() - generateStartTime) / 1000;
+            long min = elapsed / 60;
+            long sec = elapsed % 60;
+
+            String[] stages = {
+                "\uD83D\uDD0D \u6B63\u5728\u641C\u5C0B\u666F\u9EDE\u8CC7\u8A0A...",      // 🔍 正在搜尋景點資訊...
+                "\uD83D\uDE8C \u6B63\u5728\u67E5\u8A62\u4EA4\u901A\u8DEF\u7DDA...",      // 🚌 正在查詢交通路線...
+                "\uD83C\uDF74 \u6B63\u5728\u641C\u5C0B\u7F8E\u98DF\u63A8\u85A6...",      // 🍽 正在搜尋美食推薦...
+                "\uD83D\uDCDD \u6B63\u5728\u7D44\u5408\u884C\u7A0B\u898F\u5283...",      // 📝 正在組合行程規劃...
+                "\uD83D\uDCB0 \u6B63\u5728\u8A08\u7B97\u9810\u7B97\u5206\u914D...",      // 💰 正在計算預算分配...
+                "\u2705 \u5373\u5C07\u5B8C\u6210\uFF0C\u8ACB\u7A0D\u5019..."              // ✅ 即將完成，請稍候...
+            };
+
+            int stageIdx = Math.min((int)(elapsed / 50), stages.length - 1);
+            String timeStr = min > 0
+                ? String.format(Locale.US, "%d\u5206%02d\u79D2", min, sec)
+                : sec + "\u79D2";
+
+            loadingText.setText(stages[stageIdx] + "\n\u23F1 \u5DF2\u7D93\u904E " + timeStr);
+            timerHandler.postDelayed(this, 1000);
+        }
+    };
+
+    private void startProgressTimer() {
+        generating = true;
+        generateStartTime = System.currentTimeMillis();
+        timerHandler = new Handler(Looper.getMainLooper());
+        timerHandler.post(timerRunnable);
+    }
+
+    private void stopProgressTimer() {
+        generating = false;
+        if (timerHandler != null) {
+            timerHandler.removeCallbacks(timerRunnable);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopProgressTimer();
     }
 
     private void showDatePicker() {

@@ -702,7 +702,7 @@ public class BridgeClient {
                 body.put("budget", budget);
                 body.put("accommodation_type", accommodationType);
 
-                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 500000);
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 630000);
                 String response = result[0];
                 String error = result[1];
 
