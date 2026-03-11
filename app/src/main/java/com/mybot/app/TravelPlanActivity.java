@@ -542,14 +542,78 @@ public class TravelPlanActivity extends AppCompatActivity {
     }
 
     private void showRefineDialog() {
+        LinearLayout dialogLayout = new LinearLayout(this);
+        dialogLayout.setOrientation(LinearLayout.VERTICAL);
+        int dp = UIHelper.dp(this, 16);
+        dialogLayout.setPadding(dp, dp, dp, UIHelper.dp(this, 8));
+
+        // Prompt suggestion chips
+        TextView suggestLabel = new TextView(this);
+        suggestLabel.setText("\uD83D\uDCA1 \u5FEB\u901F\u9078\u64C7");
+        suggestLabel.setTextSize(13);
+        suggestLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        suggestLabel.setPadding(0, 0, 0, UIHelper.dp(this, 8));
+        dialogLayout.addView(suggestLabel);
+
         EditText input = new EditText(this);
-        input.setHint("\u4F8B\u5982\uFF1A\u7B2C\u4E8C\u5929\u6539\u53BB\u4E5D\u4EFD\u3001\u52A0\u4E00\u500B\u6EAB\u6CC9\u666F\u9EDE...");
+        input.setHint("\u8F38\u5165\u4F60\u60F3\u8ABF\u6574\u7684\u5167\u5BB9...");
         input.setTextSize(14);
         input.setTextColor(UIHelper.TEXT_PRIMARY);
+        input.setHintTextColor(UIHelper.TEXT_HINT);
+        input.setMinLines(3);
+
+        String[] suggestions = {
+            "\u6211\u60F3\u591A\u52A0\u4E00\u500B\u666F\u9EDE",
+            "\u7B2C_\u5929\u884C\u7A0B\u592A\u8D95\uFF0C\u8ACB\u7CBE\u7C21",
+            "\u628A_\u666F\u9EDE\u63DB\u6210___",
+            "\u591A\u5B89\u6392\u4E00\u4E9B\u7F8E\u98DF\u9910\u5EF3",
+            "\u589E\u52A0\u89AA\u5B50\u53CB\u5584\u7684\u666F\u9EDE",
+            "\u4EA4\u901A\u6539\u7528\u81EA\u99D5",
+            "\u8ACB\u63A7\u5236\u6BCF\u65E5\u9810\u7B97\u5728___\u5143\u5167",
+            "\u52A0\u5165\u591C\u5E02\u884C\u7A0B",
+        };
+
+        android.widget.HorizontalScrollView chipScroll = new android.widget.HorizontalScrollView(this);
+        chipScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout chipRow = new LinearLayout(this);
+        chipRow.setOrientation(LinearLayout.HORIZONTAL);
+
+        for (String suggestion : suggestions) {
+            TextView chip = new TextView(this);
+            chip.setText(suggestion);
+            chip.setTextSize(12);
+            chip.setTextColor(UIHelper.ACCENT_BLUE);
+            chip.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_BLUE, 16, 1, this));
+            int cp = UIHelper.dp(this, 10);
+            chip.setPadding(cp, UIHelper.dp(this, 6), cp, UIHelper.dp(this, 6));
+            LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+            chipLp.setMargins(0, 0, UIHelper.dp(this, 6), 0);
+            chip.setLayoutParams(chipLp);
+            chip.setOnClickListener(v -> {
+                String current = input.getText().toString();
+                if (current.isEmpty()) {
+                    input.setText(suggestion);
+                } else {
+                    input.setText(current + "\uFF0C" + suggestion);
+                }
+                input.setSelection(input.getText().length());
+            });
+            chipRow.addView(chip);
+        }
+        chipScroll.addView(chipRow);
+        LinearLayout.LayoutParams scrollLp = new LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        scrollLp.setMargins(0, 0, 0, UIHelper.dp(this, 12));
+        chipScroll.setLayoutParams(scrollLp);
+        dialogLayout.addView(chipScroll);
+
+        // Input field
+        dialogLayout.addView(input);
 
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog)
                 .setTitle("\uD83E\uDD16 AI \u8ABF\u6574\u884C\u7A0B")
-                .setView(input)
+                .setView(dialogLayout)
                 .setPositiveButton("\u8ABF\u6574", (d, w) -> {
                     String instruction = input.getText().toString().trim();
                     if (instruction.isEmpty()) return;

@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.74 (2026-03-11)
+- **Enhancement: Travel Planner — AI refine dialog with prompt suggestions**
+  - Modified `TravelPlanActivity.java` — Redesigned AI refine dialog: added scrollable quick-select prompt chips (多加景點/精簡行程/換景點/多安排美食/親子友善/改自駕/控制預算/加入夜市), tapping chips appends to input, multi-line input field for custom instructions
+  - Modified `app/build.gradle` — versionCode 95→96, versionName 3.73→3.74
+
 ## v3.73 (2026-03-11)
 - **Enhancement: Travel Planner — Live progress timer & increased timeout**
   - Modified `CreateTripActivity.java` — Added real-time elapsed timer with stage indicators (🔍搜尋景點 → 🚌查詢交通 → 🍽搜尋美食 → 📝組合行程 → 💰計算預算 → ✅即將完成), updates every second showing elapsed time
