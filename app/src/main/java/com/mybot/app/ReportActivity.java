@@ -27,14 +27,6 @@ public class ReportActivity extends AppCompatActivity {
     private TextView monthTab, quarterTab, yearTab;
     private TextView periodLabel;
 
-    private final int[] CATEGORY_COLORS = {
-            Color.parseColor("#EF5350"), Color.parseColor("#4FC3F7"),
-            Color.parseColor("#66BB6A"), Color.parseColor("#FFA726"),
-            Color.parseColor("#AB47BC"), Color.parseColor("#FF7043"),
-            Color.parseColor("#26C6DA"), Color.parseColor("#D4E157"),
-            Color.parseColor("#EC407A"), Color.parseColor("#78909C")
-    };
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -286,7 +278,7 @@ public class ReportActivity extends AppCompatActivity {
 
             for (int i = 0; i < categories.size(); i++) {
                 ExpenseDbHelper.CategorySum cs = categories.get(i);
-                int barColor = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+                int barColor = UIHelper.getCategoryColor(cs.category);
                 double pct = totalAmount > 0 ? cs.total / totalAmount * 100 : 0;
 
                 // Category row

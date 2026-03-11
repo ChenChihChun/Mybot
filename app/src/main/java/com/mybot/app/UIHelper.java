@@ -389,4 +389,20 @@ public class UIHelper {
         btn.setMinWidth(0);
         return btn;
     }
+
+    // Category color palette (shared across Expense list & Report)
+    public static final int[] CATEGORY_COLORS = {
+            Color.parseColor("#EF5350"), Color.parseColor("#4FC3F7"),
+            Color.parseColor("#66BB6A"), Color.parseColor("#FFA726"),
+            Color.parseColor("#AB47BC"), Color.parseColor("#FF7043"),
+            Color.parseColor("#26C6DA"), Color.parseColor("#D4E157"),
+            Color.parseColor("#EC407A"), Color.parseColor("#78909C")
+    };
+
+    /** Returns a consistent color for a given category string. */
+    public static int getCategoryColor(String category) {
+        if (category == null || category.isEmpty()) return ACCENT_PURPLE;
+        int hash = Math.abs(category.hashCode());
+        return CATEGORY_COLORS[hash % CATEGORY_COLORS.length];
+    }
 }

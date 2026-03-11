@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.69 (2026-03-11)
+- **Enhancement: Expense — Category color differentiation**
+  - Modified `UIHelper.java` — Added shared `CATEGORY_COLORS` array and `getCategoryColor(String)` method that maps category names to consistent colors via hashCode
+  - Modified `ExpenseActivity.java` — Category badges now use per-category colors instead of fixed purple
+  - Modified `ReportActivity.java` — Replaced local `CATEGORY_COLORS` array with shared `UIHelper.getCategoryColor()` for consistent colors between list and report views
+  - Modified `app/build.gradle` — versionCode 91, versionName 3.69
+
 ## v3.68 (2026-03-11)
 - **Enhancement: Flight Watch — Price change notifications**
   - Modified `FlightCheckReceiver.java` — Notify on any price change: 📉 降價 (with %) when cheaper than last check, 📈 漲價 (with %) when more expensive; always updates last price for next comparison; target price notification still works independently

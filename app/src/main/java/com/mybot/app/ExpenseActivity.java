@@ -280,7 +280,7 @@ public class ExpenseActivity extends AppCompatActivity {
             bottomRow.addView(dateView);
 
             if (e.category != null && !e.category.isEmpty()) {
-                TextView badge = UIHelper.statusBadge(ExpenseActivity.this, e.category, UIHelper.ACCENT_PURPLE);
+                TextView badge = UIHelper.statusBadge(ExpenseActivity.this, e.category, UIHelper.getCategoryColor(e.category));
                 bottomRow.addView(badge);
             }
 
