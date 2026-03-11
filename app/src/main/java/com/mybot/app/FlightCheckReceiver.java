@@ -162,6 +162,7 @@ public class FlightCheckReceiver extends BroadcastReceiver {
                 shouldNotify = true;
                 long rise = Math.round((cheapestPrice / watch.lastLowestPrice - 1) * 100);
                 reason = "📈 漲價 " + rise + "% (前次 $" + String.format("%.0f", watch.lastLowestPrice) + ")";
+            }
 
             if (shouldNotify) {
                 sendFlightNotification(context, watch, cheapestPrice, reason, result);
