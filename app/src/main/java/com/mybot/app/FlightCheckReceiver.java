@@ -107,6 +107,25 @@ public class FlightCheckReceiver extends BroadcastReceiver {
             }
 
             double cheapestPrice = result.optDouble("cheapest_price", 0);
+
+            // For round-trip: calculate outbound min + inbound min
+            if (watch.roundTrip) {
+                JSONArray flights = result.optJSONArray("flights");
+                if (flights != null && flights.length() > 0) {
+                    double outMin = Double.MAX_VALUE, inMin = Double.MAX_VALUE;
+                    for (int i = 0; i < flights.length(); i++) {
+                        JSONObject f = flights.getJSONObject(i);
+                        double p = f.optDouble("price", 0);
+                        String dir = f.optString("direction", "");
+                        if ("outbound".equals(dir) && p > 0 && p < outMin) outMin = p;
+                        else if ("inbound".equals(dir) && p > 0 && p < inMin) inMin = p;
+                    }
+                    if (outMin < Double.MAX_VALUE && inMin < Double.MAX_VALUE) {
+                        cheapestPrice = outMin + inMin;
+                    }
+                }
+            }
+
             String resultJson = result.toString();
 
             long now = System.currentTimeMillis();

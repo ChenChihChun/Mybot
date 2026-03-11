@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.66 (2026-03-11)
+- **Fix: Flight Watch — Round-trip search and direction labels**
+  - Modified `~/bridge/google_flights.py` — Round-trip now searches outbound and return as separate one-way queries then merges; fixes issue where Google Flights embedded HTML only returns 1 "best combo" for round-trip; each flight tagged with `direction` field ("outbound"/"inbound"); refactored into `_fetch_oneway_flights()` helper
+  - Modified `FlightActivity.java` — Result dialog shows 【去程】/【回程】 labels; manual search calculates round-trip cheapest as outbound min + inbound min
+  - Modified `FlightCheckReceiver.java` — Round-trip notification uses outbound min + inbound min for cheapest price comparison
+  - Modified `app/build.gradle` — versionCode 88, versionName 3.66
+
 ## v3.65 (2026-03-11)
 - **Enhancement: Flight Watch — Switch to Google Flights (zero cost, faster, more airlines)**
   - Added `~/bridge/google_flights.py` — Standalone Google Flights scraper using reverse-engineered protobuf TFS parameter + requests; parses embedded JSON from HTML script tags; supports one-way/round-trip, direct-only filter, returns all airlines including Starlux

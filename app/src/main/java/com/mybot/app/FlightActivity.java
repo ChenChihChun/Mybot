@@ -424,17 +424,35 @@ public class FlightActivity extends AppCompatActivity {
                         }
 
                         double cheapest = result.optDouble("cheapest_price", 0);
+
+                        // For round-trip: cheapest = outbound min + inbound min
+                        JSONArray flights = result.optJSONArray("flights");
+                        if (watch.roundTrip && flights != null && flights.length() > 0) {
+                            double outMin = Double.MAX_VALUE, inMin = Double.MAX_VALUE;
+                            for (int fi = 0; fi < flights.length(); fi++) {
+                                JSONObject ff = flights.getJSONObject(fi);
+                                double p = ff.optDouble("price", 0);
+                                String dir = ff.optString("direction", "");
+                                if ("outbound".equals(dir) && p > 0 && p < outMin) outMin = p;
+                                else if ("inbound".equals(dir) && p > 0 && p < inMin) inMin = p;
+                            }
+                            if (outMin < Double.MAX_VALUE && inMin < Double.MAX_VALUE) {
+                                cheapest = outMin + inMin;
+                            }
+                        }
+
                         db.updateCheckResult(watch.id, System.currentTimeMillis(),
                                 cheapest, result.toString());
 
-                        AppLog.i("Flight", "手動搜尋完成: 最低價=" + cheapest);
+                        AppLog.i("Flight", "手動搜尋完成: 最低價=" + cheapest
+                                + (watch.roundTrip ? " (來回總價)" : ""));
 
                         int flightCount = 0;
-                        JSONArray flights = result.optJSONArray("flights");
                         if (flights != null) flightCount = flights.length();
 
+                        String priceLabel = watch.roundTrip ? "來回最低" : "最低價";
                         Toast.makeText(this,
-                                String.format("找到 %d 個航班，最低價 $%.0f", flightCount, cheapest),
+                                String.format("找到 %d 個航班，%s $%.0f", flightCount, priceLabel, cheapest),
                                 Toast.LENGTH_LONG).show();
 
                         refreshList();
@@ -460,7 +478,11 @@ public class FlightActivity extends AppCompatActivity {
                 int limit = Math.min(flights.length(), 10);
                 for (int i = 0; i < limit; i++) {
                     JSONObject f = flights.getJSONObject(i);
-                    sb.append("── 航班 ").append(i + 1).append(" ──\n");
+                    String direction = f.optString("direction", "");
+                    String dirLabel = "";
+                    if ("outbound".equals(direction)) dirLabel = "【去程】";
+                    else if ("inbound".equals(direction)) dirLabel = "【回程】";
+                    sb.append("── ").append(dirLabel).append("航班 ").append(i + 1).append(" ──\n");
                     sb.append("💰 $").append(String.format("%.0f", f.optDouble("price", 0)));
                     String currency = f.optString("currency", "");
                     if (!currency.isEmpty()) sb.append(" ").append(currency);
