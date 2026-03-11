@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.75 (2026-03-11)
+- **Fix: Travel Planner — AI refine loading overlay & timeout increase**
+  - Modified `TravelPlanActivity.java` — Added full-screen loading overlay with spinner and live elapsed timer during AI refine (📝分析修改需求 → 🔄重新規劃行程 → 💰計算費用與交通 → ✅即將完成), blocks touch input during processing
+  - Modified `BridgeClient.java` — Increased refineItinerary HTTP read timeout from 200s to 400s
+  - Modified `~/bridge/bridge.py` — Increased refine_itinerary Claude CLI timeout from 180s to 360s (6 min)
+  - Modified `app/build.gradle` — versionCode 96→97, versionName 3.74→3.75
+
 ## v3.74 (2026-03-11)
 - **Enhancement: Travel Planner — AI refine dialog with prompt suggestions**
   - Modified `TravelPlanActivity.java` — Redesigned AI refine dialog: added scrollable quick-select prompt chips (多加景點/精簡行程/換景點/多安排美食/親子友善/改自駕/控制預算/加入夜市), tapping chips appends to input, multi-line input field for custom instructions

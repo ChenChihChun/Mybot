@@ -734,7 +734,7 @@ public class BridgeClient {
                 body.put("current_itinerary", currentItineraryJson);
                 body.put("instruction", instruction);
 
-                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 200000);
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 400000);
                 String response = result[0];
                 String error = result[1];
 

@@ -7,6 +7,8 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -32,6 +34,11 @@ public class TravelPlanActivity extends AppCompatActivity {
     private String itineraryJson;
     private String tripName;
     private String destination;
+    private LinearLayout refineOverlay;
+    private TextView refineStatusTv;
+    private Handler refineTimerHandler;
+    private long refineStartTime;
+    private boolean refining = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -126,8 +133,34 @@ public class TravelPlanActivity extends AppCompatActivity {
         bottomBar.addView(refineBtn, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         bottomBar.addView(mapBtn, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
+        // Refine loading overlay
+        refineOverlay = new LinearLayout(this);
+        refineOverlay.setOrientation(LinearLayout.VERTICAL);
+        refineOverlay.setGravity(Gravity.CENTER);
+        refineOverlay.setBackgroundColor(0xDD0F1923);
+        refineOverlay.setVisibility(View.GONE);
+        refineOverlay.setClickable(true); // block touches
+
+        ProgressBar refineSpinner = new ProgressBar(this, null, android.R.attr.progressBarStyle);
+        refineOverlay.addView(refineSpinner);
+
+        refineStatusTv = new TextView(this);
+        refineStatusTv.setText("\uD83E\uDD16 AI \u6B63\u5728\u8ABF\u6574\u884C\u7A0B...");
+        refineStatusTv.setTextSize(16);
+        refineStatusTv.setTextColor(UIHelper.ACCENT_BLUE);
+        refineStatusTv.setGravity(Gravity.CENTER);
+        refineStatusTv.setPadding(0, UIHelper.dp(this, 16), 0, 0);
+        refineOverlay.addView(refineStatusTv);
+
+        // Use FrameLayout to stack overlay on content
+        android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
+        frame.addView(scrollView, new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        frame.addView(refineOverlay, new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
         root.addView(topBar);
-        root.addView(scrollView, new LinearLayout.LayoutParams(
+        root.addView(frame, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         root.addView(bottomBar);
 
@@ -618,8 +651,9 @@ public class TravelPlanActivity extends AppCompatActivity {
                     String instruction = input.getText().toString().trim();
                     if (instruction.isEmpty()) return;
 
-                    Toast.makeText(this, "AI \u6B63\u5728\u8ABF\u6574\u884C\u7A0B...", Toast.LENGTH_LONG).show();
+                    showRefineLoading();
                     BridgeClient.refineItinerary(itineraryJson, instruction, (responseJson, offline, error) -> {
+                        hideRefineLoading();
                         if (error != null) {
                             Toast.makeText(this, "\u8ABF\u6574\u5931\u6557: " + error, Toast.LENGTH_LONG).show();
                             return;
@@ -651,6 +685,45 @@ public class TravelPlanActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("\u53D6\u6D88", null)
                 .show();
+    }
+
+    private final Runnable refineTimerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!refining) return;
+            long elapsed = (System.currentTimeMillis() - refineStartTime) / 1000;
+            long min = elapsed / 60;
+            long sec = elapsed % 60;
+            String timeStr = min > 0
+                ? String.format(Locale.US, "%d\u5206%02d\u79D2", min, sec)
+                : sec + "\u79D2";
+            String stage = elapsed < 30 ? "\uD83D\uDCDD \u6B63\u5728\u5206\u6790\u4FEE\u6539\u9700\u6C42..."
+                : elapsed < 90 ? "\uD83D\uDD04 \u6B63\u5728\u91CD\u65B0\u898F\u5283\u884C\u7A0B..."
+                : elapsed < 180 ? "\uD83D\uDCB0 \u6B63\u5728\u8A08\u7B97\u8CBB\u7528\u8207\u4EA4\u901A..."
+                : "\u2705 \u5373\u5C07\u5B8C\u6210\uFF0C\u8ACB\u7A0D\u5019...";
+            refineStatusTv.setText(stage + "\n\u23F1 \u5DF2\u7D93\u904E " + timeStr);
+            refineTimerHandler.postDelayed(this, 1000);
+        }
+    };
+
+    private void showRefineLoading() {
+        refining = true;
+        refineStartTime = System.currentTimeMillis();
+        refineOverlay.setVisibility(View.VISIBLE);
+        refineTimerHandler = new Handler(Looper.getMainLooper());
+        refineTimerHandler.post(refineTimerRunnable);
+    }
+
+    private void hideRefineLoading() {
+        refining = false;
+        if (refineTimerHandler != null) refineTimerHandler.removeCallbacks(refineTimerRunnable);
+        refineOverlay.setVisibility(View.GONE);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (refineTimerHandler != null) refineTimerHandler.removeCallbacks(refineTimerRunnable);
     }
 
     private void openFullRoute() {
