@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.76 (2026-03-12)
+- **Fix: Bridge — AI Calendar Event Parse prompt missing user text**
+  - Modified `bridge.py` — Added dedicated `parse_calendar_event` handler in `build_prompt()` that includes user input text and today's date in the prompt. Previously fell through to generic handler that only sent instruction template without actual content.
+- **Enhancement: Calendar — Auto-scroll to today, past days grayscale, per-calendar colors**
+  - Modified `CalendarActivity.java` — Auto-scroll to today's date on initial entry from home page; past day headers and event cards rendered in grayscale with 0.6 alpha; each calendar gets a unique color from a 10-color palette displayed as left color bar on event cards and calendar name label; today's date header highlighted with "← 今天" marker
+  - Modified `app/build.gradle` — versionCode 98, versionName 3.76
+
 ## v3.75 (2026-03-11)
 - **Fix: Travel Planner — AI refine loading overlay & timeout increase**
   - Modified `TravelPlanActivity.java` — Added full-screen loading overlay with spinner and live elapsed timer during AI refine (📝分析修改需求 → 🔄重新規劃行程 → 💰計算費用與交通 → ✅即將完成), blocks touch input during processing

@@ -22,8 +22,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 public class CalendarActivity extends AppCompatActivity {
@@ -31,10 +33,28 @@ public class CalendarActivity extends AppCompatActivity {
     private static final int RC_SIGN_IN = GoogleAuthHelper.RC_SIGN_IN;
 
     private LinearLayout contentLayout;
+    private ScrollView scrollView;
     private Calendar currentMonth;
     private List<GoogleCalendarClient.CalendarInfo> calendars = new ArrayList<>();
     private List<GoogleCalendarClient.EventInfo> events = new ArrayList<>();
     private TextView cacheStatusText;
+    private View todayAnchorView;
+    private boolean needScrollToToday = true;
+
+    // Color palette for different calendars
+    private static final int[] CALENDAR_COLORS = {
+            Color.parseColor("#4FC3F7"), // Light blue
+            Color.parseColor("#66BB6A"), // Green
+            Color.parseColor("#FFA726"), // Orange
+            Color.parseColor("#AB47BC"), // Purple
+            Color.parseColor("#EF5350"), // Red
+            Color.parseColor("#26C6DA"), // Cyan
+            Color.parseColor("#FFEE58"), // Yellow
+            Color.parseColor("#EC407A"), // Pink
+            Color.parseColor("#8D6E63"), // Brown
+            Color.parseColor("#78909C"), // Blue grey
+    };
+    private final Map<String, Integer> calendarColorMap = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,7 +92,7 @@ public class CalendarActivity extends AppCompatActivity {
         topBar.addView(btnAdd);
 
         // Content
-        ScrollView scrollView = new ScrollView(this);
+        scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
 
         contentLayout = new LinearLayout(this);
@@ -469,8 +489,14 @@ public class CalendarActivity extends AppCompatActivity {
 
         contentLayout.addView(acctCard);
 
+        // Build calendar color map
+        buildCalendarColorMap();
+
         // Events list
         contentLayout.addView(UIHelper.sectionHeader(this, "EVENTS"));
+
+        todayAnchorView = null;
+        String todayStr = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
 
         if (events.isEmpty()) {
             LinearLayout emptyCard = UIHelper.card(this);
@@ -487,29 +513,80 @@ public class CalendarActivity extends AppCompatActivity {
                 String dateStr = formatDateHeader(ev.startTime);
                 if (!dateStr.equals(lastDate)) {
                     lastDate = dateStr;
+                    String rawDate = extractDate(ev.startTime);
+                    boolean isPast = rawDate.compareTo(todayStr) < 0;
+                    boolean isToday = rawDate.equals(todayStr);
+
                     TextView dateHeader = new TextView(this);
-                    dateHeader.setText(dateStr);
+                    dateHeader.setText(dateStr + (isToday ? "  ← 今天" : ""));
                     dateHeader.setTextSize(13);
-                    dateHeader.setTextColor(UIHelper.ACCENT_GREEN);
+                    dateHeader.setTextColor(isPast ? UIHelper.TEXT_HINT :
+                            isToday ? UIHelper.ACCENT_BLUE : UIHelper.ACCENT_GREEN);
                     dateHeader.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
                     dateHeader.setPadding(UIHelper.dp(this, 4), UIHelper.dp(this, 12),
                             0, UIHelper.dp(this, 4));
                     contentLayout.addView(dateHeader);
+
+                    if (isToday && todayAnchorView == null) {
+                        todayAnchorView = dateHeader;
+                    }
                 }
-                contentLayout.addView(createEventCard(ev));
+                boolean eventPast = extractDate(ev.startTime).compareTo(todayStr) < 0;
+                contentLayout.addView(createEventCard(ev, eventPast));
             }
+        }
+
+        // Auto-scroll to today
+        if (needScrollToToday && todayAnchorView != null) {
+            needScrollToToday = false;
+            View anchor = todayAnchorView;
+            scrollView.post(() -> scrollView.smoothScrollTo(0, anchor.getTop() - UIHelper.dp(this, 8)));
         }
     }
 
-    private LinearLayout createEventCard(GoogleCalendarClient.EventInfo ev) {
+    private void buildCalendarColorMap() {
+        calendarColorMap.clear();
+        int idx = 0;
+        for (GoogleCalendarClient.CalendarInfo cal : calendars) {
+            calendarColorMap.put(cal.id, CALENDAR_COLORS[idx % CALENDAR_COLORS.length]);
+            idx++;
+        }
+    }
+
+    private String extractDate(String dateTime) {
+        if (dateTime == null) return "";
+        return dateTime.substring(0, Math.min(10, dateTime.length()));
+    }
+
+    private LinearLayout createEventCard(GoogleCalendarClient.EventInfo ev, boolean isPast) {
         LinearLayout card = UIHelper.card(this);
+
+        // Calendar color indicator (left border)
+        int calColor = calendarColorMap.containsKey(ev.calendarId)
+                ? calendarColorMap.get(ev.calendarId) : UIHelper.ACCENT_BLUE;
+        int displayColor = isPast ? dimColor(calColor) : calColor;
+
+        View colorBar = new View(this);
+        colorBar.setBackgroundColor(displayColor);
+        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
+                UIHelper.dp(this, 4), ViewGroup.LayoutParams.MATCH_PARENT);
+        barLp.setMargins(0, 0, UIHelper.dp(this, 12), 0);
+
+        // Wrap card content with a horizontal layout for the color bar
+        LinearLayout innerRow = new LinearLayout(this);
+        innerRow.setOrientation(LinearLayout.HORIZONTAL);
+
+        LinearLayout contentCol = new LinearLayout(this);
+        contentCol.setOrientation(LinearLayout.VERTICAL);
+        contentCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
 
         String timeStr = ev.allDay ? "全天" : formatTime(ev.startTime);
-        TextView timeBadge = UIHelper.statusBadge(this, timeStr, UIHelper.ACCENT_BLUE);
+        int badgeColor = isPast ? UIHelper.TEXT_HINT : displayColor;
+        TextView timeBadge = UIHelper.statusBadge(this, timeStr, badgeColor);
         LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         badgeLp.setMargins(0, 0, UIHelper.dp(this, 10), 0);
@@ -518,42 +595,58 @@ public class CalendarActivity extends AppCompatActivity {
         TextView titleTv = new TextView(this);
         titleTv.setText(ev.summary);
         titleTv.setTextSize(16);
-        titleTv.setTextColor(UIHelper.TEXT_PRIMARY);
+        titleTv.setTextColor(isPast ? UIHelper.TEXT_HINT : UIHelper.TEXT_PRIMARY);
         titleTv.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         titleTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
         titleRow.addView(timeBadge);
         titleRow.addView(titleTv);
-        card.addView(titleRow);
+        contentCol.addView(titleRow);
 
         if (!ev.allDay && ev.endTime != null) {
             TextView duration = new TextView(this);
             duration.setText(formatTime(ev.startTime) + " - " + formatTime(ev.endTime));
             duration.setTextSize(12);
-            duration.setTextColor(UIHelper.TEXT_SECONDARY);
+            duration.setTextColor(isPast ? UIHelper.TEXT_HINT : UIHelper.TEXT_SECONDARY);
             duration.setPadding(0, UIHelper.dp(this, 4), 0, 0);
-            card.addView(duration);
+            contentCol.addView(duration);
         }
 
         if (ev.location != null && !ev.location.isEmpty()) {
             TextView loc = new TextView(this);
             loc.setText("📍 " + ev.location);
             loc.setTextSize(12);
-            loc.setTextColor(UIHelper.TEXT_SECONDARY);
+            loc.setTextColor(isPast ? UIHelper.TEXT_HINT : UIHelper.TEXT_SECONDARY);
             loc.setPadding(0, UIHelper.dp(this, 2), 0, 0);
-            card.addView(loc);
+            contentCol.addView(loc);
         }
 
         if (ev.calendarName != null && !ev.calendarName.isEmpty()) {
             TextView calLabel = new TextView(this);
             calLabel.setText(ev.calendarName);
             calLabel.setTextSize(11);
-            calLabel.setTextColor(UIHelper.TEXT_HINT);
+            calLabel.setTextColor(displayColor);
             calLabel.setPadding(0, UIHelper.dp(this, 4), 0, 0);
-            card.addView(calLabel);
+            contentCol.addView(calLabel);
+        }
+
+        innerRow.addView(colorBar, barLp);
+        innerRow.addView(contentCol);
+        card.addView(innerRow);
+
+        // Dim the entire card for past events
+        if (isPast) {
+            card.setAlpha(0.6f);
         }
 
         return card;
+    }
+
+    private int dimColor(int color) {
+        int r = (Color.red(color) + 128) / 3;
+        int g = (Color.green(color) + 128) / 3;
+        int b = (Color.blue(color) + 128) / 3;
+        return Color.rgb(r, g, b);
     }
 
     private String formatDateHeader(String dateTime) {
