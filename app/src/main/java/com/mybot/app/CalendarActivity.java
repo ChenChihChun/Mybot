@@ -536,11 +536,22 @@ public class CalendarActivity extends AppCompatActivity {
             }
         }
 
-        // Auto-scroll to today
+        // Auto-scroll to today (wait for layout to complete)
         if (needScrollToToday && todayAnchorView != null) {
             needScrollToToday = false;
             View anchor = todayAnchorView;
-            scrollView.post(() -> scrollView.smoothScrollTo(0, anchor.getTop() - UIHelper.dp(this, 8)));
+            anchor.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    anchor.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                    int[] loc = new int[2];
+                    anchor.getLocationInWindow(loc);
+                    int[] scrollLoc = new int[2];
+                    scrollView.getLocationInWindow(scrollLoc);
+                    int offset = loc[1] - scrollLoc[1] + scrollView.getScrollY() - UIHelper.dp(CalendarActivity.this, 8);
+                    scrollView.smoothScrollTo(0, Math.max(0, offset));
+                }
+            });
         }
     }
 
