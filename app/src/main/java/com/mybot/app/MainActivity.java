@@ -31,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView bridgeText;
     private Handler healthHandler;
     private boolean lastOnline = true; // track state change for push notification
+    private LinearLayout dashExpenseCard, dashTodoCard, dashKnowledgeCard, dashFitnessCard;
 
     private final Runnable healthCheckRunnable = new Runnable() {
         @Override
@@ -179,6 +180,12 @@ public class MainActivity extends AppCompatActivity {
         dashRow2.addView(dashFitness, gridCellLp(gap));
         content.addView(dashRow2);
 
+        // Save references for onResume refresh
+        dashExpenseCard = dashExpense;
+        dashTodoCard = dashTodo;
+        dashKnowledgeCard = dashKnowledge;
+        dashFitnessCard = dashFitness;
+
         // Load dashboard data async
         loadDashboardData(dashExpense, dashTodo, dashKnowledge, dashFitness);
 
@@ -319,6 +326,10 @@ public class MainActivity extends AppCompatActivity {
         // Start periodic health check
         healthHandler.removeCallbacks(healthCheckRunnable);
         healthCheckRunnable.run(); // run immediately, then every 30s
+        // Refresh dashboard data (e.g. after adding expense or todo)
+        if (dashExpenseCard != null) {
+            loadDashboardData(dashExpenseCard, dashTodoCard, dashKnowledgeCard, dashFitnessCard);
+        }
     }
 
     @Override
