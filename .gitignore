@@ -11,3 +11,4 @@ local.properties
 /app/build
 google-services.json
 **/google-services.json
+.claude/last_security_audit

@@ -22,27 +22,59 @@ public class SecurePrefs {
     public static final String KEY_TOKEN_EXPIRY = "token_expiry";
 
     private static SharedPreferences instance;
+    private static boolean encryptionAvailable = true;
 
     public static synchronized SharedPreferences get(Context ctx) {
         if (instance != null) return instance;
 
+        // First attempt
+        instance = tryCreateEncrypted(ctx);
+        if (instance != null) {
+            migrateIfNeeded(ctx);
+            return instance;
+        }
+
+        // Second attempt: clear corrupted master key and retry
+        AppLog.w("SecurePrefs", "首次初始化失敗，嘗試清除損壞的 key 後重建...");
+        try {
+            ctx.getApplicationContext().getSharedPreferences(SECURE_PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit().clear().apply();
+        } catch (Exception ignored) {}
+
+        instance = tryCreateEncrypted(ctx);
+        if (instance != null) {
+            AppLog.i("SecurePrefs", "重建加密儲存成功");
+            migrateIfNeeded(ctx);
+            return instance;
+        }
+
+        // Final fallback: plaintext (log as error, mark unavailable)
+        encryptionAvailable = false;
+        AppLog.e("SecurePrefs", "加密儲存不可用，降級為一般模式 — OAuth token 將以明文存儲");
+        instance = ctx.getApplicationContext()
+                .getSharedPreferences(SECURE_PREFS_NAME + "_fallback", Context.MODE_PRIVATE);
+        migrateIfNeeded(ctx);
+        return instance;
+    }
+
+    private static SharedPreferences tryCreateEncrypted(Context ctx) {
         try {
             String masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC);
-            instance = EncryptedSharedPreferences.create(
+            return EncryptedSharedPreferences.create(
                     SECURE_PREFS_NAME,
                     masterKeyAlias,
                     ctx.getApplicationContext(),
                     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             );
-            migrateIfNeeded(ctx);
         } catch (Exception e) {
-            AppLog.e("SecurePrefs", "EncryptedSharedPreferences初始化失敗，使用一般模式: " + e.getMessage());
-            instance = ctx.getApplicationContext()
-                    .getSharedPreferences(SECURE_PREFS_NAME + "_fallback", Context.MODE_PRIVATE);
-            migrateIfNeeded(ctx);
+            AppLog.e("SecurePrefs", "EncryptedSharedPreferences初始化失敗: " + e.getMessage());
+            return null;
         }
-        return instance;
+    }
+
+    public static boolean isEncryptionAvailable() {
+        return encryptionAvailable;
     }
 
     private static void migrateIfNeeded(Context ctx) {

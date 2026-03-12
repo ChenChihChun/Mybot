@@ -199,16 +199,52 @@ public class GoogleAuthHelper {
         }
     }
 
+    /**
+     * Returns a cached token if valid, otherwise refreshes.
+     * 60-second buffer: refresh early to avoid using a token that expires mid-request.
+     */
     public static void getCachedOrFreshToken(Context ctx, TokenCallback callback) {
         SharedPreferences prefs = SecurePrefs.get(ctx);
         String cached = prefs.getString(SecurePrefs.KEY_ACCESS_TOKEN, "");
         long expiry = prefs.getLong(SecurePrefs.KEY_TOKEN_EXPIRY, 0);
 
-        if (!cached.isEmpty() && System.currentTimeMillis() < expiry - 60000) {
+        // Validate: non-empty, looks like a Google token, not expired (with 60s buffer)
+        if (!cached.isEmpty() && expiry > 0
+                && cached.startsWith("ya29.")
+                && System.currentTimeMillis() < expiry - 60000) {
             callback.onResult(cached, null);
             return;
         }
-        getAccessToken(ctx, callback);
+
+        // Clear invalid cached token
+        if (!cached.isEmpty() && (expiry == 0 || !cached.startsWith("ya29."))) {
+            AppLog.w("Auth", "快取 token 無效，清除並重新取得");
+            prefs.edit()
+                    .remove(SecurePrefs.KEY_ACCESS_TOKEN)
+                    .remove(SecurePrefs.KEY_TOKEN_EXPIRY)
+                    .apply();
+        }
+
+        getAccessTokenWithRetry(ctx, callback, 0);
+    }
+
+    private static final int MAX_TOKEN_RETRIES = 2;
+    private static final long[] RETRY_DELAYS_MS = {0, 2000, 5000};
+
+    private static void getAccessTokenWithRetry(Context ctx, TokenCallback callback, int attempt) {
+        getAccessToken(ctx, (token, error) -> {
+            if (token != null) {
+                callback.onResult(token, null);
+            } else if (attempt < MAX_TOKEN_RETRIES) {
+                long delay = RETRY_DELAYS_MS[attempt + 1];
+                AppLog.w("Auth", "Token 取得失敗 (第" + (attempt + 1) + "次)，" + delay + "ms 後重試: " + error);
+                mainHandler.postDelayed(() ->
+                        getAccessTokenWithRetry(ctx, callback, attempt + 1), delay);
+            } else {
+                AppLog.e("Auth", "Token 取得失敗，已重試 " + MAX_TOKEN_RETRIES + " 次: " + error);
+                callback.onResult(null, error);
+            }
+        });
     }
 
     public static void signOut(Context ctx, SignInCallback callback) {

@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.77 (2026-03-12)
+- **Security: SecurePrefs — Improve encrypted storage fallback resilience**
+  - Modified `SecurePrefs.java` — On EncryptedSharedPreferences init failure, now clears corrupted master key and retries before falling back to plaintext. Added `isEncryptionAvailable()` to let callers check encryption status. Fallback is now logged as error instead of silently degrading.
+- **Security: GoogleAuthHelper — Token validation and retry mechanism**
+  - Modified `GoogleAuthHelper.java` — `getCachedOrFreshToken()` now validates token format (`ya29.` prefix) and expiry > 0 before using cache. Invalid cached tokens are cleared explicitly. Added `getAccessTokenWithRetry()` with exponential backoff (0ms → 2s → 5s, max 2 retries) for token exchange failures.
+- **Infra: Project hooks for automated quality checks**
+  - Added `.claude/settings.json` — Project-level Claude Code hooks configuration
+  - Added `.claude/hooks/protect-files.sh` — Blocks modification of SecurePrefs, .env, keystore files
+  - Added `.claude/hooks/block-dangerous-git.sh` — Intercepts dangerous git commands (reset --hard, push --force, etc.)
+  - Added `.claude/hooks/bridge-restart-reminder.sh` — Reminds to restart Bridge when bridge.py is modified
+  - Added `.claude/hooks/applog-check.sh` — Warns when Java files lack AppLog calls
+  - Added `.claude/hooks/security-audit-check.sh` — Triggers OWASP security audit reminder every 10 versionCodes
+  - Modified `app/build.gradle` — versionCode 100, versionName 3.77
+
 ## v3.76 (2026-03-12)
 - **Fix: Bridge — AI Calendar Event Parse prompt missing user text**
   - Modified `bridge.py` — Added dedicated `parse_calendar_event` handler in `build_prompt()` that includes user input text and today's date in the prompt. Previously fell through to generic handler that only sent instruction template without actual content.
