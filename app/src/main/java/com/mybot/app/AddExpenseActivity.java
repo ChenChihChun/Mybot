@@ -186,7 +186,7 @@ public class AddExpenseActivity extends AppCompatActivity {
             aiHint.setText("AI 分類中...");
             aiHint.setTextColor(UIHelper.ACCENT_BLUE);
 
-            List<String> existingCats = dbHelper.getCategories();
+            List<String> existingCats = new ExpenseDbHelper(this).getCategories();
             BridgeClient.categorize(merchant, desc, amount, existingCats, (category, offline) -> {
                 aiRequesting = false;
                 aiBtn.setText("AI");
