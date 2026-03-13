@@ -6,6 +6,7 @@ import android.os.Looper;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.List;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -68,7 +69,8 @@ public class BridgeClient {
         });
     }
 
-    public static void categorize(String merchant, String description, double amount, CategorizeCallback callback) {
+    public static void categorize(String merchant, String description, double amount,
+                                   List<String> existingCategories, CategorizeCallback callback) {
         executor.execute(() -> {
             AppLog.i("Bridge", "categorize: merchant=" + merchant + " amount=" + amount);
             try {
@@ -77,6 +79,9 @@ public class BridgeClient {
                 body.put("merchant", merchant);
                 body.put("description", description);
                 body.put("amount", amount);
+                if (existingCategories != null && !existingCategories.isEmpty()) {
+                    body.put("existing_categories", new org.json.JSONArray(existingCategories));
+                }
 
                 String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString());
                 String response = result[0];
@@ -157,18 +162,25 @@ public class BridgeClient {
         void onResult(String responseJson, boolean offline, String error);
     }
 
-    public static void analyzeScreenshot(String base64Image, ScreenshotCallback callback) {
+    public static void analyzeScreenshot(String base64Image, List<String> existingCategories, ScreenshotCallback callback) {
         executor.execute(() -> {
             AppLog.i("Bridge", "analyzeScreenshot: imageSize=" + (base64Image != null ? base64Image.length() : 0));
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "analyze_expense_screenshot");
                 body.put("image_base64", base64Image);
+                String catInstruction;
+                if (existingCategories != null && !existingCategories.isEmpty()) {
+                    catInstruction = "類別請優先從以下已有類別選擇：" + String.join("、", existingCategories)
+                            + "。只有當已有類別都無法合理涵蓋時，才可以新增一個新類別。";
+                } else {
+                    catInstruction = "類別請從以下選擇：餐飲、交通、購物、娛樂、醫療、教育、生活、其他。";
+                }
                 body.put("prompt", "請分析這張螢幕截圖，判斷是否包含消費/付款/交易資訊。"
                         + "如果有，回傳: {\"is_expense\": true, \"amount\": 數字, \"currency\": \"TWD\", "
                         + "\"merchant\": \"商家名稱\", \"category\": \"類別\", \"description\": \"描述\"}。"
                         + "如果沒有消費資訊，回傳: {\"is_expense\": false}。"
-                        + "類別請從以下選擇：餐飲、交通、購物、娛樂、醫療、教育、生活、其他。");
+                        + catInstruction);
 
                 String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 60000);
                 String response = result[0];
@@ -195,23 +207,30 @@ public class BridgeClient {
         void onResult(String responseJson, boolean offline, String error);
     }
 
-    public static void analyzeInvoice(String base64Image, InvoiceCallback callback) {
+    public static void analyzeInvoice(String base64Image, List<String> existingCategories, InvoiceCallback callback) {
         executor.execute(() -> {
             AppLog.i("Bridge", "analyzeInvoice: imageSize=" + (base64Image != null ? base64Image.length() : 0));
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "analyze_invoice");
                 body.put("image_base64", base64Image);
-                body.put("prompt", "\u8ACB\u5206\u6790\u9019\u5F35\u767C\u7968/\u6536\u64DA\u5716\u7247\u3002"
-                        + "\u5982\u679C\u662F\u767C\u7968\u6216\u6D88\u8CBB\u6536\u64DA\uFF0C\u8ACB\u56DE\u50B3 JSON\uFF1A"
-                        + "{\"is_invoice\": true, \"merchant\": \"\u5546\u5BB6\u540D\u7A31\", "
-                        + "\"date\": \"YYYY-MM-DD\", \"items\": \"\u54C1\u9805\u660E\u7D30\", "
-                        + "\"total\": \u6578\u5B57, \"currency\": \"TWD\", "
-                        + "\"payment_method\": \"\u4ED8\u6B3E\u65B9\u5F0F\", "
-                        + "\"invoice_number\": \"\u767C\u7968\u865F\u78BC\", "
-                        + "\"category\": \"\u985E\u5225\"}\u3002"
-                        + "\u5982\u679C\u4E0D\u662F\u767C\u7968\uFF1A{\"is_invoice\": false}\u3002"
-                        + "\u985E\u5225\u8ACB\u5F9E\u4EE5\u4E0B\u9078\u64C7\uFF1A\u9910\u98F2\u3001\u4EA4\u901A\u3001\u8CFC\u7269\u3001\u5A1B\u6A02\u3001\u91AB\u7642\u3001\u6559\u80B2\u3001\u751F\u6D3B\u3001\u5176\u4ED6\u3002");
+                String catInstruction;
+                if (existingCategories != null && !existingCategories.isEmpty()) {
+                    catInstruction = "類別請優先從以下已有類別選擇：" + String.join("、", existingCategories)
+                            + "。只有當已有類別都無法合理涵蓋時，才可以新增一個新類別。";
+                } else {
+                    catInstruction = "類別請從以下選擇：餐飲、交通、購物、娛樂、醫療、教育、生活、其他。";
+                }
+                body.put("prompt", "請分析這張發票/收據圖片。"
+                        + "如果是發票或消費收據，請回傳 JSON："
+                        + "{\"is_invoice\": true, \"merchant\": \"商家名稱\", "
+                        + "\"date\": \"YYYY-MM-DD\", \"items\": \"品項明細\", "
+                        + "\"total\": 數字, \"currency\": \"TWD\", "
+                        + "\"payment_method\": \"付款方式\", "
+                        + "\"invoice_number\": \"發票號碼\", "
+                        + "\"category\": \"類別\"}。"
+                        + "如果不是發票：{\"is_invoice\": false}。"
+                        + catInstruction);
 
                 String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 60000);
                 String response = result[0];

@@ -31,6 +31,7 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Locale;
 
 public class InvoiceActivity extends AppCompatActivity {
@@ -283,7 +284,8 @@ public class InvoiceActivity extends AppCompatActivity {
         analyzeBtn.setAlpha(0.5f);
         resultContainer.setVisibility(View.GONE);
 
-        BridgeClient.analyzeInvoice(base64Image, (responseJson, offline, error) -> {
+        List<String> existingCats = new ExpenseDbHelper(this).getCategories();
+        BridgeClient.analyzeInvoice(base64Image, existingCats, (responseJson, offline, error) -> {
             analyzeBtn.setEnabled(true);
             analyzeBtn.setAlpha(1f);
 

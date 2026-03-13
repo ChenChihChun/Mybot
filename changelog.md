@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.78 (2026-03-14)
+- **Expense: AI category classification — prefer existing categories over creating new ones**
+  - Modified `bridge.py` — Added dedicated `categorize_expense` prompt in `build_prompt()` that receives existing category list and instructs AI to prefer them. Updated `analyze_notification` prompt with same logic.
+  - Modified `BridgeClient.java` — `categorize()`, `analyzeScreenshot()`, `analyzeInvoice()` now accept `List<String> existingCategories` parameter and include dynamic category instructions in prompts.
+  - Modified `AddExpenseActivity.java` — Passes `dbHelper.getCategories()` to `BridgeClient.categorize()`.
+  - Modified `FloatingCaptureService.java` — Passes existing categories to `BridgeClient.analyzeScreenshot()`.
+  - Modified `InvoiceActivity.java` — Passes existing categories to `BridgeClient.analyzeInvoice()`.
+  - Modified `app/build.gradle` — versionCode 101, versionName 3.78
+
 ## v3.77 (2026-03-12)
 - **Security: SecurePrefs — Improve encrypted storage fallback resilience**
   - Modified `SecurePrefs.java` — On EncryptedSharedPreferences init failure, now clears corrupted master key and retries before falling back to plaintext. Added `isEncryptionAvailable()` to let callers check encryption status. Fallback is now logged as error instead of silently degrading.

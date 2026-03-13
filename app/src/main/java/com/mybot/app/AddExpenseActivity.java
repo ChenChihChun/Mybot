@@ -13,6 +13,8 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import java.util.List;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -184,7 +186,8 @@ public class AddExpenseActivity extends AppCompatActivity {
             aiHint.setText("AI 分類中...");
             aiHint.setTextColor(UIHelper.ACCENT_BLUE);
 
-            BridgeClient.categorize(merchant, desc, amount, (category, offline) -> {
+            List<String> existingCats = dbHelper.getCategories();
+            BridgeClient.categorize(merchant, desc, amount, existingCats, (category, offline) -> {
                 aiRequesting = false;
                 aiBtn.setText("AI");
                 aiBtn.setBackground(UIHelper.roundRect(UIHelper.ACCENT_BLUE, 10, this));

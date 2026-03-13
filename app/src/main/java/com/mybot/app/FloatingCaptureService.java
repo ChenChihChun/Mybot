@@ -32,6 +32,7 @@ import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 public class FloatingCaptureService extends Service {
 
@@ -379,7 +380,8 @@ public class FloatingCaptureService extends Service {
 
         Toast.makeText(this, "AI 分析中...", Toast.LENGTH_SHORT).show();
 
-        BridgeClient.analyzeScreenshot(base64, (result, offline, error) -> {
+        List<String> existingCats = new ExpenseDbHelper(this).getCategories();
+        BridgeClient.analyzeScreenshot(base64, existingCats, (result, offline, error) -> {
             capturing = false;
 
             if (offline || result == null) {
