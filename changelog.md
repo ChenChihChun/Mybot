@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.79 (2026-03-14)
+- **Expense: Category sync to Bridge + DB helpers for category management**
+  - Modified `bridge.py` — Added `/categories` POST/GET endpoint to receive and store expense category data from app.
+  - Modified `ExpenseDbHelper.java` — Added `getCategoryCounts()` (category with count, sorted by frequency) and `updateCategory()` (batch rename category) methods.
+  - Modified `ExpenseActivity.java` — Added `syncCategoriesToBridge()` that auto-POSTs all categories with counts to Bridge on every page load.
+  - Modified `app/build.gradle` — versionCode 102, versionName 3.79
+
 ## v3.78 (2026-03-14)
 - **Expense: AI category classification — prefer existing categories over creating new ones**
   - Modified `bridge.py` — Added dedicated `categorize_expense` prompt in `build_prompt()` that receives existing category list and instructs AI to prefer them. Updated `analyze_notification` prompt with same logic.

@@ -149,6 +149,27 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         return cats;
     }
 
+    public java.util.Map<String, Integer> getCategoryCounts() {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.rawQuery(
+                "SELECT " + COL_CATEGORY + ", COUNT(*) FROM " + TABLE
+                        + " WHERE " + COL_CATEGORY + " IS NOT NULL AND " + COL_CATEGORY + " != ''"
+                        + " GROUP BY " + COL_CATEGORY + " ORDER BY COUNT(*) DESC", null);
+        java.util.Map<String, Integer> counts = new java.util.LinkedHashMap<>();
+        while (cursor.moveToNext()) {
+            counts.put(cursor.getString(0), cursor.getInt(1));
+        }
+        cursor.close();
+        return counts;
+    }
+
+    public int updateCategory(String oldCategory, String newCategory) {
+        SQLiteDatabase db = getWritableDatabase();
+        android.content.ContentValues values = new android.content.ContentValues();
+        values.put(COL_CATEGORY, newCategory);
+        return db.update(TABLE, values, COL_CATEGORY + " = ?", new String[]{oldCategory});
+    }
+
     public List<Expense> queryByDateRange(long startMs, long endMs) {
         SQLiteDatabase db = getReadableDatabase();
         Cursor cursor = db.query(TABLE, null,

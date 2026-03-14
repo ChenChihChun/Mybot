@@ -156,6 +156,33 @@ public class ExpenseActivity extends AppCompatActivity {
                 android.R.layout.simple_spinner_item, items);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categorySpinner.setAdapter(spinnerAdapter);
+        syncCategoriesToBridge();
+    }
+
+    private void syncCategoriesToBridge() {
+        new Thread(() -> {
+            try {
+                java.util.Map<String, Integer> counts = dbHelper.getCategoryCounts();
+                org.json.JSONObject body = new org.json.JSONObject();
+                body.put("categories", new org.json.JSONArray(new java.util.ArrayList<>(counts.keySet())));
+                org.json.JSONObject countsJson = new org.json.JSONObject();
+                for (java.util.Map.Entry<String, Integer> e : counts.entrySet()) {
+                    countsJson.put(e.getKey(), e.getValue());
+                }
+                body.put("counts", countsJson);
+
+                java.net.URL url = new java.net.URL("http://127.0.0.1:8765/categories");
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(3000);
+                conn.setReadTimeout(3000);
+                conn.getOutputStream().write(body.toString().getBytes("UTF-8"));
+                conn.getResponseCode();
+                conn.disconnect();
+            } catch (Exception ignored) {}
+        }).start();
     }
 
     private void showReminderSettings() {
