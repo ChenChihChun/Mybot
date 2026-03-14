@@ -137,7 +137,32 @@ public class ExpenseActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
+        migrateCategoriesOnce();
         AppLog.i("Expense", "消費紀錄頁面已開啟");
+    }
+
+    private void migrateCategoriesOnce() {
+        android.content.SharedPreferences prefs = getSharedPreferences("expense_prefs", MODE_PRIVATE);
+        if (prefs.getBoolean("categories_migrated_v1", false)) return;
+
+        java.util.Map<String, String> mergeMap = new java.util.LinkedHashMap<>();
+        mergeMap.put("食品飲料", "餐飲");
+        mergeMap.put("食物", "餐飲");
+        mergeMap.put("生活服務", "生活");
+
+        int total = 0;
+        for (java.util.Map.Entry<String, String> e : mergeMap.entrySet()) {
+            int count = dbHelper.updateCategory(e.getKey(), e.getValue());
+            if (count > 0) {
+                AppLog.i("Expense", "類別合併: " + e.getKey() + " → " + e.getValue() + " (" + count + "筆)");
+                total += count;
+            }
+        }
+
+        prefs.edit().putBoolean("categories_migrated_v1", true).apply();
+        if (total > 0) {
+            AppLog.i("Expense", "類別合併完成，共 " + total + " 筆");
+        }
     }
 
     @Override

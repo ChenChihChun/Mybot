@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.80 (2026-03-14)
+- **Expense: One-time category migration — merge duplicate categories**
+  - Modified `ExpenseActivity.java` — Added `migrateCategoriesOnce()` that runs on first launch: merges 食品飲料→餐飲, 食物→餐飲, 生活服務→生活. Guarded by SharedPreferences flag to run only once.
+  - Modified `app/build.gradle` — versionCode 103, versionName 3.80
+
 ## v3.79 (2026-03-14)
 - **Expense: Category sync to Bridge + DB helpers for category management**
   - Modified `bridge.py` — Added `/categories` POST/GET endpoint to receive and store expense category data from app.
