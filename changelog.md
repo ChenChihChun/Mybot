@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.82 (2026-03-15)
+- **Tetris: 重新設計手機控制方案**
+  - Modified `app/src/main/assets/tetris.html`:
+    - 新增透明手勢捕捉層 (`#swipe-zone`) 覆蓋棋盤區，支援：點擊旋轉、左右滑動按格移動、快速下甩硬降、按住拖下軟降
+    - 控制按鈕改為雙拇指分區佈局：左側 [◀][▼][▶]（左拇指移動），右側 [↻][⬇]（右拇指旋轉/硬降）
+    - 按鈕高度從 52px 加大到 60px，圓角 14px，視覺更明確
+    - 左右移動按鈕加入 DAS（Delayed Auto Shift）：長按 160ms 後每 50ms 連移一格
+    - 下移按鈕同樣支援長按連續軟降
+  - Modified `app/build.gradle` — versionCode 105, versionName 3.82
+
 ## v3.81 (2026-03-15)
 - **New Feature: Tetris PK 俄羅斯方塊對戰**
   - Added `app/src/main/java/com/mybot/app/TetrisActivity.java` — WebView Activity wrapping HTML5 Tetris game with dark top bar via UIHelper, AppLog instrumentation

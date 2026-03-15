@@ -8,11 +8,13 @@
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { width: 100%; height: 100%; background: #0F1923; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
 
+  /* ── Setup screen ── */
   #setup-screen {
     position: fixed; inset: 0; background: #0F1923;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
   }
   #setup-screen h1 { color: #E0E0E0; font-size: 26px; letter-spacing: 2px; }
+  #setup-hint { color: #4A6070; font-size: 12px; text-align: center; line-height: 1.6; }
   .diff-btn {
     width: 200px; padding: 14px 0; border-radius: 12px; border: none;
     font-size: 18px; font-weight: bold; cursor: pointer; letter-spacing: 1px;
@@ -23,11 +25,13 @@
   #btn-medium { background: #FF9800; color: #fff; }
   #btn-hard   { background: #F44336; color: #fff; }
 
+  /* ── Game screen ── */
   #game-screen { display: none; flex-direction: column; height: 100%; }
 
   #scorebar {
     display: flex; justify-content: space-around; align-items: center;
     padding: 6px 8px; background: #162230; border-bottom: 1px solid #243040;
+    flex-shrink: 0;
   }
   .score-block { text-align: center; }
   .score-label { font-size: 10px; color: #7A8FA0; letter-spacing: 1px; text-transform: uppercase; }
@@ -37,10 +41,11 @@
     background: #1E3040; color: #7AB8D8;
   }
 
+  /* ── Boards area ── */
   #boards-area {
     flex: 1; display: flex; justify-content: center; align-items: center;
     gap: 16px; padding: 8px;
-    overflow: hidden;
+    overflow: hidden; position: relative; /* for swipe-zone */
   }
   .board-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .board-label { font-size: 12px; color: #8FA8BA; letter-spacing: 1px; }
@@ -48,25 +53,61 @@
   .next-wrap { font-size: 10px; color: #5A7080; text-align: center; margin-top: 2px; }
   .next-label { margin-bottom: 2px; }
 
-  #controls {
-    display: flex; flex-direction: row; justify-content: center; align-items: center;
-    gap: 10px; padding: 8px 12px 12px;
-    background: #0F1923; border-top: 1px solid #1A2A38;
+  /* Transparent swipe capture layer */
+  #swipe-zone {
+    position: absolute; inset: 0; z-index: 10;
+    touch-action: none; user-select: none; -webkit-user-select: none;
   }
-  .ctrl-btn {
-    width: 52px; height: 52px; border-radius: 12px; border: none;
-    background: #1E3040; color: #C0D8E8; font-size: 22px;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; user-select: none;
-    transition: background 0.1s, transform 0.08s;
-    -webkit-user-select: none;
-  }
-  .ctrl-btn:active { background: #2A4050; transform: scale(0.92); }
-  #drop-btn { width: 68px; background: #1E3A50; }
 
+  /* ── Controls — two-thumb layout ── */
+  #controls {
+    display: flex; flex-direction: row; align-items: stretch;
+    padding: 8px 10px 14px; gap: 8px;
+    background: #0A1520; border-top: 1px solid #1A2A38;
+    flex-shrink: 0;
+  }
+
+  /* Left group: ◀  ▼  ▶  (left thumb) */
+  #ctrl-move {
+    flex: 3; display: flex; gap: 6px;
+  }
+  /* Right group: ↻  ⬇  (right thumb) */
+  #ctrl-action {
+    flex: 2; display: flex; gap: 6px;
+  }
+
+  .ctrl-btn {
+    flex: 1; height: 60px; border-radius: 14px; border: none;
+    color: #C0D8E8; font-size: 24px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; user-select: none; -webkit-user-select: none;
+    transition: background 0.08s, transform 0.06s;
+    touch-action: none;
+  }
+  .ctrl-btn:active { transform: scale(0.91); }
+
+  #btn-left   { background: #1A2E42; }
+  #btn-down   { background: #1A2E42; }
+  #btn-right  { background: #1A2E42; }
+  #btn-rotate { background: #1A3A4A; color: #60C8E8; font-size: 26px; }
+  #btn-drop   { background: #1A2F1A; color: #60E870; font-size: 22px; }
+
+  .ctrl-btn:active,
+  .ctrl-btn.pressed { background: #2A4A60 !important; transform: scale(0.91); }
+  #btn-rotate.pressed { background: #1E4A5A !important; }
+  #btn-drop.pressed   { background: #1E4A1E !important; }
+
+  /* Hint strip */
+  #gesture-hint {
+    text-align: center; font-size: 10px; color: #2A3A48; padding: 2px 0 0;
+    flex-basis: 100%; order: -1; letter-spacing: 0.5px;
+  }
+
+  /* ── Overlay ── */
   #overlay {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82);
     flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+    z-index: 100;
   }
   #overlay.show { display: flex; }
   #overlay h2 { font-size: 32px; color: #FFDD57; letter-spacing: 2px; }
@@ -87,6 +128,7 @@
   <button class="diff-btn" id="btn-easy">🟢 簡單</button>
   <button class="diff-btn" id="btn-medium">🟠 普通</button>
   <button class="diff-btn" id="btn-hard">🔴 困難</button>
+  <p id="setup-hint">棋盤區：點擊旋轉 · 左右滑動移動<br>快速下滑硬降 · 按住下拖軟降</p>
 </div>
 
 <!-- Game Screen -->
@@ -120,14 +162,25 @@
         <canvas id="c-next"></canvas>
       </div>
     </div>
+    <!-- Transparent gesture capture layer over boards -->
+    <div id="swipe-zone"></div>
   </div>
 
+  <!--
+    Controls — two-thumb layout:
+    Left thumb  → [◀] [▼] [▶]  (move left / soft-drop / move right)
+    Right thumb → [↻] [⬇]      (rotate / hard-drop)
+  -->
   <div id="controls">
-    <button class="ctrl-btn" id="btn-left">◀</button>
-    <button class="ctrl-btn" id="btn-rotate">↻</button>
-    <button class="ctrl-btn" id="btn-right">▶</button>
-    <button class="ctrl-btn" id="btn-down">▼</button>
-    <button class="ctrl-btn" id="drop-btn">⬇</button>
+    <div id="ctrl-move">
+      <button class="ctrl-btn" id="btn-left">◀</button>
+      <button class="ctrl-btn" id="btn-down">▼</button>
+      <button class="ctrl-btn" id="btn-right">▶</button>
+    </div>
+    <div id="ctrl-action">
+      <button class="ctrl-btn" id="btn-rotate">↻</button>
+      <button class="ctrl-btn" id="btn-drop">⬇</button>
+    </div>
   </div>
 </div>
 
@@ -154,13 +207,17 @@ const TETROMINOES = {
 };
 const PIECE_KEYS = Object.keys(TETROMINOES);
 const SCORE_TABLE = [0, 100, 300, 500, 800];
-const ATTACK_TABLE = [0, 0, 1, 2, 4]; // lines cleared → garbage rows sent
+const ATTACK_TABLE = [0, 0, 1, 2, 4];
 
 const DIFF_CONFIG = {
   easy:   { fallMs: 800,  riseMs: 20000, aiDelay: 800,  aiError: 0.30 },
   medium: { fallMs: 500,  riseMs: 12000, aiDelay: 400,  aiError: 0.08 },
   hard:   { fallMs: 250,  riseMs: 7000,  aiDelay: 150,  aiError: 0.02 },
 };
+
+// DAS (Delayed Auto Shift) settings
+const DAS_DELAY  = 160; // ms before repeat starts
+const DAS_REPEAT = 50;  // ms between repeats
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let CELL_SIZE, NEXT_CELL, cfg, gameRunning = false;
@@ -185,8 +242,7 @@ function calcCellSize() {
   const vw = window.innerWidth;
   const boardsArea = document.getElementById('boards-area');
   const areaH = boardsArea.offsetHeight || (window.innerHeight - 120 - 80);
-  // Two boards + gap
-  const maxByWidth = Math.floor((vw - 16 * 2 - 16) / 2 / COLS);
+  const maxByWidth  = Math.floor((vw - 16 * 2 - 16) / 2 / COLS);
   const maxByHeight = Math.floor(areaH / ROWS);
   CELL_SIZE = Math.max(10, Math.min(maxByWidth, maxByHeight, 22));
   NEXT_CELL = Math.max(8, Math.floor(CELL_SIZE * 0.75));
@@ -266,7 +322,6 @@ function lockPiece(state) {
       board[ny][piece.x + c] = piece.color;
     }
   }
-  // Clear lines
   let cleared = 0;
   for (let r = ROWS - 1; r >= 0; ) {
     if (board[r].every(c => c !== null)) {
@@ -277,7 +332,6 @@ function lockPiece(state) {
       r--;
     }
   }
-  // Score
   if (cleared > 0) {
     state.combo++;
     const multiplier = Math.pow(1.5, state.combo - 1);
@@ -285,7 +339,6 @@ function lockPiece(state) {
   } else {
     state.combo = 0;
   }
-  // Next piece
   state.piece = state.next;
   state.next  = randomPiece();
   if (collides(state.board, state.piece, 0, 0)) {
@@ -307,7 +360,6 @@ function addGarbage(state, lines) {
     state.board.shift();
     state.board.push(row);
   }
-  // Check if current piece now collides
   if (collides(state.board, state.piece, 0, 0)) {
     state.dead = true;
   }
@@ -319,7 +371,6 @@ function addRiseRow(state) {
   state.board.shift();
   state.board.push(row);
   if (collides(state.board, state.piece, 0, 0)) {
-    // Push piece up
     state.piece.y = Math.max(state.piece.y - 1, -2);
     if (collides(state.board, state.piece, 0, 0)) {
       state.dead = true;
@@ -336,7 +387,6 @@ function drawBoard(canvasId, state) {
   ctx.fillStyle = '#0A1520';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Grid
   ctx.strokeStyle = '#141F2A';
   ctx.lineWidth = 0.5;
   for (let r = 0; r < ROWS; r++) {
@@ -345,7 +395,6 @@ function drawBoard(canvasId, state) {
     }
   }
 
-  // Ghost piece
   if (!state.dead) {
     let gy = state.piece.y;
     while (!collides(state.board, state.piece, 0, gy - state.piece.y + 1)) gy++;
@@ -360,7 +409,6 @@ function drawBoard(canvasId, state) {
     }
   }
 
-  // Board cells
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (!state.board[r][c]) continue;
@@ -368,7 +416,6 @@ function drawBoard(canvasId, state) {
     }
   }
 
-  // Active piece
   if (!state.dead) {
     for (let r = 0; r < state.piece.shape.length; r++) {
       for (let c = 0; c < state.piece.shape[r].length; c++) {
@@ -437,12 +484,9 @@ function countLinesCleared(board) {
 function simulatePlacement(board, piece, rotation, col) {
   let shape = piece.shape;
   for (let i = 0; i < rotation; i++) shape = rotateCW(shape);
-
   const mock = { shape, color: piece.color, x: col, y: 0 };
   if (collides(board, mock, 0, 0)) return null;
-
   while (!collides(board, mock, 0, 1)) mock.y++;
-
   const newBoard = board.map(r => [...r]);
   for (let r = 0; r < shape.length; r++) {
     for (let c = 0; c < shape[r].length; c++) {
@@ -484,9 +528,7 @@ function scheduleAI() {
   aiTimer = setTimeout(() => {
     aiTimer = null;
     if (!gameRunning || cState.dead) return;
-    // On Easy, occasionally skip or pick random
     if (Math.random() < cfg.aiError) {
-      // random rotation and shift
       const rots = Math.floor(Math.random() * 4);
       for (let i = 0; i < rots; i++) {
         const rotated = rotateCW(cState.piece.shape);
@@ -504,22 +546,15 @@ function scheduleAI() {
 }
 
 function stepAI() {
-  if (!aiTargetMove) {
-    scheduleAI();
-    return;
-  }
+  if (!aiTargetMove) { scheduleAI(); return; }
   const move = aiTargetMove;
   const piece = cState.piece;
-  // Apply rotation
   const currentRot = getRotationCount(piece.shape, move.shape);
   if (currentRot > 0) {
     const rotated = rotateCW(piece.shape);
-    if (!collides(cState.board, piece, 0, 0, rotated)) {
-      piece.shape = rotated;
-    }
+    if (!collides(cState.board, piece, 0, 0, rotated)) piece.shape = rotated;
     return;
   }
-  // Move horizontally
   if (piece.x < move.col) {
     if (!collides(cState.board, piece, 1, 0)) piece.x++;
     return;
@@ -528,7 +563,6 @@ function stepAI() {
     if (!collides(cState.board, piece, -1, 0)) piece.x--;
     return;
   }
-  // Hard drop
   hardDrop(cState);
   aiTargetMove = null;
 }
@@ -558,7 +592,6 @@ function shapeEquals(a, b) {
 function startGame(difficulty) {
   cfg = DIFF_CONFIG[difficulty];
   document.getElementById('diff-badge').textContent = difficulty.toUpperCase();
-
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('game-screen').style.display  = 'flex';
 
@@ -581,20 +614,16 @@ function startGame(difficulty) {
 function loop(now) {
   if (!gameRunning) return;
 
-  // Player fall
   if (now - lastFallP >= cfg.fallMs) {
     lastFallP = now;
     if (!collides(pState.board, pState.piece, 0, 1)) {
       pState.piece.y++;
     } else {
       const cleared = lockPiece(pState);
-      if (cleared > 0 && ATTACK_TABLE[cleared] > 0) {
-        addGarbage(cState, ATTACK_TABLE[cleared]);
-      }
+      if (cleared > 0 && ATTACK_TABLE[cleared] > 0) addGarbage(cState, ATTACK_TABLE[cleared]);
     }
   }
 
-  // CPU fall + AI step
   if (now - lastFallC >= cfg.fallMs) {
     lastFallC = now;
     stepAI();
@@ -602,15 +631,12 @@ function loop(now) {
       cState.piece.y++;
     } else {
       const cleared = lockPiece(cState);
-      if (cleared > 0 && ATTACK_TABLE[cleared] > 0) {
-        addGarbage(pState, ATTACK_TABLE[cleared]);
-      }
+      if (cleared > 0 && ATTACK_TABLE[cleared] > 0) addGarbage(pState, ATTACK_TABLE[cleared]);
       aiTargetMove = null;
       if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
     }
   }
 
-  // Rising floor
   if (now - lastRiseP >= cfg.riseMs) {
     lastRiseP = now;
     if (!pState.dead) addRiseRow(pState);
@@ -620,17 +646,14 @@ function loop(now) {
     if (!cState.dead) addRiseRow(cState);
   }
 
-  // Update scores
   document.getElementById('p-score').textContent = pState.score;
   document.getElementById('c-score').textContent = cState.score;
 
-  // Draw
   drawBoard('p-canvas', pState);
   drawBoard('c-canvas', cState);
   drawNext('p-next', pState);
   drawNext('c-next', cState);
 
-  // Check game over
   if (pState.dead || cState.dead) {
     gameRunning = false;
     showResult();
@@ -644,7 +667,6 @@ function showResult() {
   const overlay = document.getElementById('overlay');
   const title   = document.getElementById('overlay-title');
   const sub     = document.getElementById('overlay-sub');
-
   if (pState.dead && cState.dead) {
     title.textContent = '🤝 平手！';
     sub.textContent   = `雙方分數：你 ${pState.score} vs 電腦 ${cState.score}`;
@@ -658,7 +680,7 @@ function showResult() {
   overlay.classList.add('show');
 }
 
-// ─── Player Controls ──────────────────────────────────────────────────────────
+// ─── Player Action Functions ───────────────────────────────────────────────────
 function playerLeft() {
   if (!gameRunning || pState.dead) return;
   if (!collides(pState.board, pState.piece, -1, 0)) pState.piece.x--;
@@ -670,7 +692,6 @@ function playerRight() {
 function playerRotate() {
   if (!gameRunning || pState.dead) return;
   const rotated = rotateCW(pState.piece.shape);
-  // Wall kick: try 0, -1, +1, -2, +2
   for (const kick of [0, -1, 1, -2, 2]) {
     if (!collides(pState.board, { ...pState.piece, shape: rotated }, kick, 0)) {
       pState.piece.shape = rotated;
@@ -689,23 +710,154 @@ function playerDown() {
 function playerDrop() {
   if (!gameRunning || pState.dead) return;
   hardDrop(pState);
-  lastFallP = 0; // Force lock on next tick
+  // Force immediate lock on next loop tick
+  lastFallP = performance.now() - cfg.fallMs;
 }
 
-// Touch buttons
-document.getElementById('btn-left').addEventListener('touchstart',   e => { e.preventDefault(); playerLeft(); });
-document.getElementById('btn-right').addEventListener('touchstart',  e => { e.preventDefault(); playerRight(); });
-document.getElementById('btn-rotate').addEventListener('touchstart', e => { e.preventDefault(); playerRotate(); });
-document.getElementById('btn-down').addEventListener('touchstart',   e => { e.preventDefault(); playerDown(); });
-document.getElementById('drop-btn').addEventListener('touchstart',   e => { e.preventDefault(); playerDrop(); });
-document.getElementById('btn-left').addEventListener('click',   playerLeft);
-document.getElementById('btn-right').addEventListener('click',  playerRight);
-document.getElementById('btn-rotate').addEventListener('click', playerRotate);
-document.getElementById('btn-down').addEventListener('click',   playerDown);
-document.getElementById('drop-btn').addEventListener('click',   playerDrop);
+// ─── Button Controls with DAS ─────────────────────────────────────────────────
+// DAS = Delayed Auto Shift: hold a button → wait DAS_DELAY ms → repeat every DAS_REPEAT ms
+function makeDasBtn(btnId, action) {
+  const btn = document.getElementById(btnId);
+  let dasTimeout = null;
+  let dasInterval = null;
 
-// Keyboard
+  function start(e) {
+    e.preventDefault();
+    btn.classList.add('pressed');
+    action();
+    dasTimeout = setTimeout(() => {
+      dasInterval = setInterval(action, DAS_REPEAT);
+    }, DAS_DELAY);
+  }
+
+  function stop() {
+    btn.classList.remove('pressed');
+    clearTimeout(dasTimeout);
+    clearInterval(dasInterval);
+    dasTimeout = null;
+    dasInterval = null;
+  }
+
+  btn.addEventListener('touchstart', start, { passive: false });
+  btn.addEventListener('touchend',   stop);
+  btn.addEventListener('touchcancel',stop);
+  // Mouse fallback
+  btn.addEventListener('mousedown', start);
+  btn.addEventListener('mouseup',   stop);
+  btn.addEventListener('mouseleave',stop);
+}
+
+function makeTapBtn(btnId, action) {
+  const btn = document.getElementById(btnId);
+  function start(e) {
+    e.preventDefault();
+    btn.classList.add('pressed');
+    action();
+  }
+  function stop() { btn.classList.remove('pressed'); }
+  btn.addEventListener('touchstart', start, { passive: false });
+  btn.addEventListener('touchend',   stop);
+  btn.addEventListener('touchcancel',stop);
+  btn.addEventListener('mousedown', start);
+  btn.addEventListener('mouseup',   stop);
+  btn.addEventListener('mouseleave',stop);
+}
+
+makeDasBtn('btn-left',  playerLeft);
+makeDasBtn('btn-right', playerRight);
+makeDasBtn('btn-down',  playerDown);
+makeTapBtn('btn-rotate',playerRotate);
+makeTapBtn('btn-drop',  playerDrop);
+
+// ─── Swipe Zone Gesture Controls ──────────────────────────────────────────────
+// The swipe-zone div covers the boards-area.
+// - Tap (< 12px movement, < 300ms)  → rotate
+// - Horizontal drag                  → move left/right, snapped by approx cell width
+// - Quick flick down (fast, >60px)   → hard drop
+// - Hold & drag down (slow/long)     → soft drop (continuous while holding)
+(function () {
+  const zone = document.getElementById('swipe-zone');
+
+  let startX, startY, startTime;
+  let lastProcessedX;      // tracks how far we've already moved
+  let softDropTimer = null;
+  let isSoftDropActive = false;
+  const CELL_PX = () => CELL_SIZE || 18; // pixel width per column on board
+
+  function stopSoftDrop() {
+    if (softDropTimer) { clearInterval(softDropTimer); softDropTimer = null; }
+    isSoftDropActive = false;
+  }
+
+  zone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    startX = lastProcessedX = t.clientX;
+    startY = t.clientY;
+    startTime = performance.now();
+    isSoftDropActive = false;
+  }, { passive: false });
+
+  zone.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!gameRunning || pState.dead) return;
+    const t = e.touches[0];
+    const curX = t.clientX;
+    const curY = t.clientY;
+    const totalDy = curY - startY;
+
+    // Horizontal: move by columns based on drag distance
+    const dx = curX - lastProcessedX;
+    const colW = CELL_PX();
+    if (Math.abs(dx) >= colW) {
+      const steps = Math.trunc(dx / colW);
+      for (let i = 0; i < Math.abs(steps); i++) {
+        if (steps > 0) playerRight();
+        else           playerLeft();
+      }
+      lastProcessedX += steps * colW;
+    }
+
+    // Vertical: start soft drop if dragging down more than 2 rows
+    if (totalDy > CELL_PX() * 2 && !isSoftDropActive) {
+      isSoftDropActive = true;
+      playerDown();
+      softDropTimer = setInterval(playerDown, 60);
+    }
+  }, { passive: false });
+
+  zone.addEventListener('touchend', e => {
+    e.preventDefault();
+    stopSoftDrop();
+    if (!gameRunning || pState.dead) return;
+
+    const t = e.changedTouches[0];
+    const dx = Math.abs(t.clientX - startX);
+    const dy = t.clientY - startY;
+    const dt = performance.now() - startTime;
+
+    // Quick downward flick → hard drop
+    // Criteria: mostly downward, fast gesture
+    if (dy > 60 && dx < 50 && dt < 350) {
+      playerDrop();
+      return;
+    }
+
+    // Tap → rotate
+    // Criteria: barely moved AND short time
+    if (dx < 12 && Math.abs(dy) < 12 && dt < 300) {
+      playerRotate();
+    }
+  }, { passive: false });
+
+  zone.addEventListener('touchcancel', () => stopSoftDrop());
+})();
+
+// ─── Keyboard ─────────────────────────────────────────────────────────────────
+const keyHeld = {};
 document.addEventListener('keydown', e => {
+  if (keyHeld[e.key]) return; // handled by repeat
+  keyHeld[e.key] = true;
   switch (e.key) {
     case 'ArrowLeft':  playerLeft();   break;
     case 'ArrowRight': playerRight();  break;
@@ -714,16 +866,7 @@ document.addEventListener('keydown', e => {
     case ' ':          playerDrop();   break;
   }
 });
-
-// Long-press repeat for down
-let downInterval = null;
-document.getElementById('btn-down').addEventListener('touchstart', e => {
-  e.preventDefault();
-  downInterval = setInterval(playerDown, 80);
-});
-document.getElementById('btn-down').addEventListener('touchend', () => {
-  if (downInterval) { clearInterval(downInterval); downInterval = null; }
-});
+document.addEventListener('keyup', e => { keyHeld[e.key] = false; });
 </script>
 </body>
 </html>
