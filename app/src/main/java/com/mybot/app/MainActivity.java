@@ -233,13 +233,12 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, FlightActivity.class)), g);
         content.addView(fRow4);
 
-        // Row 5: 旅遊規劃
+        // Row 5: 旅遊規劃, 俄羅斯方塊
         LinearLayout fRow5 = gridRow3();
         addCompact(fRow5, "\uD83D\uDDFA\uFE0F", "\u65C5\u904A\u898F\u5283", UIHelper.ACCENT_GREEN,
                 v -> startActivity(new Intent(this, TravelActivity.class)), 0);
-        View ph4 = new View(this);
-        ph4.setVisibility(View.INVISIBLE);
-        fRow5.addView(ph4, gridCellLp(g));
+        addCompact(fRow5, "\uD83C\uDFAE", "\u4FC4\u7F85\u65AF\u65B9\u584A", UIHelper.ACCENT_BLUE,
+                v -> startActivity(new Intent(this, TetrisActivity.class)), g);
         View ph5 = new View(this);
         ph5.setVisibility(View.INVISIBLE);
         fRow5.addView(ph5, gridCellLp(g));

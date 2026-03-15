@@ -108,6 +108,11 @@
         <activity android:name=".TravelBudgetActivity" android:exported="false" />
         <activity android:name=".TravelAchievementActivity" android:exported="false" />
 
+        <!-- Tetris PK Game -->
+        <activity android:name=".TetrisActivity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
 

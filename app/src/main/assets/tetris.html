@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>俄羅斯方塊 PK</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; background: #0F1923; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+
+  #setup-screen {
+    position: fixed; inset: 0; background: #0F1923;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+  }
+  #setup-screen h1 { color: #E0E0E0; font-size: 26px; letter-spacing: 2px; }
+  .diff-btn {
+    width: 200px; padding: 14px 0; border-radius: 12px; border: none;
+    font-size: 18px; font-weight: bold; cursor: pointer; letter-spacing: 1px;
+    transition: transform 0.1s, opacity 0.1s;
+  }
+  .diff-btn:active { transform: scale(0.96); opacity: 0.85; }
+  #btn-easy   { background: #4CAF50; color: #fff; }
+  #btn-medium { background: #FF9800; color: #fff; }
+  #btn-hard   { background: #F44336; color: #fff; }
+
+  #game-screen { display: none; flex-direction: column; height: 100%; }
+
+  #scorebar {
+    display: flex; justify-content: space-around; align-items: center;
+    padding: 6px 8px; background: #162230; border-bottom: 1px solid #243040;
+  }
+  .score-block { text-align: center; }
+  .score-label { font-size: 10px; color: #7A8FA0; letter-spacing: 1px; text-transform: uppercase; }
+  .score-value { font-size: 18px; color: #E0E0E0; font-weight: bold; }
+  #diff-badge {
+    font-size: 11px; padding: 3px 10px; border-radius: 8px; font-weight: bold;
+    background: #1E3040; color: #7AB8D8;
+  }
+
+  #boards-area {
+    flex: 1; display: flex; justify-content: center; align-items: center;
+    gap: 16px; padding: 8px;
+    overflow: hidden;
+  }
+  .board-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .board-label { font-size: 12px; color: #8FA8BA; letter-spacing: 1px; }
+  canvas { display: block; border: 2px solid #243040; border-radius: 4px; image-rendering: pixelated; }
+  .next-wrap { font-size: 10px; color: #5A7080; text-align: center; margin-top: 2px; }
+  .next-label { margin-bottom: 2px; }
+
+  #controls {
+    display: flex; flex-direction: row; justify-content: center; align-items: center;
+    gap: 10px; padding: 8px 12px 12px;
+    background: #0F1923; border-top: 1px solid #1A2A38;
+  }
+  .ctrl-btn {
+    width: 52px; height: 52px; border-radius: 12px; border: none;
+    background: #1E3040; color: #C0D8E8; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; user-select: none;
+    transition: background 0.1s, transform 0.08s;
+    -webkit-user-select: none;
+  }
+  .ctrl-btn:active { background: #2A4050; transform: scale(0.92); }
+  #drop-btn { width: 68px; background: #1E3A50; }
+
+  #overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82);
+    flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 32px; color: #FFDD57; letter-spacing: 2px; }
+  #overlay p  { font-size: 15px; color: #A0B8C8; }
+  #replay-btn {
+    padding: 14px 40px; border-radius: 12px; border: none;
+    background: #2196F3; color: #fff; font-size: 18px; font-weight: bold; cursor: pointer;
+  }
+  #replay-btn:active { opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<!-- Difficulty Setup -->
+<div id="setup-screen">
+  <h1>🎮 俄羅斯方塊 PK</h1>
+  <p style="color:#5A7A90;font-size:13px;">選擇難度</p>
+  <button class="diff-btn" id="btn-easy">🟢 簡單</button>
+  <button class="diff-btn" id="btn-medium">🟠 普通</button>
+  <button class="diff-btn" id="btn-hard">🔴 困難</button>
+</div>
+
+<!-- Game Screen -->
+<div id="game-screen">
+  <div id="scorebar">
+    <div class="score-block">
+      <div class="score-label">玩家</div>
+      <div class="score-value" id="p-score">0</div>
+    </div>
+    <div id="diff-badge">EASY</div>
+    <div class="score-block">
+      <div class="score-label">電腦</div>
+      <div class="score-value" id="c-score">0</div>
+    </div>
+  </div>
+
+  <div id="boards-area">
+    <div class="board-wrap">
+      <div class="board-label">玩家</div>
+      <canvas id="p-canvas"></canvas>
+      <div class="next-wrap">
+        <div class="next-label">NEXT</div>
+        <canvas id="p-next"></canvas>
+      </div>
+    </div>
+    <div class="board-wrap">
+      <div class="board-label">電腦</div>
+      <canvas id="c-canvas"></canvas>
+      <div class="next-wrap">
+        <div class="next-label">NEXT</div>
+        <canvas id="c-next"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="btn-left">◀</button>
+    <button class="ctrl-btn" id="btn-rotate">↻</button>
+    <button class="ctrl-btn" id="btn-right">▶</button>
+    <button class="ctrl-btn" id="btn-down">▼</button>
+    <button class="ctrl-btn" id="drop-btn">⬇</button>
+  </div>
+</div>
+
+<!-- Win/Loss Overlay -->
+<div id="overlay">
+  <h2 id="overlay-title">🏆 勝利！</h2>
+  <p id="overlay-sub">你贏了！</p>
+  <button id="replay-btn">重新開始</button>
+</div>
+
+<script>
+'use strict';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const COLS = 10, ROWS = 20;
+const TETROMINOES = {
+  I: { shape: [[1,1,1,1]], color: '#00CFCF' },
+  O: { shape: [[1,1],[1,1]], color: '#FFDD00' },
+  T: { shape: [[0,1,0],[1,1,1]], color: '#CC44FF' },
+  S: { shape: [[0,1,1],[1,1,0]], color: '#55DD55' },
+  Z: { shape: [[1,1,0],[0,1,1]], color: '#FF5555' },
+  J: { shape: [[1,0,0],[1,1,1]], color: '#4488FF' },
+  L: { shape: [[0,0,1],[1,1,1]], color: '#FF8800' },
+};
+const PIECE_KEYS = Object.keys(TETROMINOES);
+const SCORE_TABLE = [0, 100, 300, 500, 800];
+const ATTACK_TABLE = [0, 0, 1, 2, 4]; // lines cleared → garbage rows sent
+
+const DIFF_CONFIG = {
+  easy:   { fallMs: 800,  riseMs: 20000, aiDelay: 800,  aiError: 0.30 },
+  medium: { fallMs: 500,  riseMs: 12000, aiDelay: 400,  aiError: 0.08 },
+  hard:   { fallMs: 250,  riseMs: 7000,  aiDelay: 150,  aiError: 0.02 },
+};
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let CELL_SIZE, NEXT_CELL, cfg, gameRunning = false;
+let pState, cState;
+let lastFallP, lastFallC, lastRiseP, lastRiseC;
+let animFrame;
+
+// ─── Setup Screen ─────────────────────────────────────────────────────────────
+document.getElementById('btn-easy').addEventListener('click',   () => startGame('easy'));
+document.getElementById('btn-medium').addEventListener('click', () => startGame('medium'));
+document.getElementById('btn-hard').addEventListener('click',   () => startGame('hard'));
+document.getElementById('replay-btn').addEventListener('click', () => {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('setup-screen').style.display = 'flex';
+  document.getElementById('game-screen').style.display = 'none';
+  gameRunning = false;
+  cancelAnimationFrame(animFrame);
+});
+
+// ─── Canvas sizing ────────────────────────────────────────────────────────────
+function calcCellSize() {
+  const vw = window.innerWidth;
+  const boardsArea = document.getElementById('boards-area');
+  const areaH = boardsArea.offsetHeight || (window.innerHeight - 120 - 80);
+  // Two boards + gap
+  const maxByWidth = Math.floor((vw - 16 * 2 - 16) / 2 / COLS);
+  const maxByHeight = Math.floor(areaH / ROWS);
+  CELL_SIZE = Math.max(10, Math.min(maxByWidth, maxByHeight, 22));
+  NEXT_CELL = Math.max(8, Math.floor(CELL_SIZE * 0.75));
+}
+
+function resizeCanvas(id, w, h) {
+  const c = document.getElementById(id);
+  c.width = w; c.height = h;
+  c.style.width  = w + 'px';
+  c.style.height = h + 'px';
+}
+
+function setupCanvases() {
+  calcCellSize();
+  resizeCanvas('p-canvas', COLS * CELL_SIZE, ROWS * CELL_SIZE);
+  resizeCanvas('c-canvas', COLS * CELL_SIZE, ROWS * CELL_SIZE);
+  resizeCanvas('p-next', 4 * NEXT_CELL, 4 * NEXT_CELL);
+  resizeCanvas('c-next', 4 * NEXT_CELL, 4 * NEXT_CELL);
+}
+
+// ─── Game State ───────────────────────────────────────────────────────────────
+function emptyBoard() {
+  return Array.from({ length: ROWS }, () => new Array(COLS).fill(null));
+}
+
+function randomPiece() {
+  const key = PIECE_KEYS[Math.floor(Math.random() * PIECE_KEYS.length)];
+  const t = TETROMINOES[key];
+  return {
+    shape: t.shape.map(r => [...r]),
+    color: t.color,
+    x: Math.floor((COLS - t.shape[0].length) / 2),
+    y: 0,
+  };
+}
+
+function initState() {
+  const piece = randomPiece();
+  const next  = randomPiece();
+  return { board: emptyBoard(), piece, next, score: 0, combo: 0, dead: false };
+}
+
+// ─── Tetris Core ──────────────────────────────────────────────────────────────
+function collides(board, piece, dx, dy, shape) {
+  shape = shape || piece.shape;
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      const nx = piece.x + c + dx;
+      const ny = piece.y + r + dy;
+      if (nx < 0 || nx >= COLS || ny >= ROWS) return true;
+      if (ny >= 0 && board[ny][nx]) return true;
+    }
+  }
+  return false;
+}
+
+function rotateCW(shape) {
+  const rows = shape.length, cols = shape[0].length;
+  const newShape = [];
+  for (let c = 0; c < cols; c++) {
+    newShape.push([]);
+    for (let r = rows - 1; r >= 0; r--) {
+      newShape[c].push(shape[r][c]);
+    }
+  }
+  return newShape;
+}
+
+function lockPiece(state) {
+  const { board, piece } = state;
+  for (let r = 0; r < piece.shape.length; r++) {
+    for (let c = 0; c < piece.shape[r].length; c++) {
+      if (!piece.shape[r][c]) continue;
+      const ny = piece.y + r;
+      if (ny < 0) { state.dead = true; return 0; }
+      board[ny][piece.x + c] = piece.color;
+    }
+  }
+  // Clear lines
+  let cleared = 0;
+  for (let r = ROWS - 1; r >= 0; ) {
+    if (board[r].every(c => c !== null)) {
+      board.splice(r, 1);
+      board.unshift(new Array(COLS).fill(null));
+      cleared++;
+    } else {
+      r--;
+    }
+  }
+  // Score
+  if (cleared > 0) {
+    state.combo++;
+    const multiplier = Math.pow(1.5, state.combo - 1);
+    state.score += Math.floor(SCORE_TABLE[cleared] * multiplier);
+  } else {
+    state.combo = 0;
+  }
+  // Next piece
+  state.piece = state.next;
+  state.next  = randomPiece();
+  if (collides(state.board, state.piece, 0, 0)) {
+    state.dead = true;
+  }
+  return cleared;
+}
+
+function hardDrop(state) {
+  while (!collides(state.board, state.piece, 0, 1)) {
+    state.piece.y++;
+  }
+}
+
+function addGarbage(state, lines) {
+  for (let i = 0; i < lines; i++) {
+    const hole = Math.floor(Math.random() * COLS);
+    const row = Array.from({ length: COLS }, (_, c) => c === hole ? null : '#3A3A3A');
+    state.board.shift();
+    state.board.push(row);
+  }
+  // Check if current piece now collides
+  if (collides(state.board, state.piece, 0, 0)) {
+    state.dead = true;
+  }
+}
+
+function addRiseRow(state) {
+  const hole = Math.floor(Math.random() * COLS);
+  const row = Array.from({ length: COLS }, (_, c) => c === hole ? null : '#2A3A4A');
+  state.board.shift();
+  state.board.push(row);
+  if (collides(state.board, state.piece, 0, 0)) {
+    // Push piece up
+    state.piece.y = Math.max(state.piece.y - 1, -2);
+    if (collides(state.board, state.piece, 0, 0)) {
+      state.dead = true;
+    }
+  }
+}
+
+// ─── Rendering ────────────────────────────────────────────────────────────────
+function drawBoard(canvasId, state) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const cs = CELL_SIZE;
+
+  ctx.fillStyle = '#0A1520';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid
+  ctx.strokeStyle = '#141F2A';
+  ctx.lineWidth = 0.5;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      ctx.strokeRect(c * cs, r * cs, cs, cs);
+    }
+  }
+
+  // Ghost piece
+  if (!state.dead) {
+    let gy = state.piece.y;
+    while (!collides(state.board, state.piece, 0, gy - state.piece.y + 1)) gy++;
+    for (let r = 0; r < state.piece.shape.length; r++) {
+      for (let c = 0; c < state.piece.shape[r].length; c++) {
+        if (!state.piece.shape[r][c]) continue;
+        const px = (state.piece.x + c) * cs;
+        const py = (gy + r) * cs;
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(px + 1, py + 1, cs - 2, cs - 2);
+      }
+    }
+  }
+
+  // Board cells
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!state.board[r][c]) continue;
+      drawCell(ctx, c * cs, r * cs, cs, state.board[r][c]);
+    }
+  }
+
+  // Active piece
+  if (!state.dead) {
+    for (let r = 0; r < state.piece.shape.length; r++) {
+      for (let c = 0; c < state.piece.shape[r].length; c++) {
+        if (!state.piece.shape[r][c]) continue;
+        const px = (state.piece.x + c) * cs;
+        const py = (state.piece.y + r) * cs;
+        if (py >= 0) drawCell(ctx, px, py, cs, state.piece.color);
+      }
+    }
+  }
+}
+
+function drawCell(ctx, x, y, size, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillRect(x + 1, y + 1, size - 2, 3);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(x + 1, y + size - 3, size - 2, 2);
+}
+
+function drawNext(canvasId, state) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const cs = NEXT_CELL;
+  ctx.fillStyle = '#0A1520';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const shape = state.next.shape;
+  const ox = Math.floor((4 - shape[0].length) / 2);
+  const oy = Math.floor((4 - shape.length) / 2);
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      drawCell(ctx, (ox + c) * cs, (oy + r) * cs, cs, state.next.color);
+    }
+  }
+}
+
+// ─── AI ───────────────────────────────────────────────────────────────────────
+function evalBoard(board) {
+  let holes = 0, aggHeight = 0, bumpiness = 0;
+  const heights = [];
+  for (let c = 0; c < COLS; c++) {
+    let h = 0;
+    for (let r = 0; r < ROWS; r++) {
+      if (board[r][c]) { h = ROWS - r; break; }
+    }
+    heights.push(h);
+    aggHeight += h;
+    let blocked = false;
+    for (let r = 0; r < ROWS; r++) {
+      if (board[r][c]) blocked = true;
+      else if (blocked) holes++;
+    }
+  }
+  for (let c = 0; c < COLS - 1; c++) {
+    bumpiness += Math.abs(heights[c] - heights[c + 1]);
+  }
+  return aggHeight * -0.5 + holes * -30 + bumpiness * -0.3;
+}
+
+function countLinesCleared(board) {
+  return board.filter(row => row.every(c => c !== null)).length;
+}
+
+function simulatePlacement(board, piece, rotation, col) {
+  let shape = piece.shape;
+  for (let i = 0; i < rotation; i++) shape = rotateCW(shape);
+
+  const mock = { shape, color: piece.color, x: col, y: 0 };
+  if (collides(board, mock, 0, 0)) return null;
+
+  while (!collides(board, mock, 0, 1)) mock.y++;
+
+  const newBoard = board.map(r => [...r]);
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      const ny = mock.y + r;
+      if (ny >= 0 && ny < ROWS) newBoard[ny][col + c] = piece.color;
+    }
+  }
+  const linesCleared = countLinesCleared(newBoard);
+  for (let r = ROWS - 1; r >= 0; ) {
+    if (newBoard[r].every(c => c !== null)) {
+      newBoard.splice(r, 1);
+      newBoard.unshift(new Array(COLS).fill(null));
+    } else r--;
+  }
+  return { score: evalBoard(newBoard) + linesCleared * 100, lines: linesCleared, col, rotation, shape, y: mock.y };
+}
+
+function getAIMove(state) {
+  const { board, piece } = state;
+  let best = null;
+  for (let rot = 0; rot < 4; rot++) {
+    let shape = piece.shape;
+    for (let i = 0; i < rot; i++) shape = rotateCW(shape);
+    for (let col = -1; col < COLS; col++) {
+      const result = simulatePlacement(board, { shape: piece.shape, color: piece.color }, rot, col);
+      if (!result) continue;
+      if (!best || result.score > best.score) best = result;
+    }
+  }
+  return best;
+}
+
+let aiTimer = null;
+let aiTargetMove = null;
+
+function scheduleAI() {
+  if (aiTimer) return;
+  aiTimer = setTimeout(() => {
+    aiTimer = null;
+    if (!gameRunning || cState.dead) return;
+    // On Easy, occasionally skip or pick random
+    if (Math.random() < cfg.aiError) {
+      // random rotation and shift
+      const rots = Math.floor(Math.random() * 4);
+      for (let i = 0; i < rots; i++) {
+        const rotated = rotateCW(cState.piece.shape);
+        if (!collides(cState.board, cState.piece, 0, 0, rotated)) {
+          cState.piece.shape = rotated;
+        }
+      }
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      if (!collides(cState.board, cState.piece, dir, 0)) cState.piece.x += dir;
+      aiTargetMove = null;
+    } else {
+      aiTargetMove = getAIMove(cState);
+    }
+  }, cfg.aiDelay + Math.random() * 100);
+}
+
+function stepAI() {
+  if (!aiTargetMove) {
+    scheduleAI();
+    return;
+  }
+  const move = aiTargetMove;
+  const piece = cState.piece;
+  // Apply rotation
+  const currentRot = getRotationCount(piece.shape, move.shape);
+  if (currentRot > 0) {
+    const rotated = rotateCW(piece.shape);
+    if (!collides(cState.board, piece, 0, 0, rotated)) {
+      piece.shape = rotated;
+    }
+    return;
+  }
+  // Move horizontally
+  if (piece.x < move.col) {
+    if (!collides(cState.board, piece, 1, 0)) piece.x++;
+    return;
+  }
+  if (piece.x > move.col) {
+    if (!collides(cState.board, piece, -1, 0)) piece.x--;
+    return;
+  }
+  // Hard drop
+  hardDrop(cState);
+  aiTargetMove = null;
+}
+
+function getRotationCount(current, target) {
+  if (shapeEquals(current, target)) return 0;
+  let s = current;
+  for (let i = 1; i <= 3; i++) {
+    s = rotateCW(s);
+    if (shapeEquals(s, target)) return i;
+  }
+  return 0;
+}
+
+function shapeEquals(a, b) {
+  if (a.length !== b.length) return false;
+  for (let r = 0; r < a.length; r++) {
+    if (a[r].length !== b[r].length) return false;
+    for (let c = 0; c < a[r].length; c++) {
+      if (a[r][c] !== b[r][c]) return false;
+    }
+  }
+  return true;
+}
+
+// ─── Game Loop ────────────────────────────────────────────────────────────────
+function startGame(difficulty) {
+  cfg = DIFF_CONFIG[difficulty];
+  document.getElementById('diff-badge').textContent = difficulty.toUpperCase();
+
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display  = 'flex';
+
+  setupCanvases();
+
+  pState = initState();
+  cState = initState();
+  aiTargetMove = null;
+  if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
+  gameRunning = true;
+
+  const now = performance.now();
+  lastFallP = now; lastFallC = now;
+  lastRiseP = now; lastRiseC = now;
+
+  cancelAnimationFrame(animFrame);
+  animFrame = requestAnimationFrame(loop);
+}
+
+function loop(now) {
+  if (!gameRunning) return;
+
+  // Player fall
+  if (now - lastFallP >= cfg.fallMs) {
+    lastFallP = now;
+    if (!collides(pState.board, pState.piece, 0, 1)) {
+      pState.piece.y++;
+    } else {
+      const cleared = lockPiece(pState);
+      if (cleared > 0 && ATTACK_TABLE[cleared] > 0) {
+        addGarbage(cState, ATTACK_TABLE[cleared]);
+      }
+    }
+  }
+
+  // CPU fall + AI step
+  if (now - lastFallC >= cfg.fallMs) {
+    lastFallC = now;
+    stepAI();
+    if (!collides(cState.board, cState.piece, 0, 1)) {
+      cState.piece.y++;
+    } else {
+      const cleared = lockPiece(cState);
+      if (cleared > 0 && ATTACK_TABLE[cleared] > 0) {
+        addGarbage(pState, ATTACK_TABLE[cleared]);
+      }
+      aiTargetMove = null;
+      if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
+    }
+  }
+
+  // Rising floor
+  if (now - lastRiseP >= cfg.riseMs) {
+    lastRiseP = now;
+    if (!pState.dead) addRiseRow(pState);
+  }
+  if (now - lastRiseC >= cfg.riseMs) {
+    lastRiseC = now;
+    if (!cState.dead) addRiseRow(cState);
+  }
+
+  // Update scores
+  document.getElementById('p-score').textContent = pState.score;
+  document.getElementById('c-score').textContent = cState.score;
+
+  // Draw
+  drawBoard('p-canvas', pState);
+  drawBoard('c-canvas', cState);
+  drawNext('p-next', pState);
+  drawNext('c-next', cState);
+
+  // Check game over
+  if (pState.dead || cState.dead) {
+    gameRunning = false;
+    showResult();
+    return;
+  }
+
+  animFrame = requestAnimationFrame(loop);
+}
+
+function showResult() {
+  const overlay = document.getElementById('overlay');
+  const title   = document.getElementById('overlay-title');
+  const sub     = document.getElementById('overlay-sub');
+
+  if (pState.dead && cState.dead) {
+    title.textContent = '🤝 平手！';
+    sub.textContent   = `雙方分數：你 ${pState.score} vs 電腦 ${cState.score}`;
+  } else if (cState.dead) {
+    title.textContent = '🏆 你贏了！';
+    sub.textContent   = `你的分數：${pState.score}　電腦：${cState.score}`;
+  } else {
+    title.textContent = '💀 電腦勝利';
+    sub.textContent   = `你的分數：${pState.score}　電腦：${cState.score}`;
+  }
+  overlay.classList.add('show');
+}
+
+// ─── Player Controls ──────────────────────────────────────────────────────────
+function playerLeft() {
+  if (!gameRunning || pState.dead) return;
+  if (!collides(pState.board, pState.piece, -1, 0)) pState.piece.x--;
+}
+function playerRight() {
+  if (!gameRunning || pState.dead) return;
+  if (!collides(pState.board, pState.piece, 1, 0)) pState.piece.x++;
+}
+function playerRotate() {
+  if (!gameRunning || pState.dead) return;
+  const rotated = rotateCW(pState.piece.shape);
+  // Wall kick: try 0, -1, +1, -2, +2
+  for (const kick of [0, -1, 1, -2, 2]) {
+    if (!collides(pState.board, { ...pState.piece, shape: rotated }, kick, 0)) {
+      pState.piece.shape = rotated;
+      pState.piece.x += kick;
+      return;
+    }
+  }
+}
+function playerDown() {
+  if (!gameRunning || pState.dead) return;
+  if (!collides(pState.board, pState.piece, 0, 1)) {
+    pState.piece.y++;
+    lastFallP = performance.now();
+  }
+}
+function playerDrop() {
+  if (!gameRunning || pState.dead) return;
+  hardDrop(pState);
+  lastFallP = 0; // Force lock on next tick
+}
+
+// Touch buttons
+document.getElementById('btn-left').addEventListener('touchstart',   e => { e.preventDefault(); playerLeft(); });
+document.getElementById('btn-right').addEventListener('touchstart',  e => { e.preventDefault(); playerRight(); });
+document.getElementById('btn-rotate').addEventListener('touchstart', e => { e.preventDefault(); playerRotate(); });
+document.getElementById('btn-down').addEventListener('touchstart',   e => { e.preventDefault(); playerDown(); });
+document.getElementById('drop-btn').addEventListener('touchstart',   e => { e.preventDefault(); playerDrop(); });
+document.getElementById('btn-left').addEventListener('click',   playerLeft);
+document.getElementById('btn-right').addEventListener('click',  playerRight);
+document.getElementById('btn-rotate').addEventListener('click', playerRotate);
+document.getElementById('btn-down').addEventListener('click',   playerDown);
+document.getElementById('drop-btn').addEventListener('click',   playerDrop);
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  switch (e.key) {
+    case 'ArrowLeft':  playerLeft();   break;
+    case 'ArrowRight': playerRight();  break;
+    case 'ArrowUp':    playerRotate(); break;
+    case 'ArrowDown':  playerDown();   break;
+    case ' ':          playerDrop();   break;
+  }
+});
+
+// Long-press repeat for down
+let downInterval = null;
+document.getElementById('btn-down').addEventListener('touchstart', e => {
+  e.preventDefault();
+  downInterval = setInterval(playerDown, 80);
+});
+document.getElementById('btn-down').addEventListener('touchend', () => {
+  if (downInterval) { clearInterval(downInterval); downInterval = null; }
+});
+</script>
+</body>
+</html>

@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.81 (2026-03-15)
+- **New Feature: Tetris PK 俄羅斯方塊對戰**
+  - Added `app/src/main/java/com/mybot/app/TetrisActivity.java` — WebView Activity wrapping HTML5 Tetris game with dark top bar via UIHelper, AppLog instrumentation
+  - Added `app/src/main/assets/tetris.html` — Full HTML5 Canvas Tetris PK game: 10×20 boards, Player vs CPU side-by-side, 7 standard tetrominoes, rising floor mechanic, garbage row attacks (2→1, 3→2, 4→4), combo scoring, 3 difficulty levels (Easy/Medium/Hard), AI with heuristic evaluation (height/holes/bumpiness), touch controls + keyboard support, win/loss overlay with replay
+  - Modified `app/src/main/AndroidManifest.xml` — Registered TetrisActivity (portrait, not exported)
+  - Modified `app/src/main/java/com/mybot/app/MainActivity.java` — Added 🎮俄羅斯方塊 button in Row 5 Features grid
+  - Modified `app/build.gradle` — versionCode 104, versionName 3.81
+
 ## v3.80 (2026-03-14)
 - **Expense: One-time category migration — merge duplicate categories**
   - Modified `ExpenseActivity.java` — Added `migrateCategoriesOnce()` that runs on first launch: merges 食品飲料→餐飲, 食物→餐飲, 生活服務→生活. Guarded by SharedPreferences flag to run only once.
