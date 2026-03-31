@@ -197,12 +197,12 @@ public class AddExpenseActivity extends AppCompatActivity {
                     aiHint.setText("Bridge 離線，請手動輸入類別");
                     aiHint.setTextColor(UIHelper.ACCENT_ORANGE);
                 } else if (category != null && !category.isEmpty()) {
-                    AppLog.i("Expense", "AI分類結果: " + category + " (merchant=" + merchant + ")");
+                    AppLog.i("Expense", "AI分類結果: " + category);
                     categoryInput.setText(category);
                     aiHint.setText("AI 建議: " + category);
                     aiHint.setTextColor(UIHelper.ACCENT_GREEN);
                 } else {
-                    AppLog.w("Expense", "AI無法判斷類別: merchant=" + merchant);
+                    AppLog.w("Expense", "AI無法判斷類別");
                     aiHint.setText("AI 無法判斷，請手動輸入");
                     aiHint.setTextColor(UIHelper.ACCENT_ORANGE);
                 }
@@ -244,12 +244,12 @@ public class AddExpenseActivity extends AppCompatActivity {
             if (editId > 0) {
                 db.update(editId, amount, category, merchant, desc,
                         selectedDate.getTimeInMillis());
-                AppLog.i("Expense", "更新消費: id=" + editId + " amount=" + amount + " category=" + category + " merchant=" + merchant);
+                AppLog.i("Expense", "更新消費: id=" + editId + " category=" + category);
                 Toast.makeText(this, "已更新", Toast.LENGTH_SHORT).show();
             } else {
                 db.insert(amount, "TWD", category, merchant, desc, "手動", "",
                         selectedDate.getTimeInMillis());
-                AppLog.i("Expense", "新增消費: amount=" + amount + " category=" + category + " merchant=" + merchant);
+                AppLog.i("Expense", "新增消費: category=" + category);
                 Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
             }
             finish();

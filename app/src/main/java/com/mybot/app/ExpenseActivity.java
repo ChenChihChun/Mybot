@@ -248,7 +248,7 @@ public class ExpenseActivity extends AppCompatActivity {
                 .setTitle(info)
                 .setItems(new String[]{"編輯", "刪除"}, (d, which) -> {
                     if (which == 0) {
-                        AppLog.i("Expense", "編輯消費: id=" + e.id + " amount=" + e.amount + " merchant=" + e.merchant);
+                        AppLog.i("Expense", "編輯消費: id=" + e.id);
                         Intent intent = new Intent(this, AddExpenseActivity.class);
                         intent.putExtra("expense_id", e.id);
                         startActivity(intent);
@@ -258,7 +258,7 @@ public class ExpenseActivity extends AppCompatActivity {
                                 .setMessage("確定要刪除這筆消費紀錄？")
                                 .setPositiveButton("刪除", (d2, w2) -> {
                                     dbHelper.delete(e.id);
-                                    AppLog.i("Expense", "刪除消費: id=" + e.id + " amount=" + e.amount + " merchant=" + e.merchant);
+                                    AppLog.i("Expense", "刪除消費: id=" + e.id);
                                     refreshList();
                                     Toast.makeText(this, "已刪除", Toast.LENGTH_SHORT).show();
                                 })

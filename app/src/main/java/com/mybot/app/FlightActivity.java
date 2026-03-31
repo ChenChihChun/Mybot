@@ -438,6 +438,10 @@ public class FlightActivity extends AppCompatActivity {
     }
 
     private void manualSearch(FlightWatchDbHelper.FlightWatch watch, LinearLayout card) {
+        // Prevent duplicate searches — remove any existing spinner first
+        View existingLoading = card.findViewWithTag("loading");
+        if (existingLoading != null) return; // search already in progress
+
         AppLog.i("Flight", "手動搜尋: " + watch.origin + "→" + watch.destination);
 
         // Show loading indicator
@@ -534,7 +538,28 @@ public class FlightActivity extends AppCompatActivity {
             StringBuilder sb = new StringBuilder();
             sb.append(watch.origin).append(" → ").append(watch.destination).append("\n");
             sb.append("搜尋日期: ").append(result.optString("search_date", "")).append("\n");
-            sb.append("最低價: $").append(String.format("%.0f", result.optDouble("cheapest_price", 0)));
+
+            // For round-trip, compute actual cheapest as outbound min + inbound min
+            double displayPrice = result.optDouble("cheapest_price", 0);
+            if (watch.roundTrip) {
+                JSONArray rtFlights = result.optJSONArray("flights");
+                if (rtFlights != null && rtFlights.length() > 0) {
+                    double outMin = Double.MAX_VALUE, inMin = Double.MAX_VALUE;
+                    for (int ri = 0; ri < rtFlights.length(); ri++) {
+                        JSONObject rf = rtFlights.getJSONObject(ri);
+                        double rp = rf.optDouble("price", 0);
+                        String rdir = rf.optString("direction", "");
+                        if ("outbound".equals(rdir) && rp > 0 && rp < outMin) outMin = rp;
+                        else if ("inbound".equals(rdir) && rp > 0 && rp < inMin) inMin = rp;
+                    }
+                    if (outMin < Double.MAX_VALUE && inMin < Double.MAX_VALUE) {
+                        displayPrice = outMin + inMin;
+                    }
+                }
+                sb.append("來回最低價: $").append(String.format("%.0f", displayPrice));
+            } else {
+                sb.append("最低價: $").append(String.format("%.0f", displayPrice));
+            }
             sb.append("\n\n");
 
             if (flights != null && flights.length() > 0) {
@@ -1067,48 +1092,51 @@ public class FlightActivity extends AppCompatActivity {
 
         AlertDialog addDialog = new AlertDialog.Builder(this)
                 .setView(dialogScroll)
-                .setPositiveButton("新增", (dialog, which) -> {
-                    String origin = originCode[0].trim().toUpperCase();
-                    String dest = destCode[0].trim().toUpperCase();
-                    String priceStr = priceInput.getText().toString().trim();
-                    String airlines = airlineInput.getText().toString().trim();
-                    boolean isRoundTrip = rtSwitch.isChecked();
-
-                    if (origin.isEmpty() || dest.isEmpty() || depDate[0].isEmpty()) {
-                        Toast.makeText(this, "請選擇出發地、目的地和日期", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    if (isRoundTrip && retDate[0].isEmpty()) {
-                        Toast.makeText(this, "來回票請選擇回程日期", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    double price = 0;
-                    if (!priceStr.isEmpty()) {
-                        try {
-                            price = Double.parseDouble(priceStr);
-                        } catch (NumberFormatException e) {
-                            Toast.makeText(this, "價格格式不正確", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                    }
-
-                    boolean isDirectOnly = doSwitch.isChecked();
-                    long id = db.insert(origin, dest, depDate[0], retDate[0],
-                            selectedMode[0], price, "TWD", isRoundTrip,
-                            airlines.isEmpty() ? null : airlines, isDirectOnly);
-                    AppLog.i("Flight", "新增監控: " + origin + "→" + dest
-                            + " date=" + depDate[0] + " rt=" + isRoundTrip
-                            + " direct=" + isDirectOnly
-                            + " airlines=" + airlines + " target=$" + price + " id=" + id);
-
-                    Toast.makeText(this, "已新增航班監控", Toast.LENGTH_SHORT).show();
-                    refreshList();
-                })
+                .setPositiveButton("新增", null)  // set null, override below to prevent auto-dismiss
                 .setNegativeButton("取消", null)
                 .create();
         addDialog.show();
+        // Override positive button to prevent dismiss on validation failure
+        addDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v2 -> {
+            String origin = originCode[0].trim().toUpperCase();
+            String dest = destCode[0].trim().toUpperCase();
+            String priceStr = priceInput.getText().toString().trim();
+            String airlines = airlineInput.getText().toString().trim();
+            boolean isRoundTrip = rtSwitch.isChecked();
+
+            if (origin.isEmpty() || dest.isEmpty() || depDate[0].isEmpty()) {
+                Toast.makeText(this, "請選擇出發地、目的地和日期", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (isRoundTrip && retDate[0].isEmpty()) {
+                Toast.makeText(this, "來回票請選擇回程日期", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            double price = 0;
+            if (!priceStr.isEmpty()) {
+                try {
+                    price = Double.parseDouble(priceStr);
+                } catch (NumberFormatException e) {
+                    Toast.makeText(this, "價格格式不正確", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+
+            boolean isDirectOnly = doSwitch.isChecked();
+            long id = db.insert(origin, dest, depDate[0], retDate[0],
+                    selectedMode[0], price, "TWD", isRoundTrip,
+                    airlines.isEmpty() ? null : airlines, isDirectOnly);
+            AppLog.i("Flight", "新增監控: " + origin + "→" + dest
+                    + " date=" + depDate[0] + " rt=" + isRoundTrip
+                    + " direct=" + isDirectOnly
+                    + " airlines=" + airlines + " target=$" + price + " id=" + id);
+
+            Toast.makeText(this, "已新增航班監控", Toast.LENGTH_SHORT).show();
+            addDialog.dismiss();
+            refreshList();
+        });
         if (addDialog.getWindow() != null) {
             addDialog.getWindow().setBackgroundDrawable(UIHelper.roundRect(UIHelper.BG_PRIMARY, 12, this));
         }

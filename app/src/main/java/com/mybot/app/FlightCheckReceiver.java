@@ -129,8 +129,6 @@ public class FlightCheckReceiver extends BroadcastReceiver {
             String resultJson = result.toString();
 
             long now = System.currentTimeMillis();
-            // Always update with current cheapest so next check can compare
-            db.updateCheckResult(watch.id, now, cheapestPrice, resultJson);
 
             AppLog.i("Flight", "id=" + watch.id + " 本次=" + cheapestPrice
                     + " 目標價=" + watch.targetPrice
@@ -139,10 +137,12 @@ public class FlightCheckReceiver extends BroadcastReceiver {
             // Notify logic:
             // 1. First check: notify with initial price
             // 2. Target price mode: notify when price <= target
-            // 3. Price dropped below previous lowest: notify + update record
-            // 4. Price increased: notify (price went up)
+            // 3. Price dropped 5%+ below previous lowest: notify + update lowest
+            // 4. Price increased 10%+ above previous lowest: notify (info only)
+            // Minimum threshold avoids notification spam from minor fluctuations
             boolean shouldNotify = false;
             String reason = "";
+            double priceToStore = cheapestPrice;
 
             if (cheapestPrice > 0 && watch.lastLowestPrice <= 0) {
                 // First check — establish baseline
@@ -152,17 +152,34 @@ public class FlightCheckReceiver extends BroadcastReceiver {
                     && cheapestPrice <= watch.targetPrice) {
                 shouldNotify = true;
                 reason = "達到目標價 $" + String.format("%.0f", watch.targetPrice);
+                // Update lowest if this is a new low
+                if (cheapestPrice < watch.lastLowestPrice) priceToStore = cheapestPrice;
+                else priceToStore = watch.lastLowestPrice;
             } else if (cheapestPrice > 0 && watch.lastLowestPrice > 0
                     && cheapestPrice < watch.lastLowestPrice) {
-                shouldNotify = true;
                 long drop = Math.round((1 - cheapestPrice / watch.lastLowestPrice) * 100);
-                reason = "📉 降價 " + drop + "% (前次 $" + String.format("%.0f", watch.lastLowestPrice) + ")";
+                if (drop >= 5) {
+                    shouldNotify = true;
+                    reason = "📉 降價 " + drop + "% (前次最低 $" + String.format("%.0f", watch.lastLowestPrice) + ")";
+                }
+                // Always update lowest when price drops
+                priceToStore = cheapestPrice;
             } else if (cheapestPrice > 0 && watch.lastLowestPrice > 0
                     && cheapestPrice > watch.lastLowestPrice) {
-                shouldNotify = true;
                 long rise = Math.round((cheapestPrice / watch.lastLowestPrice - 1) * 100);
-                reason = "📈 漲價 " + rise + "% (前次 $" + String.format("%.0f", watch.lastLowestPrice) + ")";
+                if (rise >= 10) {
+                    shouldNotify = true;
+                    reason = "📈 漲價 " + rise + "% (歷史最低 $" + String.format("%.0f", watch.lastLowestPrice) + ")";
+                }
+                // Keep the historical lowest, don't overwrite
+                priceToStore = watch.lastLowestPrice;
+            } else {
+                // Price unchanged or negligible change — keep lowest
+                priceToStore = watch.lastLowestPrice > 0 ? watch.lastLowestPrice : cheapestPrice;
             }
+
+            // Update check time and result JSON; only update price to the correct value
+            db.updateCheckResult(watch.id, now, priceToStore, resultJson);
 
             if (shouldNotify) {
                 sendFlightNotification(context, watch, cheapestPrice, reason, result);

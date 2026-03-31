@@ -191,7 +191,7 @@ public class GoogleAuthHelper {
                 return new String[]{accessToken, null};
             } else {
                 AppLog.e("Auth", "Token交換失敗: HTTP " + code);
-                return new String[]{null, "Token exchange failed: HTTP " + code + " " + sb.toString()};
+                return new String[]{null, "Token exchange failed: HTTP " + code};
             }
         } catch (Exception e) {
             AppLog.e("Auth", "Token交換異常: " + e.getMessage());

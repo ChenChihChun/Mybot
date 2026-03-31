@@ -190,7 +190,7 @@ public class FitnessProfileActivity extends AppCompatActivity {
 
             FitnessDbHelper db = new FitnessDbHelper(this);
             db.saveProfile(h, w, goalKeys[selectedGoalIdx], levelKeys[selectedLevelIdx]);
-            AppLog.i("Fitness", "個人檔案已儲存: " + h + "cm/" + w + "kg goal=" + goalKeys[selectedGoalIdx] + " level=" + levelKeys[selectedLevelIdx]);
+            AppLog.i("Fitness", "個人檔案已儲存: goal=" + goalKeys[selectedGoalIdx] + " level=" + levelKeys[selectedLevelIdx]);
             Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
             finish();
         });
