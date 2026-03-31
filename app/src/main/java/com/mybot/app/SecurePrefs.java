@@ -3,8 +3,13 @@ package com.mybot.app;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import androidx.annotation.Nullable;
 import androidx.security.crypto.EncryptedSharedPreferences;
 import androidx.security.crypto.MasterKeys;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Encrypted SharedPreferences wrapper for sensitive data (OAuth tokens, secrets).
@@ -48,12 +53,10 @@ public class SecurePrefs {
             return instance;
         }
 
-        // Final fallback: plaintext (log as error, mark unavailable)
+        // Final fallback: in-memory only — refuse to persist tokens in plaintext
         encryptionAvailable = false;
-        AppLog.e("SecurePrefs", "加密儲存不可用，降級為一般模式 — OAuth token 將以明文存儲");
-        instance = ctx.getApplicationContext()
-                .getSharedPreferences(SECURE_PREFS_NAME + "_fallback", Context.MODE_PRIVATE);
-        migrateIfNeeded(ctx);
+        AppLog.e("SecurePrefs", "加密儲存不可用 — OAuth token 僅保留在記憶體中，重啟後需重新登入");
+        instance = new InMemorySharedPreferences();
         return instance;
     }
 
@@ -102,5 +105,61 @@ public class SecurePrefs {
                 .apply();
 
         AppLog.i("SecurePrefs", "已遷移敏感資料至加密儲存");
+    }
+
+    /**
+     * In-memory SharedPreferences that never persists to disk.
+     * Used as a safe fallback when encryption is unavailable.
+     * Tokens will work for the current session but won't survive app restart.
+     */
+    private static class InMemorySharedPreferences implements SharedPreferences {
+        private final Map<String, Object> store = new HashMap<>();
+
+        @Override public Map<String, ?> getAll() { return new HashMap<>(store); }
+        @Nullable @Override public String getString(String key, @Nullable String defValue) {
+            Object v = store.get(key); return v instanceof String ? (String) v : defValue;
+        }
+        @Override public int getInt(String key, int defValue) {
+            Object v = store.get(key); return v instanceof Integer ? (Integer) v : defValue;
+        }
+        @Override public long getLong(String key, long defValue) {
+            Object v = store.get(key); return v instanceof Long ? (Long) v : defValue;
+        }
+        @Override public float getFloat(String key, float defValue) {
+            Object v = store.get(key); return v instanceof Float ? (Float) v : defValue;
+        }
+        @Override public boolean getBoolean(String key, boolean defValue) {
+            Object v = store.get(key); return v instanceof Boolean ? (Boolean) v : defValue;
+        }
+        @Nullable @Override public Set<String> getStringSet(String key, @Nullable Set<String> defValues) {
+            Object v = store.get(key); return v instanceof Set ? (Set<String>) v : defValues;
+        }
+        @Override public boolean contains(String key) { return store.containsKey(key); }
+        @Override public Editor edit() { return new InMemoryEditor(); }
+        @Override public void registerOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener l) {}
+        @Override public void unregisterOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener l) {}
+
+        private class InMemoryEditor implements Editor {
+            private final Map<String, Object> pending = new HashMap<>();
+            private boolean clear = false;
+
+            @Override public Editor putString(String key, @Nullable String value) { pending.put(key, value); return this; }
+            @Override public Editor putStringSet(String key, @Nullable Set<String> values) { pending.put(key, values); return this; }
+            @Override public Editor putInt(String key, int value) { pending.put(key, value); return this; }
+            @Override public Editor putLong(String key, long value) { pending.put(key, value); return this; }
+            @Override public Editor putFloat(String key, float value) { pending.put(key, value); return this; }
+            @Override public Editor putBoolean(String key, boolean value) { pending.put(key, value); return this; }
+            @Override public Editor remove(String key) { pending.put(key, null); return this; }
+            @Override public Editor clear() { clear = true; return this; }
+            @Override public boolean commit() { apply(); return true; }
+            @Override public void apply() {
+                if (clear) store.clear();
+                for (Map.Entry<String, Object> e : pending.entrySet()) {
+                    if (e.getValue() == null) store.remove(e.getKey());
+                    else store.put(e.getKey(), e.getValue());
+                }
+                pending.clear();
+            }
+        }
     }
 }
