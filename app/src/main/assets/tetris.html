@@ -62,40 +62,41 @@
   /* ── Controls — two-thumb layout ── */
   #controls {
     display: flex; flex-direction: row; align-items: stretch;
-    padding: 8px 10px 14px; gap: 8px;
+    padding: 6px 8px 16px; gap: 10px;
     background: #0A1520; border-top: 1px solid #1A2A38;
     flex-shrink: 0;
   }
 
   /* Left group: ◀  ▼  ▶  (left thumb) */
   #ctrl-move {
-    flex: 3; display: flex; gap: 6px;
+    flex: 3; display: flex; gap: 5px;
   }
-  /* Right group: ↻  ⬇  (right thumb) */
+  /* Right group: ↻ and ⬇ stacked vertically (right thumb) */
   #ctrl-action {
-    flex: 2; display: flex; gap: 6px;
+    flex: 2; display: flex; flex-direction: column; gap: 5px;
   }
 
   .ctrl-btn {
-    flex: 1; height: 60px; border-radius: 14px; border: none;
-    color: #C0D8E8; font-size: 24px;
+    flex: 1; min-height: 54px; border-radius: 16px; border: 2px solid transparent;
+    color: #C0D8E8; font-size: 26px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; user-select: none; -webkit-user-select: none;
-    transition: background 0.08s, transform 0.06s;
+    transition: background 0.06s, transform 0.04s, border-color 0.06s;
     touch-action: none;
   }
-  .ctrl-btn:active { transform: scale(0.91); }
 
   #btn-left   { background: #1A2E42; }
   #btn-down   { background: #1A2E42; }
   #btn-right  { background: #1A2E42; }
-  #btn-rotate { background: #1A3A4A; color: #60C8E8; font-size: 26px; }
-  #btn-drop   { background: #1A2F1A; color: #60E870; font-size: 22px; }
+  #btn-rotate { background: #1A3A4A; color: #60C8E8; font-size: 30px; border-color: #1A4A5A; }
+  #btn-drop   { background: #1A2F1A; color: #60E870; font-size: 24px; border-color: #1A4A1A; }
 
-  .ctrl-btn:active,
-  .ctrl-btn.pressed { background: #2A4A60 !important; transform: scale(0.91); }
-  #btn-rotate.pressed { background: #1E4A5A !important; }
-  #btn-drop.pressed   { background: #1E4A1E !important; }
+  .ctrl-btn.pressed { transform: scale(0.90); }
+  #btn-left.pressed,
+  #btn-right.pressed,
+  #btn-down.pressed  { background: #2A5070 !important; border-color: #3A7090; }
+  #btn-rotate.pressed { background: #1E5A6A !important; border-color: #40A0C0; }
+  #btn-drop.pressed   { background: #1E5A1E !important; border-color: #40C040; }
 
   /* Hint strip */
   #gesture-hint {
@@ -169,7 +170,7 @@
   <!--
     Controls — two-thumb layout:
     Left thumb  → [◀] [▼] [▶]  (move left / soft-drop / move right)
-    Right thumb → [↻] [⬇]      (rotate / hard-drop)
+    Right thumb → [↻] stacked over [⬇]  (rotate / hard-drop)
   -->
   <div id="controls">
     <div id="ctrl-move">
@@ -179,7 +180,7 @@
     </div>
     <div id="ctrl-action">
       <button class="ctrl-btn" id="btn-rotate">↻</button>
-      <button class="ctrl-btn" id="btn-drop">⬇</button>
+      <button class="ctrl-btn" id="btn-drop">⏬</button>
     </div>
   </div>
 </div>
@@ -714,6 +715,11 @@ function playerDrop() {
   lastFallP = performance.now() - cfg.fallMs;
 }
 
+// ─── Haptic feedback helper ───────────────────────────────────────────────────
+function vibrate(ms) {
+  try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e) {}
+}
+
 // ─── Button Controls with DAS ─────────────────────────────────────────────────
 // DAS = Delayed Auto Shift: hold a button → wait DAS_DELAY ms → repeat every DAS_REPEAT ms
 function makeDasBtn(btnId, action) {
@@ -724,9 +730,10 @@ function makeDasBtn(btnId, action) {
   function start(e) {
     e.preventDefault();
     btn.classList.add('pressed');
+    vibrate(10);
     action();
     dasTimeout = setTimeout(() => {
-      dasInterval = setInterval(action, DAS_REPEAT);
+      dasInterval = setInterval(() => { action(); vibrate(5); }, DAS_REPEAT);
     }, DAS_DELAY);
   }
 
@@ -752,6 +759,7 @@ function makeTapBtn(btnId, action) {
   function start(e) {
     e.preventDefault();
     btn.classList.add('pressed');
+    vibrate(15);
     action();
   }
   function stop() { btn.classList.remove('pressed'); }
@@ -771,9 +779,9 @@ makeTapBtn('btn-drop',  playerDrop);
 
 // ─── Swipe Zone Gesture Controls ──────────────────────────────────────────────
 // The swipe-zone div covers the boards-area.
-// - Tap (< 12px movement, < 300ms)  → rotate
+// - Tap (< 15px movement, < 300ms)  → rotate
 // - Horizontal drag                  → move left/right, snapped by approx cell width
-// - Quick flick down (fast, >60px)   → hard drop
+// - Quick flick down (fast, >80px)   → hard drop (only if soft drop was NOT active)
 // - Hold & drag down (slow/long)     → soft drop (continuous while holding)
 (function () {
   const zone = document.getElementById('swipe-zone');
@@ -782,6 +790,7 @@ makeTapBtn('btn-drop',  playerDrop);
   let lastProcessedX;      // tracks how far we've already moved
   let softDropTimer = null;
   let isSoftDropActive = false;
+  let hasMoved = false;    // true if any horizontal/vertical movement was triggered
   const CELL_PX = () => CELL_SIZE || 18; // pixel width per column on board
 
   function stopSoftDrop() {
@@ -796,6 +805,7 @@ makeTapBtn('btn-drop',  playerDrop);
     startY = t.clientY;
     startTime = performance.now();
     isSoftDropActive = false;
+    hasMoved = false;
   }, { passive: false });
 
   zone.addEventListener('touchmove', e => {
@@ -805,6 +815,10 @@ makeTapBtn('btn-drop',  playerDrop);
     const curX = t.clientX;
     const curY = t.clientY;
     const totalDy = curY - startY;
+    const totalDx = Math.abs(curX - startX);
+
+    // Determine primary direction: if horizontal drag dominates, don't soft drop
+    const isHorizontalDrag = totalDx > Math.abs(totalDy) * 0.7;
 
     // Horizontal: move by columns based on drag distance
     const dx = curX - lastProcessedX;
@@ -816,11 +830,16 @@ makeTapBtn('btn-drop',  playerDrop);
         else           playerLeft();
       }
       lastProcessedX += steps * colW;
+      hasMoved = true;
+      vibrate(5);
     }
 
     // Vertical: start soft drop if dragging down more than 2 rows
-    if (totalDy > CELL_PX() * 2 && !isSoftDropActive) {
+    // Only activate if not primarily horizontal dragging
+    if (!isHorizontalDrag && totalDy > CELL_PX() * 2 && !isSoftDropActive) {
       isSoftDropActive = true;
+      hasMoved = true;
+      vibrate(10);
       playerDown();
       softDropTimer = setInterval(playerDown, 60);
     }
@@ -828,6 +847,7 @@ makeTapBtn('btn-drop',  playerDrop);
 
   zone.addEventListener('touchend', e => {
     e.preventDefault();
+    const wasSoftDrop = isSoftDropActive;
     stopSoftDrop();
     if (!gameRunning || pState.dead) return;
 
@@ -837,15 +857,18 @@ makeTapBtn('btn-drop',  playerDrop);
     const dt = performance.now() - startTime;
 
     // Quick downward flick → hard drop
-    // Criteria: mostly downward, fast gesture
-    if (dy > 60 && dx < 50 && dt < 350) {
+    // Criteria: mostly downward, fast gesture, was NOT soft-dropping
+    // This prevents accidental hard drop after releasing a soft drop
+    if (!wasSoftDrop && dy > 80 && dx < 40 && dt < 300) {
+      vibrate(25);
       playerDrop();
       return;
     }
 
     // Tap → rotate
-    // Criteria: barely moved AND short time
-    if (dx < 12 && Math.abs(dy) < 12 && dt < 300) {
+    // Criteria: barely moved AND short time AND no movement was triggered
+    if (!hasMoved && dx < 15 && Math.abs(dy) < 15 && dt < 300) {
+      vibrate(10);
       playerRotate();
     }
   }, { passive: false });
