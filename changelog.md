@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.94 (2026-04-03)
+- **Revert: 移除 AI 辦公室 (Star-Office-UI)**
+  - Deleted `app/src/main/java/com/mybot/app/OfficeActivity.java`
+  - Modified `app/src/main/java/com/mybot/app/MainActivity.java` — 移除「AI 辦公室」按鈕，還原空位
+  - Modified `app/src/main/AndroidManifest.xml` — 移除 OfficeActivity 註冊
+  - Modified `app/build.gradle` — versionCode 117, versionName 3.94
+- **Bridge: 移除 Star-Office-UI 整合**
+  - Modified `~/bridge/bridge.py` — 移除 `set_office_state()` 及所有 hook
+- **Infra: 刪除 Star-Office-UI**
+  - Deleted `~/star-office/` 整個目錄
+  - Deleted `~/skills/gemini-image-generate/`
+  - Uninstalled `google-genai`, `opencc-python-reimplemented`
+
 ## v3.93 (2026-04-03)
 - **Feature: AI 辦公室 — Star-Office-UI 像素風 Agent 儀表板**
   - Added `app/src/main/java/com/mybot/app/OfficeActivity.java` — WebView Activity 載入 Star-Office-UI (localhost:19000)，像素風格即時顯示 AI Agent 工作狀態

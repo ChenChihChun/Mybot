@@ -113,10 +113,6 @@
             android:screenOrientation="portrait"
             android:exported="false" />
 
-        <!-- AI Office Dashboard -->
-        <activity android:name=".OfficeActivity"
-            android:exported="false" />
-
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
 
