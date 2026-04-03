@@ -61,6 +61,11 @@ public class StockActivity extends AppCompatActivity {
     private TextView tvName, tvPrice, tvChange, tvOpen, tvHigh, tvLow, tvPrevClose, tvVolume;
     private LinearLayout costRow;
     private TextView tvCost;
+    // Recommendation UI
+    private LinearLayout recCard;
+    private LinearLayout recContent;
+    private TextView recStatus;
+    private boolean recLoading = false;
 
     private String currentPeriod = "day"; // 1m, 5m, 15m, day, week, month
     private List<StockData.CandleBar> historicalCandles = null;
@@ -81,6 +86,12 @@ public class StockActivity extends AppCompatActivity {
             loadAiAnalysis(selectedCode);
             loadHistoricalData();
         }
+
+        // Auto-enable stock reminder on first visit
+        if (!ReminderHelper.isStockEnabled(this)) {
+            ReminderHelper.scheduleStockReminder(this);
+            AppLog.i("Stock", "自動啟用每日推薦通知 (08:30)");
+        }
     }
 
     @Override
@@ -88,6 +99,7 @@ public class StockActivity extends AppCompatActivity {
         super.onResume();
         isRunning = true;
         scheduleUpdate();
+        loadRecommendation();
     }
 
     @Override
@@ -277,6 +289,10 @@ public class StockActivity extends AppCompatActivity {
         }
         updatePeriodButtons();
         content.addView(periodBar);
+
+        // Daily Recommendation card
+        recCard = buildRecommendationCard();
+        content.addView(recCard);
 
         // AI Analysis card
         aiCard = new LinearLayout(this);
@@ -1075,5 +1091,280 @@ public class StockActivity extends AppCompatActivity {
         if (vol >= 100_000_000) return String.format("%.1f億", vol / 100_000_000.0);
         if (vol >= 10000) return String.format("%.0f萬", vol / 10000.0);
         return String.valueOf(vol);
+    }
+
+    // ==================== Daily Recommendation ====================
+
+    private LinearLayout buildRecommendationCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 16, this));
+        int pad = UIHelper.dp(this, 14);
+        card.setPadding(pad, pad, pad, pad);
+        card.setElevation(UIHelper.dp(this, 3));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+        card.setLayoutParams(lp);
+
+        // Title row
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView title = new TextView(this);
+        title.setText("每日 AI 推薦");
+        title.setTextSize(15);
+        title.setTextColor(UIHelper.ACCENT_ORANGE);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        TextView refreshBtn = new TextView(this);
+        refreshBtn.setText("更新");
+        refreshBtn.setTextSize(13);
+        refreshBtn.setTextColor(UIHelper.ACCENT_BLUE);
+        refreshBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        refreshBtn.setPadding(UIHelper.dp(this, 12), UIHelper.dp(this, 6),
+                UIHelper.dp(this, 12), UIHelper.dp(this, 6));
+        refreshBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_BLUE, 10, 1, this));
+        refreshBtn.setOnClickListener(v -> refreshRecommendation());
+
+        titleRow.addView(title);
+        titleRow.addView(refreshBtn);
+        card.addView(titleRow);
+
+        // Content container
+        recContent = new LinearLayout(this);
+        recContent.setOrientation(LinearLayout.VERTICAL);
+        recContent.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        card.addView(recContent);
+
+        // Status text
+        recStatus = new TextView(this);
+        recStatus.setTextSize(13);
+        recStatus.setTextColor(UIHelper.TEXT_HINT);
+        recStatus.setText("載入中...");
+        recContent.addView(recStatus);
+
+        return card;
+    }
+
+    private void loadRecommendation() {
+        if (recLoading) return;
+        recLoading = true;
+        recStatus.setText("載入推薦中...");
+        recStatus.setVisibility(View.VISIBLE);
+        AppLog.i("Stock", "loadRecommendation: 開始載入");
+
+        BridgeClient.getStockRecommendation((data, error) -> {
+            recLoading = false;
+            if (error != null) {
+                recStatus.setText("尚無推薦資料");
+                AppLog.w("Stock", "loadRecommendation: " + error);
+                return;
+            }
+            if (data == null) {
+                recStatus.setText("尚無推薦資料");
+                return;
+            }
+            displayRecommendation(data);
+        });
+    }
+
+    private void displayRecommendation(org.json.JSONObject data) {
+        recContent.removeAllViews();
+        try {
+            String date = data.optString("date", "");
+            org.json.JSONObject rec = data.optJSONObject("data");
+            if (rec == null) rec = data;
+
+            String mood = rec.optString("market_mood", "N/A");
+            String moodReason = rec.optString("mood_reason", "");
+
+            // Mood bar
+            int moodColor = mood.contains("樂觀") ? UIHelper.ACCENT_GREEN
+                    : mood.contains("謹慎") ? UIHelper.ACCENT_RED : UIHelper.ACCENT_ORANGE;
+
+            TextView moodView = new TextView(this);
+            moodView.setText("市場氛圍: " + mood + (moodReason.isEmpty() ? "" : " — " + moodReason));
+            moodView.setTextSize(13);
+            moodView.setTextColor(moodColor);
+            moodView.setTypeface(Typeface.DEFAULT_BOLD);
+            moodView.setPadding(0, 0, 0, UIHelper.dp(this, 8));
+            recContent.addView(moodView);
+
+            if (!date.isEmpty()) {
+                TextView dateView = new TextView(this);
+                dateView.setText("更新日期: " + date);
+                dateView.setTextSize(11);
+                dateView.setTextColor(UIHelper.TEXT_HINT);
+                dateView.setPadding(0, 0, 0, UIHelper.dp(this, 6));
+                recContent.addView(dateView);
+            }
+
+            // Picks
+            org.json.JSONArray picks = rec.optJSONArray("picks");
+            if (picks != null && picks.length() > 0) {
+                for (int i = 0; i < picks.length(); i++) {
+                    org.json.JSONObject pick = picks.getJSONObject(i);
+                    recContent.addView(buildPickCard(pick, i + 1));
+                }
+            } else {
+                TextView noPicks = new TextView(this);
+                noPicks.setText("今日無推薦標的");
+                noPicks.setTextSize(13);
+                noPicks.setTextColor(UIHelper.TEXT_SECONDARY);
+                recContent.addView(noPicks);
+            }
+
+            AppLog.i("Stock", "displayRecommendation: " + (picks != null ? picks.length() : 0) + " picks, mood=" + mood);
+
+        } catch (Exception e) {
+            TextView errView = new TextView(this);
+            errView.setText("解析推薦資料失敗: " + e.getMessage());
+            errView.setTextSize(12);
+            errView.setTextColor(UIHelper.ACCENT_RED);
+            recContent.addView(errView);
+            AppLog.e("Stock", "displayRecommendation解析失敗: " + e.getMessage());
+        }
+    }
+
+    private LinearLayout buildPickCard(org.json.JSONObject pick, int rank) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(UIHelper.roundRect(0xFF1E1E2E, 12, this));
+        int pad = UIHelper.dp(this, 12);
+        card.setPadding(pad, pad, pad, pad);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 4));
+        card.setLayoutParams(lp);
+
+        String symbol = pick.optString("symbol", "?");
+        String name = pick.optString("name", "?");
+        double price = pick.optDouble("price", 0);
+
+        // Header: rank + symbol + name + price
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView rankView = new TextView(this);
+        rankView.setText("#" + rank);
+        rankView.setTextSize(16);
+        rankView.setTextColor(UIHelper.ACCENT_ORANGE);
+        rankView.setTypeface(Typeface.DEFAULT_BOLD);
+        rankView.setPadding(0, 0, UIHelper.dp(this, 8), 0);
+
+        TextView nameView = new TextView(this);
+        nameView.setText(symbol + " " + name);
+        nameView.setTextSize(15);
+        nameView.setTextColor(UIHelper.TEXT_PRIMARY);
+        nameView.setTypeface(Typeface.DEFAULT_BOLD);
+        nameView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        if (price > 0) {
+            TextView priceView = new TextView(this);
+            priceView.setText(formatPrice(price));
+            priceView.setTextSize(15);
+            priceView.setTextColor(UIHelper.TEXT_PRIMARY);
+            priceView.setTypeface(Typeface.DEFAULT_BOLD);
+            header.addView(rankView);
+            header.addView(nameView);
+            header.addView(priceView);
+        } else {
+            header.addView(rankView);
+            header.addView(nameView);
+        }
+        card.addView(header);
+
+        // Institutional + Financial summary (one-liners)
+        String instSummary = pick.optString("institutional_summary", "");
+        if (!instSummary.isEmpty()) {
+            TextView instView = new TextView(this);
+            instView.setText("法人: " + instSummary);
+            instView.setTextSize(12);
+            instView.setTextColor(UIHelper.ACCENT_BLUE);
+            instView.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+            card.addView(instView);
+        }
+
+        String finSummary = pick.optString("financial_summary", "");
+        if (!finSummary.isEmpty()) {
+            TextView finView = new TextView(this);
+            finView.setText("財報: " + finSummary);
+            finView.setTextSize(12);
+            finView.setTextColor(UIHelper.ACCENT_GREEN);
+            finView.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+            card.addView(finView);
+        }
+
+        // Reasons
+        org.json.JSONArray reasons = pick.optJSONArray("reasons");
+        if (reasons != null && reasons.length() > 0) {
+            for (int i = 0; i < reasons.length(); i++) {
+                String reason = reasons.optString(i, "");
+                if (!reason.isEmpty()) {
+                    TextView rv = new TextView(this);
+                    rv.setText("• " + reason);
+                    rv.setTextSize(12);
+                    rv.setTextColor(UIHelper.TEXT_SECONDARY);
+                    rv.setPadding(0, UIHelper.dp(this, 3), 0, 0);
+                    rv.setLineSpacing(UIHelper.dp(this, 2), 1f);
+                    card.addView(rv);
+                }
+            }
+        }
+
+        // Risk
+        String risk = pick.optString("risk", "");
+        if (!risk.isEmpty()) {
+            TextView riskView = new TextView(this);
+            riskView.setText("風險: " + risk);
+            riskView.setTextSize(12);
+            riskView.setTextColor(UIHelper.ACCENT_RED);
+            riskView.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+            card.addView(riskView);
+        }
+
+        // Click to add to watchlist
+        card.setOnClickListener(v -> {
+            if (!watchlist.contains(symbol)) {
+                watchlist.add(symbol);
+                saveWatchlist();
+                selectedCode = symbol;
+                refreshChips();
+                loadHistoricalData();
+                Toast.makeText(this, symbol + " 已加入追蹤", Toast.LENGTH_SHORT).show();
+                AppLog.i("Stock", "從推薦加入追蹤: " + symbol);
+            } else {
+                selectedCode = symbol;
+                refreshChips();
+                loadHistoricalData();
+            }
+        });
+
+        return card;
+    }
+
+    private void refreshRecommendation() {
+        if (recLoading) return;
+        recLoading = true;
+        recStatus.setText("觸發分析中（約需2-3分鐘）...");
+        recStatus.setVisibility(View.VISIBLE);
+        recContent.removeAllViews();
+        recContent.addView(recStatus);
+        AppLog.i("Stock", "refreshRecommendation: 觸發分析");
+
+        BridgeClient.refreshStockRecommendation((data, error) -> {
+            recLoading = false;
+            if (error != null) {
+                recStatus.setText("分析失敗: " + error);
+                AppLog.e("Stock", "refreshRecommendation失敗: " + error);
+                return;
+            }
+            // After refresh, reload the recommendation
+            loadRecommendation();
+        });
     }
 }

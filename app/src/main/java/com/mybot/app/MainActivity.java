@@ -58,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
         ReminderHelper.restoreFitnessIfEnabled(this);
         ReminderHelper.restoreWaterIfEnabled(this);
         ReminderHelper.restoreFlightIfEnabled(this);
+        ReminderHelper.restoreStockIfEnabled(this);
 
         getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
 

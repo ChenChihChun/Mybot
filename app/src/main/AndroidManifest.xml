@@ -177,6 +177,11 @@
             android:name=".FlightCheckReceiver"
             android:exported="false" />
 
+        <!-- Stock Recommendation Receiver -->
+        <receiver
+            android:name=".StockReminderReceiver"
+            android:exported="false" />
+
     </application>
 
 </manifest>

@@ -290,4 +290,64 @@ public class ReminderHelper {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         safeSetExact(am, cal.getTimeInMillis(), pi);
     }
+
+    // --- Stock recommendation check (weekdays 08:30) ---
+    private static final String STOCK_PREFS = "mybot_stock_reminder";
+    private static final int STOCK_REQUEST_CODE = 9200;
+
+    public static void scheduleStockReminder(Context context) {
+        context.getSharedPreferences(STOCK_PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, true).apply();
+        setStockAlarm(context);
+    }
+
+    private static void setStockAlarm(Context context) {
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 8);
+        cal.set(Calendar.MINUTE, 30);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+        // Skip weekends
+        int dow = cal.get(Calendar.DAY_OF_WEEK);
+        if (dow == Calendar.SATURDAY) cal.add(Calendar.DAY_OF_YEAR, 2);
+        else if (dow == Calendar.SUNDAY) cal.add(Calendar.DAY_OF_YEAR, 1);
+
+        Intent intent = new Intent(context, StockReminderReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, STOCK_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        safeSetExact(am, cal.getTimeInMillis(), pi);
+    }
+
+    public static void scheduleNextStockReminder(Context context) {
+        if (isStockEnabled(context)) {
+            setStockAlarm(context);
+        }
+    }
+
+    public static void cancelStockReminder(Context context) {
+        context.getSharedPreferences(STOCK_PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, false).apply();
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, StockReminderReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, STOCK_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        if (am != null) am.cancel(pi);
+    }
+
+    public static void restoreStockIfEnabled(Context context) {
+        if (isStockEnabled(context)) {
+            setStockAlarm(context);
+        }
+    }
+
+    public static boolean isStockEnabled(Context context) {
+        return context.getSharedPreferences(STOCK_PREFS, Context.MODE_PRIVATE)
+                .getBoolean(KEY_ENABLED, false);
+    }
 }

@@ -893,4 +893,94 @@ public class BridgeClient {
             return new String[]{null, err};
         }
     }
+
+    // --- Stock Recommendation ---
+
+    public interface StockRecommendationCallback {
+        void onResult(JSONObject recommendation, String error);
+    }
+
+    /**
+     * GET /stock/recommend — fetch today's AI stock recommendation from Bridge cache.
+     */
+    public static void getStockRecommendation(StockRecommendationCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getStockRecommendation: 取得每日推薦");
+            try {
+                URL url = new URL(BASE_URL + "/stock/recommend");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        if (data != null) {
+                            AppLog.i("Bridge", "stockRecommendation成功: date=" + data.optString("date"));
+                            mainHandler.post(() -> callback.onResult(data, null));
+                            return;
+                        }
+                    }
+                    String msg = json.optString("error", "無推薦資料");
+                    AppLog.w("Bridge", "stockRecommendation無資料: " + msg);
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    AppLog.e("Bridge", "stockRecommendation HTTP " + code);
+                    mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "stockRecommendation失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
+    /**
+     * POST /stock/refresh — trigger full stock analysis pipeline.
+     */
+    public static void refreshStockRecommendation(StockRecommendationCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "refreshStockRecommendation: 觸發分析");
+            try {
+                JSONObject body = new JSONObject();
+                body.put("action", "refresh");
+
+                String[] result = postJsonWithError(BASE_URL + "/stock/refresh", body.toString(), 300000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    JSONObject json = new JSONObject(response);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "refreshStockRecommendation成功");
+                        mainHandler.post(() -> callback.onResult(data, null));
+                    } else {
+                        String msg = json.optString("error", "分析失敗");
+                        AppLog.w("Bridge", "refreshStockRecommendation失敗: " + msg);
+                        mainHandler.post(() -> callback.onResult(null, msg));
+                    }
+                } else {
+                    AppLog.e("Bridge", "refreshStockRecommendation失敗: " + error);
+                    mainHandler.post(() -> callback.onResult(null, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "refreshStockRecommendation異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
 }
