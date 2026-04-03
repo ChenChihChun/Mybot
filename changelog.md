@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.90 (2026-04-03)
+- **Refactor: 移除自選股追蹤功能，簡化為純 AI 推薦頁面**
+  - Rewritten `app/src/main/java/com/mybot/app/StockActivity.java` — 移除自選股清單、即時報價、K線圖、技術指標、AI分析評語、成本損益等功能，僅保留「每日AI推薦」卡片和「推薦追蹤&準確度」卡片。頁面標題改為「台股 AI 推薦」
+  - Deleted `app/src/main/java/com/mybot/app/StockClient.java` — 不再需要 TWSE 即時報價/歷史 K 線 API 客戶端
+  - Deleted `app/src/main/java/com/mybot/app/StockChartView.java` — 不再需要自定義 K 線圖元件
+  - Deleted `app/src/main/java/com/mybot/app/StockCache.java` — 不再需要 K 線快取
+  - Deleted `app/src/main/java/com/mybot/app/StockData.java` — 不再需要股價資料模型
+  - Modified `app/src/main/java/com/mybot/app/BridgeClient.java` — 移除 `analyzeStock()` 方法和 `StockAnalysisCallback` 介面
+  - Modified `bridge/bridge.py` — 移除 `analyze_stock` task type
+  - Modified `app/build.gradle` — versionCode 113, versionName 3.90
+
 ## v3.89 (2026-04-03)
 - **Bug Fix: 修復自選股報價與K線無法顯示**
   - Modified `app/src/main/java/com/mybot/app/StockClient.java`:
