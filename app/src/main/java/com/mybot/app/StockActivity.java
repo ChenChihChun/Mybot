@@ -262,6 +262,21 @@ public class StockActivity extends AppCompatActivity {
         }
         card.addView(header);
 
+        // Yahoo Finance link
+        TextView yahooLink = new TextView(this);
+        yahooLink.setText("Yahoo 個股頁面 →");
+        yahooLink.setTextSize(12);
+        yahooLink.setTextColor(UIHelper.ACCENT_BLUE);
+        yahooLink.setPadding(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 2));
+        yahooLink.setOnClickListener(v -> {
+            String url = "https://tw.stock.yahoo.com/quote/" + symbol + ".TW";
+            try {
+                startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(url)));
+            } catch (Exception ignored) {}
+        });
+        card.addView(yahooLink);
+
         // Institutional + Financial summary
         String instSummary = pick.optString("institutional_summary", "");
         if (!instSummary.isEmpty()) {

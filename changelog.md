@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.91 (2026-04-03)
+- **Enhancement: AI推薦卡新增 Yahoo 個股連結**
+  - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — 每檔推薦股下方新增「Yahoo 個股頁面 →」超連結，點擊開啟 tw.stock.yahoo.com 該股頁面
+  - Modified `app/build.gradle` — versionCode 114, versionName 3.91
+
 ## v3.90 (2026-04-03)
 - **Refactor: 移除自選股追蹤功能，簡化為純 AI 推薦頁面**
   - Rewritten `app/src/main/java/com/mybot/app/StockActivity.java` — 移除自選股清單、即時報價、K線圖、技術指標、AI分析評語、成本損益等功能，僅保留「每日AI推薦」卡片和「推薦追蹤&準確度」卡片。頁面標題改為「台股 AI 推薦」
