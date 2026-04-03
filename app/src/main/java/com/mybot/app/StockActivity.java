@@ -250,8 +250,23 @@ public class StockActivity extends AppCompatActivity {
         nameView.setTypeface(Typeface.DEFAULT_BOLD);
         nameView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
+        // Yahoo Finance link (inline after name)
+        TextView yahooLink = new TextView(this);
+        yahooLink.setText("Yahoo→");
+        yahooLink.setTextSize(12);
+        yahooLink.setTextColor(UIHelper.ACCENT_BLUE);
+        yahooLink.setPadding(UIHelper.dp(this, 6), 0, UIHelper.dp(this, 6), 0);
+        yahooLink.setOnClickListener(v -> {
+            String url = "https://tw.stock.yahoo.com/quote/" + symbol + ".TW";
+            try {
+                startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(url)));
+            } catch (Exception ignored) {}
+        });
+
         header.addView(rankView);
         header.addView(nameView);
+        header.addView(yahooLink);
         if (price > 0) {
             TextView priceView = new TextView(this);
             priceView.setText(formatPrice(price));
@@ -261,21 +276,6 @@ public class StockActivity extends AppCompatActivity {
             header.addView(priceView);
         }
         card.addView(header);
-
-        // Yahoo Finance link
-        TextView yahooLink = new TextView(this);
-        yahooLink.setText("Yahoo 個股頁面 →");
-        yahooLink.setTextSize(12);
-        yahooLink.setTextColor(UIHelper.ACCENT_BLUE);
-        yahooLink.setPadding(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 2));
-        yahooLink.setOnClickListener(v -> {
-            String url = "https://tw.stock.yahoo.com/quote/" + symbol + ".TW";
-            try {
-                startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse(url)));
-            } catch (Exception ignored) {}
-        });
-        card.addView(yahooLink);
 
         // Institutional + Financial summary
         String instSummary = pick.optString("institutional_summary", "");

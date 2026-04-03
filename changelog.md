@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.92 (2026-04-03)
+- **UI: Yahoo連結移至個股名稱右側同一行**
+  - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — Yahoo link 從獨立一行改為 inline 在 header row，位於股名和價格之間，文字縮短為「Yahoo→」
+  - Modified `app/build.gradle` — versionCode 115, versionName 3.92
+
 ## v3.91 (2026-04-03)
 - **Enhancement: AI推薦卡新增 Yahoo 個股連結**
   - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — 每檔推薦股下方新增「Yahoo 個股頁面 →」超連結，點擊開啟 tw.stock.yahoo.com 該股頁面
