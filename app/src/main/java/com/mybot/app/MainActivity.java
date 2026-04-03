@@ -240,9 +240,8 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, TravelActivity.class)), 0);
         addCompact(fRow5, "\uD83C\uDFAE", "\u4FC4\u7F85\u65AF\u65B9\u584A", UIHelper.ACCENT_BLUE,
                 v -> startActivity(new Intent(this, TetrisActivity.class)), g);
-        View ph5 = new View(this);
-        ph5.setVisibility(View.INVISIBLE);
-        fRow5.addView(ph5, gridCellLp(g));
+        addCompact(fRow5, "\uD83C\uDFE2", "AI \u8FA6\u516C\u5BA4", UIHelper.ACCENT_PURPLE,
+                v -> startActivity(new Intent(this, OfficeActivity.class)), g);
         content.addView(fRow5);
 
         // ── Tools (3 columns) ──

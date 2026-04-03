@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.93 (2026-04-03)
+- **Feature: AI 辦公室 — Star-Office-UI 像素風 Agent 儀表板**
+  - Added `app/src/main/java/com/mybot/app/OfficeActivity.java` — WebView Activity 載入 Star-Office-UI (localhost:19000)，像素風格即時顯示 AI Agent 工作狀態
+  - Modified `app/src/main/java/com/mybot/app/MainActivity.java` — 功能列 Row5 新增「AI 辦公室」按鈕（紫色）
+  - Modified `app/src/main/AndroidManifest.xml` — 註冊 OfficeActivity
+  - Modified `app/build.gradle` — versionCode 116, versionName 3.93
+- **Bridge: Star-Office-UI 狀態整合**
+  - Modified `~/bridge/bridge.py` — 新增 `set_office_state()` helper，在 `call_claude()`/`call_claude_web()`/`call_claude_mcp()`/`call_claude_vision()`/`send_slack_and_wait()` 中加入狀態 hook，AI 工作時像素角色自動移動到辦公桌
+- **Infra: Star-Office-UI 部署**
+  - Cloned `ringhyacinth/Star-Office-UI` to `~/star-office/`
+  - Added `~/star-office/start.sh` — 進程管理腳本 (start/stop/restart/status)
+
 ## v3.92 (2026-04-03)
 - **UI: Yahoo連結移至個股名稱右側同一行**
   - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — Yahoo link 從獨立一行改為 inline 在 header row，位於股名和價格之間，文字縮短為「Yahoo→」
