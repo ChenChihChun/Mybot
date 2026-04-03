@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.95 (2026-04-03)
+- **Feature: 自選股分析 — Watchlist Stock Analysis**
+  - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — 新增自選股分析卡片，支援新增/刪除自選股、AI 趨勢分析（趨勢判斷、訊號、支撐壓力、風險、操作建議）
+  - Modified `app/src/main/java/com/mybot/app/BridgeClient.java` — 新增 `analyzeWatchlistStock()` 方法 (POST /stock/watchlist-analyze)
+  - Modified `app/build.gradle` — versionCode 118, versionName 3.95
+- **Bridge: 自選股分析 API**
+  - Modified `~/bridge/stock/db.py` — 新增 `get_stock_history()` 查詢個股歷史資料
+  - Modified `~/bridge/stock/analyzer.py` — 新增 `analyze_watchlist_stock()` 單檔分析函式，利用 60 天歷史資料 + 法人多窗口 + 財報 + Claude web search
+  - Modified `~/bridge/stock/routes.py` — 新增 `POST /stock/watchlist-analyze` endpoint
+
 ## v3.94 (2026-04-03)
 - **Revert: 移除 AI 辦公室 (Star-Office-UI)**
   - Deleted `app/src/main/java/com/mybot/app/OfficeActivity.java`

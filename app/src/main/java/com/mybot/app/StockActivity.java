@@ -1,18 +1,27 @@
 package com.mybot.app;
 
+import android.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 public class StockActivity extends AppCompatActivity {
 
@@ -24,6 +33,10 @@ public class StockActivity extends AppCompatActivity {
     private LinearLayout trackingContent;
     private TextView trackingStatus;
     private boolean trackingLoading = false;
+    // Watchlist UI
+    private LinearLayout watchlistContent;
+    private static final String PREF_WATCHLIST = "stock_watchlist";
+    private static final String PREF_WATCHLIST_CACHE = "stock_watchlist_cache";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +55,7 @@ public class StockActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         loadRecommendation();
+        refreshWatchlistUI();
         loadTracking();
     }
 
@@ -62,6 +76,9 @@ public class StockActivity extends AppCompatActivity {
 
         // Daily Recommendation card
         content.addView(buildRecommendationCard());
+
+        // Watchlist Analysis card
+        content.addView(buildWatchlistCard());
 
         // Tracking & Accuracy card
         content.addView(buildTrackingCard());
@@ -632,5 +649,387 @@ public class StockActivity extends AppCompatActivity {
         row.addView(rightCol);
 
         return row;
+    }
+
+    // ==================== Watchlist Analysis ====================
+
+    private LinearLayout buildWatchlistCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 16, this));
+        int pad = UIHelper.dp(this, 14);
+        card.setPadding(pad, pad, pad, pad);
+        card.setElevation(UIHelper.dp(this, 3));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+        card.setLayoutParams(lp);
+
+        // Title row
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView title = new TextView(this);
+        title.setText("自選股分析");
+        title.setTextSize(15);
+        title.setTextColor(UIHelper.ACCENT_BLUE);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        TextView addBtn = new TextView(this);
+        addBtn.setText("＋新增");
+        addBtn.setTextSize(13);
+        addBtn.setTextColor(UIHelper.ACCENT_GREEN);
+        addBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        addBtn.setPadding(UIHelper.dp(this, 12), UIHelper.dp(this, 6),
+                UIHelper.dp(this, 12), UIHelper.dp(this, 6));
+        addBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_GREEN, 10, 1, this));
+        addBtn.setOnClickListener(v -> showAddWatchlistDialog());
+
+        titleRow.addView(title);
+        titleRow.addView(addBtn);
+        card.addView(titleRow);
+
+        // Content container
+        watchlistContent = new LinearLayout(this);
+        watchlistContent.setOrientation(LinearLayout.VERTICAL);
+        watchlistContent.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        card.addView(watchlistContent);
+
+        return card;
+    }
+
+    private List<String> getWatchlist() {
+        SharedPreferences prefs = getSharedPreferences("mybot_stock", MODE_PRIVATE);
+        String json = prefs.getString(PREF_WATCHLIST, "[]");
+        List<String> list = new ArrayList<>();
+        try {
+            JSONArray arr = new JSONArray(json);
+            for (int i = 0; i < arr.length(); i++) {
+                list.add(arr.getString(i));
+            }
+        } catch (Exception ignored) {}
+        return list;
+    }
+
+    private void saveWatchlist(List<String> list) {
+        JSONArray arr = new JSONArray();
+        for (String s : list) arr.put(s);
+        getSharedPreferences("mybot_stock", MODE_PRIVATE)
+                .edit().putString(PREF_WATCHLIST, arr.toString()).apply();
+    }
+
+    private JSONObject getWatchlistCache() {
+        SharedPreferences prefs = getSharedPreferences("mybot_stock", MODE_PRIVATE);
+        String json = prefs.getString(PREF_WATCHLIST_CACHE, "{}");
+        try {
+            return new JSONObject(json);
+        } catch (Exception e) {
+            return new JSONObject();
+        }
+    }
+
+    private void updateWatchlistCache(String symbol, JSONObject data) {
+        JSONObject cache = getWatchlistCache();
+        try {
+            JSONObject entry = new JSONObject();
+            entry.put("name", data.optString("name", ""));
+            entry.put("price", data.optDouble("current_price", 0));
+            cache.put(symbol, entry);
+            getSharedPreferences("mybot_stock", MODE_PRIVATE)
+                    .edit().putString(PREF_WATCHLIST_CACHE, cache.toString()).apply();
+        } catch (Exception ignored) {}
+    }
+
+    private void refreshWatchlistUI() {
+        watchlistContent.removeAllViews();
+        List<String> watchlist = getWatchlist();
+        JSONObject cache = getWatchlistCache();
+
+        if (watchlist.isEmpty()) {
+            TextView empty = new TextView(this);
+            empty.setText("尚無自選股，點擊＋新增");
+            empty.setTextSize(13);
+            empty.setTextColor(UIHelper.TEXT_HINT);
+            empty.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+            watchlistContent.addView(empty);
+            return;
+        }
+
+        for (String symbol : watchlist) {
+            JSONObject cached = cache.optJSONObject(symbol);
+            String name = cached != null ? cached.optString("name", "") : "";
+            double price = cached != null ? cached.optDouble("price", 0) : 0;
+            watchlistContent.addView(buildWatchlistItem(symbol, name, price));
+        }
+    }
+
+    private LinearLayout buildWatchlistItem(String symbol, String cachedName, double cachedPrice) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setBackground(UIHelper.roundRect(0xFF1E1E2E, 12, this));
+        int pad = UIHelper.dp(this, 12);
+        item.setPadding(pad, pad, pad, pad);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 4));
+        item.setLayoutParams(lp);
+
+        // Header row: symbol + name + price + analyze button
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView nameView = new TextView(this);
+        String displayName = symbol + (cachedName.isEmpty() ? "" : " " + cachedName);
+        nameView.setText(displayName);
+        nameView.setTextSize(14);
+        nameView.setTextColor(UIHelper.TEXT_PRIMARY);
+        nameView.setTypeface(Typeface.DEFAULT_BOLD);
+        nameView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        if (cachedPrice > 0) {
+            TextView priceView = new TextView(this);
+            priceView.setText(formatPrice(cachedPrice));
+            priceView.setTextSize(14);
+            priceView.setTextColor(UIHelper.TEXT_SECONDARY);
+            priceView.setPadding(0, 0, UIHelper.dp(this, 8), 0);
+            header.addView(nameView);
+            header.addView(priceView);
+        } else {
+            header.addView(nameView);
+        }
+
+        TextView analyzeBtn = new TextView(this);
+        analyzeBtn.setText("分析");
+        analyzeBtn.setTextSize(12);
+        analyzeBtn.setTextColor(UIHelper.ACCENT_ORANGE);
+        analyzeBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        analyzeBtn.setPadding(UIHelper.dp(this, 10), UIHelper.dp(this, 5),
+                UIHelper.dp(this, 10), UIHelper.dp(this, 5));
+        analyzeBtn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_ORANGE, 8, 1, this));
+        header.addView(analyzeBtn);
+
+        item.addView(header);
+
+        // Analysis result container (initially empty)
+        LinearLayout resultContainer = new LinearLayout(this);
+        resultContainer.setOrientation(LinearLayout.VERTICAL);
+        resultContainer.setPadding(0, 0, 0, 0);
+        item.addView(resultContainer);
+
+        // Analyze button click
+        analyzeBtn.setOnClickListener(v -> {
+            analyzeBtn.setText("分析中...");
+            analyzeBtn.setEnabled(false);
+            analyzeBtn.setTextColor(UIHelper.TEXT_HINT);
+            AppLog.i("Stock", "自選股分析: " + symbol);
+
+            BridgeClient.analyzeWatchlistStock(symbol, (data, error) -> {
+                analyzeBtn.setEnabled(true);
+                analyzeBtn.setTextColor(UIHelper.ACCENT_ORANGE);
+                analyzeBtn.setText("分析");
+
+                resultContainer.removeAllViews();
+                if (error != null) {
+                    TextView errView = new TextView(this);
+                    errView.setText("分析失敗: " + error);
+                    errView.setTextSize(12);
+                    errView.setTextColor(UIHelper.ACCENT_RED);
+                    errView.setPadding(0, UIHelper.dp(this, 6), 0, 0);
+                    resultContainer.addView(errView);
+                    AppLog.e("Stock", "自選股分析失敗 " + symbol + ": " + error);
+                    return;
+                }
+                if (data == null) {
+                    return;
+                }
+
+                // Cache name + price
+                updateWatchlistCache(symbol, data);
+                // Update header name if we got it
+                String newName = data.optString("name", "");
+                if (!newName.isEmpty()) {
+                    nameView.setText(symbol + " " + newName);
+                }
+
+                // Display analysis result
+                displayWatchlistAnalysis(resultContainer, data);
+                AppLog.i("Stock", "自選股分析完成 " + symbol + ": trend=" + data.optString("trend"));
+            });
+        });
+
+        // Long press to delete
+        item.setOnLongClickListener(v -> {
+            new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog)
+                    .setTitle("移除自選股")
+                    .setMessage("確定要移除 " + symbol + (cachedName.isEmpty() ? "" : " " + cachedName) + " 嗎？")
+                    .setPositiveButton("移除", (d, w) -> {
+                        List<String> list = getWatchlist();
+                        list.remove(symbol);
+                        saveWatchlist(list);
+                        refreshWatchlistUI();
+                        AppLog.i("Stock", "自選股移除: " + symbol);
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+            return true;
+        });
+
+        return item;
+    }
+
+    private void displayWatchlistAnalysis(LinearLayout container, JSONObject data) {
+        int topPad = UIHelper.dp(this, 8);
+
+        // Trend
+        String trend = data.optString("trend", "");
+        String trendReason = data.optString("trend_reason", "");
+        if (!trend.isEmpty()) {
+            int trendColor = trend.contains("多") ? UIHelper.ACCENT_GREEN
+                    : trend.contains("空") ? UIHelper.ACCENT_RED : UIHelper.ACCENT_ORANGE;
+
+            TextView trendView = new TextView(this);
+            trendView.setText("趨勢: " + trend);
+            trendView.setTextSize(14);
+            trendView.setTextColor(trendColor);
+            trendView.setTypeface(Typeface.DEFAULT_BOLD);
+            trendView.setPadding(0, topPad, 0, 0);
+            container.addView(trendView);
+
+            if (!trendReason.isEmpty()) {
+                TextView reasonView = new TextView(this);
+                reasonView.setText(trendReason);
+                reasonView.setTextSize(12);
+                reasonView.setTextColor(UIHelper.TEXT_SECONDARY);
+                reasonView.setLineSpacing(UIHelper.dp(this, 2), 1f);
+                reasonView.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+                container.addView(reasonView);
+            }
+        }
+
+        // Signals
+        JSONArray signals = data.optJSONArray("signals");
+        if (signals != null && signals.length() > 0) {
+            for (int i = 0; i < signals.length(); i++) {
+                String signal = signals.optString(i, "");
+                if (!signal.isEmpty()) {
+                    TextView sv = new TextView(this);
+                    sv.setText("• " + signal);
+                    sv.setTextSize(12);
+                    sv.setTextColor(UIHelper.ACCENT_BLUE);
+                    sv.setPadding(0, UIHelper.dp(this, 3), 0, 0);
+                    sv.setLineSpacing(UIHelper.dp(this, 2), 1f);
+                    container.addView(sv);
+                }
+            }
+        }
+
+        // Support / Resistance
+        String support = data.optString("support", "");
+        String resistance = data.optString("resistance", "");
+        if (!support.isEmpty() || !resistance.isEmpty()) {
+            TextView levelView = new TextView(this);
+            StringBuilder levels = new StringBuilder();
+            if (!support.isEmpty()) levels.append("支撐: ").append(support);
+            if (!support.isEmpty() && !resistance.isEmpty()) levels.append("  /  ");
+            if (!resistance.isEmpty()) levels.append("壓力: ").append(resistance);
+            levelView.setText(levels.toString());
+            levelView.setTextSize(12);
+            levelView.setTextColor(UIHelper.ACCENT_PURPLE);
+            levelView.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+            container.addView(levelView);
+        }
+
+        // Institutional summary
+        String instSummary = data.optString("institutional_summary", "");
+        if (!instSummary.isEmpty()) {
+            TextView instView = new TextView(this);
+            instView.setText("法人: " + instSummary);
+            instView.setTextSize(12);
+            instView.setTextColor(UIHelper.TEXT_SECONDARY);
+            instView.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+            container.addView(instView);
+        }
+
+        // Risks
+        JSONArray risks = data.optJSONArray("risks");
+        if (risks != null && risks.length() > 0) {
+            StringBuilder riskText = new StringBuilder("風險: ");
+            for (int i = 0; i < risks.length(); i++) {
+                if (i > 0) riskText.append("；");
+                riskText.append(risks.optString(i, ""));
+            }
+            TextView riskView = new TextView(this);
+            riskView.setText(riskText.toString());
+            riskView.setTextSize(12);
+            riskView.setTextColor(UIHelper.ACCENT_RED);
+            riskView.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+            container.addView(riskView);
+        }
+
+        // Suggestion
+        String suggestion = data.optString("suggestion", "");
+        if (!suggestion.isEmpty()) {
+            LinearLayout sugBox = new LinearLayout(this);
+            sugBox.setOrientation(LinearLayout.VERTICAL);
+            sugBox.setBackground(UIHelper.roundRect(0xFF262640, 8, this));
+            int sp = UIHelper.dp(this, 8);
+            sugBox.setPadding(sp, sp, sp, sp);
+            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            slp.setMargins(0, UIHelper.dp(this, 6), 0, 0);
+            sugBox.setLayoutParams(slp);
+
+            TextView sugTitle = new TextView(this);
+            sugTitle.setText("操作建議");
+            sugTitle.setTextSize(12);
+            sugTitle.setTextColor(UIHelper.ACCENT_ORANGE);
+            sugTitle.setTypeface(Typeface.DEFAULT_BOLD);
+            sugBox.addView(sugTitle);
+
+            TextView sugText = new TextView(this);
+            sugText.setText(suggestion);
+            sugText.setTextSize(12);
+            sugText.setTextColor(UIHelper.TEXT_SECONDARY);
+            sugText.setLineSpacing(UIHelper.dp(this, 2), 1f);
+            sugText.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+            sugBox.addView(sugText);
+
+            container.addView(sugBox);
+        }
+    }
+
+    private void showAddWatchlistDialog() {
+        EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        input.setHint("輸入股票代號（如 2330）");
+        input.setTextColor(UIHelper.TEXT_PRIMARY);
+        input.setHintTextColor(UIHelper.TEXT_HINT);
+        int dp16 = UIHelper.dp(this, 16);
+        input.setPadding(dp16, dp16, dp16, dp16);
+
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog)
+                .setTitle("新增自選股")
+                .setView(input)
+                .setPositiveButton("新增", (dialog, which) -> {
+                    String symbol = input.getText().toString().trim();
+                    if (symbol.length() != 4 || !symbol.matches("\\d{4}")) {
+                        android.widget.Toast.makeText(this, "請輸入4位數股票代號", android.widget.Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    List<String> list = getWatchlist();
+                    if (list.contains(symbol)) {
+                        android.widget.Toast.makeText(this, symbol + " 已在自選股中", android.widget.Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    list.add(symbol);
+                    saveWatchlist(list);
+                    refreshWatchlistUI();
+                    AppLog.i("Stock", "自選股新增: " + symbol);
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 }

@@ -941,4 +941,42 @@ public class BridgeClient {
             }
         });
     }
+
+    /**
+     * POST /stock/watchlist-analyze — analyze a single watchlist stock.
+     */
+    public static void analyzeWatchlistStock(String symbol, StockRecommendationCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "analyzeWatchlistStock: " + symbol);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("symbol", symbol);
+
+                String[] result = postJsonWithError(BASE_URL + "/stock/watchlist-analyze", body.toString(), 120000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    JSONObject json = new JSONObject(response);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "analyzeWatchlistStock成功: " + symbol +
+                                " trend=" + (data != null ? data.optString("trend") : "null"));
+                        mainHandler.post(() -> callback.onResult(data, null));
+                    } else {
+                        String msg = json.optString("error", "分析失敗");
+                        AppLog.w("Bridge", "analyzeWatchlistStock失敗: " + msg);
+                        mainHandler.post(() -> callback.onResult(null, msg));
+                    }
+                } else {
+                    AppLog.e("Bridge", "analyzeWatchlistStock失敗: " + error);
+                    mainHandler.post(() -> callback.onResult(null, error));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "analyzeWatchlistStock異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
 }
