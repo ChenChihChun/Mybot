@@ -948,6 +948,53 @@ public class BridgeClient {
     }
 
     /**
+     * GET /stock/tracking — fetch recommendation tracking & accuracy data.
+     */
+    public static void getStockTracking(StockRecommendationCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getStockTracking: 取得追蹤數據");
+            try {
+                URL url = new URL(BASE_URL + "/stock/tracking");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        if (data != null) {
+                            AppLog.i("Bridge", "stockTracking成功: " + data.optJSONObject("stats"));
+                            mainHandler.post(() -> callback.onResult(data, null));
+                            return;
+                        }
+                    }
+                    String msg = json.optString("error", "無追蹤資料");
+                    AppLog.w("Bridge", "stockTracking無資料: " + msg);
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    AppLog.e("Bridge", "stockTracking HTTP " + code);
+                    mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "stockTracking失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
+    /**
      * POST /stock/refresh — trigger full stock analysis pipeline.
      */
     public static void refreshStockRecommendation(StockRecommendationCallback callback) {

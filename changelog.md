@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.88 (2026-04-03)
+- **New Feature: 股票推薦追蹤 & 準確度回饋**
+  - Modified `bridge/stock/db.py` — 新增 `get_recommendation_tracking()` 函數，從 recommendations + market_data 即時計算每檔推薦的報酬率、勝率、平均報酬等統計，14 個交易日觀察期
+  - Modified `bridge/stock/routes.py` — 新增 `GET /stock/tracking` endpoint，回傳追蹤數據與準確度統計
+  - Modified `bridge/stock/scheduler.py` — cleanup_old_data 保留天數從 30 天改為 45 天，確保觀察期內資料不被刪除
+  - Modified `app/src/main/java/com/mybot/app/BridgeClient.java` — 新增 `getStockTracking()` 方法
+  - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — 推薦卡片下方新增「推薦追蹤 & 準確度」卡片，含勝率/平均報酬/完成數統計列 + 每日追蹤明細列表（綠色=賺/紅色=虧/橘色=追蹤中）
+  - Modified `app/build.gradle` — versionCode 111, versionName 3.88
+
 ## v3.82 (2026-03-15)
 - **Tetris: 重新設計手機控制方案**
   - Modified `app/src/main/assets/tetris.html`:

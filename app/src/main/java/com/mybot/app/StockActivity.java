@@ -66,6 +66,11 @@ public class StockActivity extends AppCompatActivity {
     private LinearLayout recContent;
     private TextView recStatus;
     private boolean recLoading = false;
+    // Tracking UI
+    private LinearLayout trackingCard;
+    private LinearLayout trackingContent;
+    private TextView trackingStatus;
+    private boolean trackingLoading = false;
 
     private String currentPeriod = "day"; // 1m, 5m, 15m, day, week, month
     private List<StockData.CandleBar> historicalCandles = null;
@@ -100,6 +105,7 @@ public class StockActivity extends AppCompatActivity {
         isRunning = true;
         scheduleUpdate();
         loadRecommendation();
+        loadTracking();
     }
 
     @Override
@@ -293,6 +299,10 @@ public class StockActivity extends AppCompatActivity {
         // Daily Recommendation card
         recCard = buildRecommendationCard();
         content.addView(recCard);
+
+        // Tracking & Accuracy card
+        trackingCard = buildTrackingCard();
+        content.addView(trackingCard);
 
         // AI Analysis card
         aiCard = new LinearLayout(this);
@@ -1416,5 +1426,257 @@ public class StockActivity extends AppCompatActivity {
             // After refresh, reload the recommendation
             loadRecommendation();
         });
+    }
+
+    // ==================== Tracking & Accuracy ====================
+
+    private LinearLayout buildTrackingCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 16, this));
+        int pad = UIHelper.dp(this, 14);
+        card.setPadding(pad, pad, pad, pad);
+        card.setElevation(UIHelper.dp(this, 3));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+        card.setLayoutParams(lp);
+
+        // Title
+        TextView title = new TextView(this);
+        title.setText("推薦追蹤 & 準確度");
+        title.setTextSize(15);
+        title.setTextColor(UIHelper.ACCENT_PURPLE);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        card.addView(title);
+
+        // Content container
+        trackingContent = new LinearLayout(this);
+        trackingContent.setOrientation(LinearLayout.VERTICAL);
+        trackingContent.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        card.addView(trackingContent);
+
+        // Status text
+        trackingStatus = new TextView(this);
+        trackingStatus.setTextSize(13);
+        trackingStatus.setTextColor(UIHelper.TEXT_HINT);
+        trackingStatus.setText("載入中...");
+        trackingContent.addView(trackingStatus);
+
+        return card;
+    }
+
+    private void loadTracking() {
+        if (trackingLoading) return;
+        trackingLoading = true;
+        trackingStatus.setText("載入追蹤數據...");
+        trackingStatus.setVisibility(View.VISIBLE);
+        AppLog.i("Stock", "loadTracking: 開始載入");
+
+        BridgeClient.getStockTracking((data, error) -> {
+            trackingLoading = false;
+            if (error != null) {
+                trackingStatus.setText("無追蹤資料");
+                AppLog.w("Stock", "loadTracking: " + error);
+                return;
+            }
+            if (data == null) {
+                trackingStatus.setText("無追蹤資料");
+                return;
+            }
+            displayTracking(data);
+        });
+    }
+
+    private void displayTracking(org.json.JSONObject data) {
+        trackingContent.removeAllViews();
+        try {
+            org.json.JSONObject stats = data.optJSONObject("stats");
+            org.json.JSONArray entries = data.optJSONArray("entries");
+
+            // Stats row
+            if (stats != null) {
+                trackingContent.addView(buildTrackingStatsRow(stats));
+            }
+
+            // Entries list
+            if (entries != null && entries.length() > 0) {
+                // Group header
+                TextView listTitle = new TextView(this);
+                listTitle.setText("追蹤明細 (" + entries.length() + " 筆)");
+                listTitle.setTextSize(13);
+                listTitle.setTextColor(UIHelper.TEXT_HINT);
+                listTitle.setPadding(0, UIHelper.dp(this, 10), 0, UIHelper.dp(this, 4));
+                trackingContent.addView(listTitle);
+
+                for (int i = 0; i < entries.length(); i++) {
+                    org.json.JSONObject entry = entries.getJSONObject(i);
+                    trackingContent.addView(buildTrackingEntry(entry));
+                }
+                AppLog.i("Stock", "displayTracking: " + entries.length() + " entries, winRate=" +
+                        (stats != null ? stats.optDouble("win_rate", 0) : "N/A") + "%");
+            } else {
+                TextView empty = new TextView(this);
+                empty.setText("尚無追蹤數據，推薦資料累積後將自動顯示");
+                empty.setTextSize(13);
+                empty.setTextColor(UIHelper.TEXT_HINT);
+                empty.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+                trackingContent.addView(empty);
+            }
+        } catch (Exception e) {
+            TextView errView = new TextView(this);
+            errView.setText("解析追蹤資料失敗: " + e.getMessage());
+            errView.setTextSize(12);
+            errView.setTextColor(UIHelper.ACCENT_RED);
+            trackingContent.addView(errView);
+            AppLog.e("Stock", "displayTracking失敗: " + e.getMessage());
+        }
+    }
+
+    private LinearLayout buildTrackingStatsRow(org.json.JSONObject stats) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER);
+        row.setPadding(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 4));
+
+        int totalCompleted = stats.optInt("total_completed", 0);
+        int wins = stats.optInt("wins", 0);
+        double winRate = stats.optDouble("win_rate", 0);
+        double avgReturn = stats.optDouble("avg_return", 0);
+        int totalPicks = stats.optInt("total_picks", 0);
+
+        // Win rate box
+        row.addView(buildStatBox("勝率",
+                totalCompleted > 0 ? String.format("%.1f%%", winRate) : "--",
+                winRate >= 50 ? UIHelper.ACCENT_GREEN : (totalCompleted > 0 ? UIHelper.ACCENT_RED : UIHelper.TEXT_HINT)));
+
+        // Avg return box
+        row.addView(buildStatBox("平均報酬",
+                totalCompleted > 0 ? String.format("%+.2f%%", avgReturn) : "--",
+                avgReturn >= 0 ? UIHelper.ACCENT_GREEN : (totalCompleted > 0 ? UIHelper.ACCENT_RED : UIHelper.TEXT_HINT)));
+
+        // Completed count box
+        row.addView(buildStatBox("完成/總數",
+                totalCompleted + "/" + totalPicks,
+                UIHelper.TEXT_SECONDARY));
+
+        return row;
+    }
+
+    private LinearLayout buildStatBox(String label, String value, int valueColor) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER);
+        box.setBackground(UIHelper.roundRect(0xFF1E1E2E, 10, this));
+        int pad = UIHelper.dp(this, 10);
+        box.setPadding(pad, UIHelper.dp(this, 8), pad, UIHelper.dp(this, 8));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        lp.setMargins(UIHelper.dp(this, 3), 0, UIHelper.dp(this, 3), 0);
+        box.setLayoutParams(lp);
+
+        TextView valView = new TextView(this);
+        valView.setText(value);
+        valView.setTextSize(18);
+        valView.setTextColor(valueColor);
+        valView.setTypeface(Typeface.DEFAULT_BOLD);
+        valView.setGravity(Gravity.CENTER);
+        box.addView(valView);
+
+        TextView lblView = new TextView(this);
+        lblView.setText(label);
+        lblView.setTextSize(11);
+        lblView.setTextColor(UIHelper.TEXT_HINT);
+        lblView.setGravity(Gravity.CENTER);
+        lblView.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+        box.addView(lblView);
+
+        return box;
+    }
+
+    private LinearLayout buildTrackingEntry(org.json.JSONObject entry) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackground(UIHelper.roundRect(0xFF1E1E2E, 8, this));
+        int pad = UIHelper.dp(this, 8);
+        row.setPadding(pad, UIHelper.dp(this, 6), pad, UIHelper.dp(this, 6));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 2), 0, UIHelper.dp(this, 2));
+        row.setLayoutParams(lp);
+
+        String recDate = entry.optString("rec_date", "");
+        String symbol = entry.optString("symbol", "");
+        String name = entry.optString("name", "");
+        double recPrice = entry.optDouble("rec_price", 0);
+        double currentPrice = entry.optDouble("current_price", 0);
+        double returnPct = entry.optDouble("return_pct", 0);
+        String status = entry.optString("status", "tracking");
+        int daysTracked = entry.optInt("days_tracked", 0);
+
+        // Short date (MM-dd)
+        String shortDate = recDate.length() >= 10 ? recDate.substring(5) : recDate;
+
+        // Left: date + symbol + name
+        LinearLayout leftCol = new LinearLayout(this);
+        leftCol.setOrientation(LinearLayout.VERTICAL);
+        leftCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        TextView nameRow = new TextView(this);
+        nameRow.setText(shortDate + "  " + symbol + " " + name);
+        nameRow.setTextSize(13);
+        nameRow.setTextColor(UIHelper.TEXT_PRIMARY);
+        leftCol.addView(nameRow);
+
+        TextView priceRow = new TextView(this);
+        priceRow.setText(formatPrice(recPrice) + " → " + formatPrice(currentPrice));
+        priceRow.setTextSize(11);
+        priceRow.setTextColor(UIHelper.TEXT_HINT);
+        leftCol.addView(priceRow);
+
+        row.addView(leftCol);
+
+        // Right: return % + status
+        LinearLayout rightCol = new LinearLayout(this);
+        rightCol.setOrientation(LinearLayout.VERTICAL);
+        rightCol.setGravity(Gravity.END);
+
+        int returnColor = returnPct > 0 ? UIHelper.ACCENT_GREEN
+                : returnPct < 0 ? UIHelper.ACCENT_RED : UIHelper.TEXT_HINT;
+
+        TextView returnView = new TextView(this);
+        returnView.setText(String.format("%+.2f%%", returnPct));
+        returnView.setTextSize(14);
+        returnView.setTextColor(returnColor);
+        returnView.setTypeface(Typeface.DEFAULT_BOLD);
+        returnView.setGravity(Gravity.END);
+        rightCol.addView(returnView);
+
+        TextView statusView = new TextView(this);
+        if ("completed".equals(status)) {
+            statusView.setText("完成");
+            statusView.setTextColor(returnPct > 0 ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED);
+        } else {
+            statusView.setText("追蹤中(" + daysTracked + "/14天)");
+            statusView.setTextColor(UIHelper.ACCENT_ORANGE);
+        }
+        statusView.setTextSize(10);
+        statusView.setGravity(Gravity.END);
+        rightCol.addView(statusView);
+
+        row.addView(rightCol);
+
+        // Click to view stock
+        row.setOnClickListener(v -> {
+            if (!watchlist.contains(symbol)) {
+                watchlist.add(symbol);
+                saveWatchlist();
+            }
+            selectedCode = symbol;
+            refreshChips();
+            loadHistoricalData();
+        });
+
+        return row;
     }
 }
