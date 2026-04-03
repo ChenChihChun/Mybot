@@ -1327,6 +1327,56 @@ public class StockActivity extends AppCompatActivity {
             card.addView(riskView);
         }
 
+        // Trading strategy
+        org.json.JSONObject strategy = pick.optJSONObject("strategy");
+        if (strategy != null) {
+            LinearLayout stratBox = new LinearLayout(this);
+            stratBox.setOrientation(LinearLayout.VERTICAL);
+            stratBox.setBackground(UIHelper.roundRect(0xFF262640, 8, this));
+            int sp = UIHelper.dp(this, 8);
+            stratBox.setPadding(sp, sp, sp, sp);
+            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            slp.setMargins(0, UIHelper.dp(this, 6), 0, 0);
+            stratBox.setLayoutParams(slp);
+
+            TextView stratTitle = new TextView(this);
+            stratTitle.setText("操作策略");
+            stratTitle.setTextSize(12);
+            stratTitle.setTextColor(UIHelper.ACCENT_ORANGE);
+            stratTitle.setTypeface(Typeface.DEFAULT_BOLD);
+            stratBox.addView(stratTitle);
+
+            String action = strategy.optString("action", "");
+            String entry = strategy.optString("entry_price", "");
+            String stopLoss = strategy.optString("stop_loss", "");
+            String target = strategy.optString("target", "");
+            String position = strategy.optString("position", "");
+            String timing = strategy.optString("timing", "");
+            String detail = strategy.optString("detail", "");
+
+            StringBuilder sb = new StringBuilder();
+            if (!action.isEmpty()) sb.append("操作: ").append(action).append("\n");
+            if (!entry.isEmpty()) sb.append("進場: ").append(entry).append("\n");
+            if (!stopLoss.isEmpty()) sb.append("停損: ").append(stopLoss).append("\n");
+            if (!target.isEmpty()) sb.append("目標: ").append(target).append("\n");
+            if (!position.isEmpty()) sb.append("部位: ").append(position).append("\n");
+            if (!timing.isEmpty()) sb.append("時機: ").append(timing).append("\n");
+            if (!detail.isEmpty()) sb.append(detail);
+
+            if (sb.length() > 0) {
+                TextView stratText = new TextView(this);
+                stratText.setText(sb.toString().trim());
+                stratText.setTextSize(12);
+                stratText.setTextColor(UIHelper.TEXT_SECONDARY);
+                stratText.setLineSpacing(UIHelper.dp(this, 2), 1f);
+                stratText.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+                stratBox.addView(stratText);
+            }
+
+            card.addView(stratBox);
+        }
+
         // Click to add to watchlist
         card.setOnClickListener(v -> {
             if (!watchlist.contains(symbol)) {
