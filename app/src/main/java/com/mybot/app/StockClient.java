@@ -49,10 +49,13 @@ public class StockClient {
             try {
                 enforceRateLimit();
 
+                // Send both tse_ (listed) and otc_ (OTC) for each code;
+                // the API returns valid data for the correct exchange
                 StringBuilder exCh = new StringBuilder();
                 for (int i = 0; i < codes.size(); i++) {
-                    if (i > 0) exCh.append("|");
+                    if (exCh.length() > 0) exCh.append("|");
                     exCh.append("tse_").append(codes.get(i)).append(".tw");
+                    exCh.append("|otc_").append(codes.get(i)).append(".tw");
                 }
 
                 String urlStr = REALTIME_URL + "?ex_ch=" + exCh + "&json=1&delay=0";
@@ -81,7 +84,8 @@ public class StockClient {
                     return;
                 }
 
-                List<StockData.StockQuote> quotes = new ArrayList<>();
+                // Deduplicate: for each code, keep the entry with valid data
+                java.util.Map<String, StockData.StockQuote> quoteMap = new java.util.LinkedHashMap<>();
                 for (int i = 0; i < msgArray.length(); i++) {
                     JSONObject item = msgArray.getJSONObject(i);
                     StockData.StockQuote q = new StockData.StockQuote();
@@ -102,8 +106,13 @@ public class StockClient {
                         q.currentPrice = q.prevClose;
                     }
 
-                    quotes.add(q);
+                    // Keep entry with actual data (name not empty = correct exchange)
+                    StockData.StockQuote existing = quoteMap.get(q.code);
+                    if (existing == null || (q.name != null && !q.name.isEmpty() && q.currentPrice > 0)) {
+                        quoteMap.put(q.code, q);
+                    }
                 }
+                List<StockData.StockQuote> quotes = new ArrayList<>(quoteMap.values());
 
                 AppLog.i("Stock", "fetchStocks: " + quotes.size() + "檔報價取得成功");
                 mainHandler.post(() -> callback.onResult(quotes, null));
@@ -184,55 +193,17 @@ public class StockClient {
     public static void fetchMultiMonthHistory(String code, int months, HistoryCallback callback) {
         executor.execute(() -> {
             try {
-                java.util.Calendar cal = java.util.Calendar.getInstance();
-                List<StockData.CandleBar> allCandles = new ArrayList<>();
-
-                for (int m = months - 1; m >= 0; m--) {
-                    java.util.Calendar c = (java.util.Calendar) cal.clone();
-                    c.add(java.util.Calendar.MONTH, -m);
-                    int year = c.get(java.util.Calendar.YEAR);
-                    int month = c.get(java.util.Calendar.MONTH) + 1;
-
-                    enforceRateLimit();
-
-                    String dateStr = String.format(Locale.US, "%04d%02d01", year, month);
-                    String urlStr = HISTORY_URL + "?response=json&date=" + dateStr + "&stockNo=" + code;
-                    String response = httpGet(urlStr, 15000);
-
-                    if (response != null && response.trim().startsWith("{")) {
-                        backoffLevel = 0;
-                        JSONObject json = new JSONObject(response);
-                        JSONArray data = json.optJSONArray("data");
-                        if (data != null) {
-                            SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd", Locale.US);
-                            for (int i = 0; i < data.length(); i++) {
-                                JSONArray row = data.getJSONArray(i);
-                                String dateField = row.getString(0);
-                                String[] dateParts = dateField.split("/");
-                                if (dateParts.length == 3) {
-                                    int rocYear = Integer.parseInt(dateParts[0].trim());
-                                    String fullDate = (rocYear + 1911) + "/" + dateParts[1] + "/" + dateParts[2];
-                                    long timestamp = sdf.parse(fullDate).getTime();
-                                    double open = parseDouble(row.getString(3).replace(",", ""));
-                                    double high = parseDouble(row.getString(4).replace(",", ""));
-                                    double low = parseDouble(row.getString(5).replace(",", ""));
-                                    double close = parseDouble(row.getString(6).replace(",", ""));
-                                    long volume = parseLong(row.getString(1).replace(",", ""));
-                                    if (open > 0 && close > 0) {
-                                        allCandles.add(new StockData.CandleBar(timestamp, open, high, low, close, volume));
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        handleBlock();
-                    }
-
-                    // Respect rate limit between months
-                    Thread.sleep(1500);
+                // Try Yahoo Finance first (supports both TSE and OTC, single request)
+                List<StockData.CandleBar> candles = fetchYahooHistory(code, months);
+                if (candles != null && !candles.isEmpty()) {
+                    AppLog.i("Stock", "fetchMultiMonth(Yahoo) " + code + " " + months + "個月: " + candles.size() + "根K棒");
+                    mainHandler.post(() -> callback.onResult(candles, null));
+                    return;
                 }
 
-                AppLog.i("Stock", "fetchMultiMonth " + code + " " + months + "個月: " + allCandles.size() + "根K棒");
+                // Fallback: TWSE API (listed stocks only, month by month)
+                List<StockData.CandleBar> allCandles = fetchTwseHistory(code, months);
+                AppLog.i("Stock", "fetchMultiMonth(TWSE) " + code + " " + months + "個月: " + allCandles.size() + "根K棒");
                 mainHandler.post(() -> callback.onResult(allCandles, null));
             } catch (Exception e) {
                 String err = e.getClass().getSimpleName() + ": " + e.getMessage();
@@ -240,6 +211,112 @@ public class StockClient {
                 mainHandler.post(() -> callback.onResult(null, err));
             }
         });
+    }
+
+    private static List<StockData.CandleBar> fetchYahooHistory(String code, int months) {
+        try {
+            String range = months <= 6 ? "6mo" : "1y";
+            // Try .TW (listed) first, then .TWO (OTC)
+            String[] suffixes = {".TW", ".TWO"};
+            for (String suffix : suffixes) {
+                String urlStr = "https://query1.finance.yahoo.com/v8/finance/chart/"
+                        + code + suffix + "?range=" + range + "&interval=1d";
+                String response = httpGet(urlStr, 15000);
+                if (response == null || !response.trim().startsWith("{")) continue;
+
+                JSONObject json = new JSONObject(response);
+                JSONObject chart = json.optJSONObject("chart");
+                if (chart == null) continue;
+                JSONArray results = chart.optJSONArray("result");
+                if (results == null || results.length() == 0) continue;
+
+                JSONObject result = results.getJSONObject(0);
+                JSONArray timestamps = result.optJSONArray("timestamp");
+                if (timestamps == null || timestamps.length() == 0) continue;
+
+                JSONObject indicators = result.optJSONObject("indicators");
+                if (indicators == null) continue;
+                JSONArray quoteArr = indicators.optJSONArray("quote");
+                if (quoteArr == null || quoteArr.length() == 0) continue;
+
+                JSONObject quote = quoteArr.getJSONObject(0);
+                JSONArray opens = quote.optJSONArray("open");
+                JSONArray highs = quote.optJSONArray("high");
+                JSONArray lows = quote.optJSONArray("low");
+                JSONArray closes = quote.optJSONArray("close");
+                JSONArray volumes = quote.optJSONArray("volume");
+
+                if (closes == null || closes.length() == 0) continue;
+
+                List<StockData.CandleBar> candles = new ArrayList<>();
+                for (int i = 0; i < timestamps.length(); i++) {
+                    long ts = timestamps.getLong(i) * 1000; // seconds to millis
+                    double open = opens != null && !opens.isNull(i) ? opens.getDouble(i) : 0;
+                    double high = highs != null && !highs.isNull(i) ? highs.getDouble(i) : 0;
+                    double low = lows != null && !lows.isNull(i) ? lows.getDouble(i) : 0;
+                    double close = closes != null && !closes.isNull(i) ? closes.getDouble(i) : 0;
+                    long vol = volumes != null && !volumes.isNull(i) ? volumes.getLong(i) : 0;
+                    if (open > 0 && close > 0) {
+                        candles.add(new StockData.CandleBar(ts, open, high, low, close, vol));
+                    }
+                }
+                if (!candles.isEmpty()) return candles;
+            }
+        } catch (Exception e) {
+            AppLog.w("Stock", "Yahoo歷史資料失敗: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private static List<StockData.CandleBar> fetchTwseHistory(String code, int months) throws Exception {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        List<StockData.CandleBar> allCandles = new ArrayList<>();
+
+        for (int m = months - 1; m >= 0; m--) {
+            java.util.Calendar c = (java.util.Calendar) cal.clone();
+            c.add(java.util.Calendar.MONTH, -m);
+            int year = c.get(java.util.Calendar.YEAR);
+            int month = c.get(java.util.Calendar.MONTH) + 1;
+
+            enforceRateLimit();
+
+            String dateStr = String.format(Locale.US, "%04d%02d01", year, month);
+            String urlStr = HISTORY_URL + "?response=json&date=" + dateStr + "&stockNo=" + code;
+            String response = httpGet(urlStr, 15000);
+
+            if (response != null && response.trim().startsWith("{")) {
+                backoffLevel = 0;
+                JSONObject json = new JSONObject(response);
+                JSONArray data = json.optJSONArray("data");
+                if (data != null) {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd", Locale.US);
+                    for (int i = 0; i < data.length(); i++) {
+                        JSONArray row = data.getJSONArray(i);
+                        String dateField = row.getString(0);
+                        String[] dateParts = dateField.split("/");
+                        if (dateParts.length == 3) {
+                            int rocYear = Integer.parseInt(dateParts[0].trim());
+                            String fullDate = (rocYear + 1911) + "/" + dateParts[1] + "/" + dateParts[2];
+                            long timestamp = sdf.parse(fullDate).getTime();
+                            double open = parseDouble(row.getString(3).replace(",", ""));
+                            double high = parseDouble(row.getString(4).replace(",", ""));
+                            double low = parseDouble(row.getString(5).replace(",", ""));
+                            double close = parseDouble(row.getString(6).replace(",", ""));
+                            long volume = parseLong(row.getString(1).replace(",", ""));
+                            if (open > 0 && close > 0) {
+                                allCandles.add(new StockData.CandleBar(timestamp, open, high, low, close, volume));
+                            }
+                        }
+                    }
+                }
+            } else {
+                handleBlock();
+            }
+
+            // Respect rate limit between months
+            Thread.sleep(1500);
+        }
+        return allCandles;
     }
 
     private static void enforceRateLimit() throws InterruptedException {

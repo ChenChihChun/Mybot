@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.89 (2026-04-03)
+- **Bug Fix: 修復自選股報價與K線無法顯示**
+  - Modified `app/src/main/java/com/mybot/app/StockClient.java`:
+    - `fetchStocks()`: 同時發送 tse_ 和 otc_ 前綴查詢，自動辨識上市/上櫃股票，以有效資料為準去重
+    - `fetchMultiMonthHistory()`: 優先使用 Yahoo Finance API 取得歷史K線（單一請求、支援上市+上櫃），TWSE API 作為備援
+    - 新增 `fetchYahooHistory()` 和 `fetchTwseHistory()` 私有方法
+  - Modified `app/build.gradle` — versionCode 112, versionName 3.89
+
 ## v3.88 (2026-04-03)
 - **New Feature: 股票推薦追蹤 & 準確度回饋**
   - Modified `bridge/stock/db.py` — 新增 `get_recommendation_tracking()` 函數，從 recommendations + market_data 即時計算每檔推薦的報酬率、勝率、平均報酬等統計，14 個交易日觀察期
