@@ -733,9 +733,27 @@ public class StockActivity extends AppCompatActivity {
     private void updateWatchlistCache(String symbol, JSONObject data) {
         JSONObject cache = getWatchlistCache();
         try {
-            JSONObject entry = new JSONObject();
+            JSONObject entry = cache.optJSONObject(symbol);
+            if (entry == null) entry = new JSONObject();
+
             entry.put("name", data.optString("name", ""));
             entry.put("price", data.optDouble("current_price", 0));
+
+            // Append to analyses history (keep last 10)
+            JSONArray analyses = entry.optJSONArray("analyses");
+            if (analyses == null) analyses = new JSONArray();
+
+            JSONObject record = new JSONObject();
+            record.put("date", new java.text.SimpleDateFormat("MM/dd HH:mm", java.util.Locale.getDefault()).format(new java.util.Date()));
+            record.put("data", data.toString());
+            // Prepend (newest first)
+            JSONArray updated = new JSONArray();
+            updated.put(record);
+            for (int i = 0; i < Math.min(analyses.length(), 9); i++) {
+                updated.put(analyses.get(i));
+            }
+            entry.put("analyses", updated);
+
             cache.put(symbol, entry);
             getSharedPreferences("mybot_stock", MODE_PRIVATE)
                     .edit().putString(PREF_WATCHLIST_CACHE, cache.toString()).apply();
@@ -759,13 +777,15 @@ public class StockActivity extends AppCompatActivity {
 
         for (String symbol : watchlist) {
             JSONObject cached = cache.optJSONObject(symbol);
-            String name = cached != null ? cached.optString("name", "") : "";
-            double price = cached != null ? cached.optDouble("price", 0) : 0;
-            watchlistContent.addView(buildWatchlistItem(symbol, name, price));
+            watchlistContent.addView(buildWatchlistItem(symbol, cached));
         }
     }
 
-    private LinearLayout buildWatchlistItem(String symbol, String cachedName, double cachedPrice) {
+    private LinearLayout buildWatchlistItem(String symbol, JSONObject cached) {
+        String cachedName = cached != null ? cached.optString("name", "") : "";
+        double cachedPrice = cached != null ? cached.optDouble("price", 0) : 0;
+        JSONArray analyses = cached != null ? cached.optJSONArray("analyses") : null;
+
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setBackground(UIHelper.roundRect(0xFF1E1E2E, 12, this));
@@ -789,20 +809,19 @@ public class StockActivity extends AppCompatActivity {
         nameView.setTypeface(Typeface.DEFAULT_BOLD);
         nameView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
+        header.addView(nameView);
+
         if (cachedPrice > 0) {
             TextView priceView = new TextView(this);
             priceView.setText(formatPrice(cachedPrice));
             priceView.setTextSize(14);
             priceView.setTextColor(UIHelper.TEXT_SECONDARY);
             priceView.setPadding(0, 0, UIHelper.dp(this, 8), 0);
-            header.addView(nameView);
             header.addView(priceView);
-        } else {
-            header.addView(nameView);
         }
 
         TextView analyzeBtn = new TextView(this);
-        analyzeBtn.setText("分析");
+        analyzeBtn.setText(analyses != null && analyses.length() > 0 ? "重新分析" : "分析");
         analyzeBtn.setTextSize(12);
         analyzeBtn.setTextColor(UIHelper.ACCENT_ORANGE);
         analyzeBtn.setTypeface(Typeface.DEFAULT_BOLD);
@@ -813,11 +832,15 @@ public class StockActivity extends AppCompatActivity {
 
         item.addView(header);
 
-        // Analysis result container (initially empty)
-        LinearLayout resultContainer = new LinearLayout(this);
-        resultContainer.setOrientation(LinearLayout.VERTICAL);
-        resultContainer.setPadding(0, 0, 0, 0);
-        item.addView(resultContainer);
+        // Analysis results container
+        LinearLayout resultsContainer = new LinearLayout(this);
+        resultsContainer.setOrientation(LinearLayout.VERTICAL);
+        item.addView(resultsContainer);
+
+        // Show cached analyses on load
+        if (analyses != null && analyses.length() > 0) {
+            showCachedAnalyses(resultsContainer, analyses);
+        }
 
         // Analyze button click
         analyzeBtn.setOnClickListener(v -> {
@@ -829,33 +852,38 @@ public class StockActivity extends AppCompatActivity {
             BridgeClient.analyzeWatchlistStock(symbol, (data, error) -> {
                 analyzeBtn.setEnabled(true);
                 analyzeBtn.setTextColor(UIHelper.ACCENT_ORANGE);
-                analyzeBtn.setText("分析");
+                analyzeBtn.setText("重新分析");
 
-                resultContainer.removeAllViews();
                 if (error != null) {
+                    // Show error at top of results
                     TextView errView = new TextView(this);
                     errView.setText("分析失敗: " + error);
                     errView.setTextSize(12);
                     errView.setTextColor(UIHelper.ACCENT_RED);
                     errView.setPadding(0, UIHelper.dp(this, 6), 0, 0);
-                    resultContainer.addView(errView);
+                    resultsContainer.addView(errView, 0);
                     AppLog.e("Stock", "自選股分析失敗 " + symbol + ": " + error);
                     return;
                 }
-                if (data == null) {
-                    return;
-                }
+                if (data == null) return;
 
-                // Cache name + price
+                // Cache result (appends to history)
                 updateWatchlistCache(symbol, data);
-                // Update header name if we got it
+
+                // Update header name
                 String newName = data.optString("name", "");
                 if (!newName.isEmpty()) {
                     nameView.setText(symbol + " " + newName);
                 }
 
-                // Display analysis result
-                displayWatchlistAnalysis(resultContainer, data);
+                // Rebuild results from updated cache
+                resultsContainer.removeAllViews();
+                JSONObject updatedCache = getWatchlistCache().optJSONObject(symbol);
+                JSONArray updatedAnalyses = updatedCache != null ? updatedCache.optJSONArray("analyses") : null;
+                if (updatedAnalyses != null) {
+                    showCachedAnalyses(resultsContainer, updatedAnalyses);
+                }
+
                 AppLog.i("Stock", "自選股分析完成 " + symbol + ": trend=" + data.optString("trend"));
             });
         });
@@ -869,6 +897,11 @@ public class StockActivity extends AppCompatActivity {
                         List<String> list = getWatchlist();
                         list.remove(symbol);
                         saveWatchlist(list);
+                        // Also remove cache
+                        JSONObject c = getWatchlistCache();
+                        c.remove(symbol);
+                        getSharedPreferences("mybot_stock", MODE_PRIVATE)
+                                .edit().putString(PREF_WATCHLIST_CACHE, c.toString()).apply();
                         refreshWatchlistUI();
                         AppLog.i("Stock", "自選股移除: " + symbol);
                     })
@@ -878,6 +911,81 @@ public class StockActivity extends AppCompatActivity {
         });
 
         return item;
+    }
+
+    private void showCachedAnalyses(LinearLayout container, JSONArray analyses) {
+        for (int i = 0; i < analyses.length(); i++) {
+            try {
+                JSONObject record = analyses.getJSONObject(i);
+                String date = record.optString("date", "");
+                String dataStr = record.optString("data", "");
+                if (dataStr.isEmpty()) continue;
+                JSONObject data = new JSONObject(dataStr);
+
+                boolean isLatest = (i == 0);
+
+                // Date header
+                TextView dateHeader = new TextView(this);
+                dateHeader.setText(isLatest ? "最新分析 — " + date : "歷史分析 — " + date);
+                dateHeader.setTextSize(11);
+                dateHeader.setTextColor(isLatest ? UIHelper.ACCENT_ORANGE : UIHelper.TEXT_HINT);
+                dateHeader.setTypeface(Typeface.DEFAULT_BOLD);
+                dateHeader.setPadding(0, UIHelper.dp(this, i == 0 ? 8 : 12), 0, 0);
+                container.addView(dateHeader);
+
+                if (isLatest) {
+                    // Latest: show full expanded
+                    displayWatchlistAnalysis(container, data);
+                } else {
+                    // Older: compact summary, tap to expand
+                    String trend = data.optString("trend", "?");
+                    String suggestion = data.optString("suggestion", "");
+                    int trendColor = trend.contains("多") ? UIHelper.ACCENT_GREEN
+                            : trend.contains("空") ? UIHelper.ACCENT_RED : UIHelper.ACCENT_ORANGE;
+
+                    LinearLayout summary = new LinearLayout(this);
+                    summary.setOrientation(LinearLayout.VERTICAL);
+                    summary.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+
+                    TextView trendLine = new TextView(this);
+                    trendLine.setText("趨勢: " + trend + (suggestion.isEmpty() ? "" : " — " + suggestion));
+                    trendLine.setTextSize(12);
+                    trendLine.setTextColor(trendColor);
+                    trendLine.setMaxLines(2);
+                    trendLine.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    summary.addView(trendLine);
+
+                    // Tap to expand/collapse
+                    LinearLayout detailContainer = new LinearLayout(this);
+                    detailContainer.setOrientation(LinearLayout.VERTICAL);
+                    detailContainer.setVisibility(View.GONE);
+                    summary.addView(detailContainer);
+
+                    TextView expandHint = new TextView(this);
+                    expandHint.setText("點擊展開詳情 ▾");
+                    expandHint.setTextSize(10);
+                    expandHint.setTextColor(UIHelper.TEXT_HINT);
+                    expandHint.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+                    summary.addView(expandHint);
+
+                    final JSONObject fData = data;
+                    summary.setOnClickListener(v -> {
+                        if (detailContainer.getVisibility() == View.GONE) {
+                            if (detailContainer.getChildCount() == 0) {
+                                displayWatchlistAnalysis(detailContainer, fData);
+                            }
+                            detailContainer.setVisibility(View.VISIBLE);
+                            expandHint.setText("點擊收合 ▴");
+                        } else {
+                            detailContainer.setVisibility(View.GONE);
+                            expandHint.setText("點擊展開詳情 ▾");
+                        }
+                    });
+
+                    container.addView(summary);
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     private void displayWatchlistAnalysis(LinearLayout container, JSONObject data) {

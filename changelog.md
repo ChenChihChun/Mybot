@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.96 (2026-04-04)
+- **Enhancement: 自選股分析歷史保留**
+  - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — 分析結果持久化快取（最多10筆/股），進入頁面自動顯示；最新結果展開顯示，歷史結果摺疊可點擊展開；刪除自選股時同步清除快取
+  - Modified `app/build.gradle` — versionCode 119, versionName 3.96
+
 ## v3.95 (2026-04-03)
 - **Feature: 自選股分析 — Watchlist Stock Analysis**
   - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — 新增自選股分析卡片，支援新增/刪除自選股、AI 趨勢分析（趨勢判斷、訊號、支撐壓力、風險、操作建議）
