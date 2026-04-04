@@ -107,11 +107,11 @@ public class KnowledgeActivity extends AppCompatActivity {
                     try {
                         JSONObject entry = entries.getJSONObject(i);
                         int entryId = entry.optInt("id", -1);
-                        String title = entry.optString("title", "");
-                        String summary = entry.optString("summary", "");
-                        String keyPoints = entry.optString("key_points", "");
-                        String sourceUrl = entry.optString("source_url", "");
-                        String category = entry.optString("category", "科技");
+                        String title = truncField(entry.optString("title", ""), 200);
+                        String summary = truncField(entry.optString("summary", ""), 5000);
+                        String keyPoints = truncField(entry.optString("key_points", ""), 5000);
+                        String sourceUrl = truncField(entry.optString("source_url", ""), 2000);
+                        String category = truncField(entry.optString("category", "科技"), 50);
 
                         if (title.isEmpty() || summary.isEmpty()) continue;
 
@@ -144,7 +144,9 @@ public class KnowledgeActivity extends AppCompatActivity {
                         os.close();
                         syncConn.getResponseCode();
                         syncConn.disconnect();
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        AppLog.w("Knowledge", "標記同步失敗: " + e.getMessage());
+                    }
                 }
 
                 if (imported > 0) {
@@ -157,10 +159,17 @@ public class KnowledgeActivity extends AppCompatActivity {
                                 "已同步 " + finalImported + " 則 AI 知識", Toast.LENGTH_SHORT).show();
                     });
                 }
+            } catch (java.net.ConnectException e) {
+                // Bridge not running — expected when server is off
             } catch (Exception e) {
-                // Silent fail — Bridge may not be running
+                AppLog.w("Knowledge", "同步失敗: " + e.getMessage());
             }
         }).start();
+    }
+
+    private static String truncField(String s, int maxLen) {
+        if (s == null) return "";
+        return s.length() <= maxLen ? s : s.substring(0, maxLen);
     }
 
     private void buildUI() {

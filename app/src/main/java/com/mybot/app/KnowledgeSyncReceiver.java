@@ -82,11 +82,11 @@ public class KnowledgeSyncReceiver extends BroadcastReceiver {
                     try {
                         JSONObject entry = entries.getJSONObject(i);
                         int entryId = entry.optInt("id", -1);
-                        String title = entry.optString("title", "");
-                        String summary = entry.optString("summary", "");
-                        String keyPoints = entry.optString("key_points", "");
-                        String sourceUrl = entry.optString("source_url", "");
-                        String category = entry.optString("category", "科技");
+                        String title = truncate(entry.optString("title", ""), 200);
+                        String summary = truncate(entry.optString("summary", ""), 5000);
+                        String keyPoints = truncate(entry.optString("key_points", ""), 5000);
+                        String sourceUrl = truncate(entry.optString("source_url", ""), 2000);
+                        String category = truncate(entry.optString("category", "科技"), 50);
 
                         if (title.isEmpty() || summary.isEmpty()) continue;
 
@@ -154,6 +154,11 @@ public class KnowledgeSyncReceiver extends BroadcastReceiver {
         } catch (Exception e) {
             AppLog.w("Knowledge", "標記同步異常: " + e.getMessage());
         }
+    }
+
+    private static String truncate(String s, int maxLen) {
+        if (s == null) return "";
+        return s.length() <= maxLen ? s : s.substring(0, maxLen);
     }
 
     private void showNotification(Context context, String text) {
