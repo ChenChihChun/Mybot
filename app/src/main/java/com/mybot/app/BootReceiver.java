@@ -29,5 +29,6 @@ public class BootReceiver extends BroadcastReceiver {
         ReminderHelper.restoreFitnessIfEnabled(context);
         ReminderHelper.restoreWaterIfEnabled(context);
         ReminderHelper.restoreFlightIfEnabled(context);
+        ReminderHelper.restoreKnowledgeSyncIfEnabled(context);
     }
 }

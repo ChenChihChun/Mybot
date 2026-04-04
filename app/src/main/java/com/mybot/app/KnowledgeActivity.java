@@ -43,6 +43,13 @@ public class KnowledgeActivity extends AppCompatActivity {
         dbHelper = new KnowledgeDbHelper(this);
         getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
         AppLog.i("Knowledge", "開啟知識庫");
+
+        // Auto-enable knowledge sync on first visit
+        if (!ReminderHelper.isKnowledgeSyncEnabled(this)) {
+            ReminderHelper.scheduleKnowledgeSync(this);
+            AppLog.i("Knowledge", "已啟用AI知識自動同步 (每日21:30)");
+        }
+
         buildUI();
     }
 

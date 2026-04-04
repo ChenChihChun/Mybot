@@ -350,4 +350,60 @@ public class ReminderHelper {
         return context.getSharedPreferences(STOCK_PREFS, Context.MODE_PRIVATE)
                 .getBoolean(KEY_ENABLED, false);
     }
+
+    // --- Knowledge sync (daily 21:30) ---
+    private static final String KNOWLEDGE_PREFS = "mybot_knowledge_sync";
+    private static final int KNOWLEDGE_REQUEST_CODE = 9300;
+
+    public static void scheduleKnowledgeSync(Context context) {
+        context.getSharedPreferences(KNOWLEDGE_PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, true).apply();
+        setKnowledgeAlarm(context);
+    }
+
+    private static void setKnowledgeAlarm(Context context) {
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 21);
+        cal.set(Calendar.MINUTE, 30);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+
+        Intent intent = new Intent(context, KnowledgeSyncReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, KNOWLEDGE_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        safeSetExact(am, cal.getTimeInMillis(), pi);
+    }
+
+    public static void scheduleNextKnowledgeSync(Context context) {
+        if (isKnowledgeSyncEnabled(context)) {
+            setKnowledgeAlarm(context);
+        }
+    }
+
+    public static void cancelKnowledgeSync(Context context) {
+        context.getSharedPreferences(KNOWLEDGE_PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, false).apply();
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, KnowledgeSyncReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, KNOWLEDGE_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        if (am != null) am.cancel(pi);
+    }
+
+    public static void restoreKnowledgeSyncIfEnabled(Context context) {
+        if (isKnowledgeSyncEnabled(context)) {
+            setKnowledgeAlarm(context);
+        }
+    }
+
+    public static boolean isKnowledgeSyncEnabled(Context context) {
+        return context.getSharedPreferences(KNOWLEDGE_PREFS, Context.MODE_PRIVATE)
+                .getBoolean(KEY_ENABLED, false);
+    }
 }
