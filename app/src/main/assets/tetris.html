@@ -124,6 +124,16 @@
     background: #2196F3; color: #fff; font-size: 18px; font-weight: bold; cursor: pointer;
   }
   #replay-btn:active { opacity: 0.85; }
+  #ai-tip { font-size: 14px; color: #80D8FF; margin-top: 4px; min-height: 20px; }
+  #ai-recommend {
+    display: none; font-size: 13px; color: #FFDD57; padding: 6px 16px;
+    background: rgba(255,221,87,0.1); border-radius: 8px; margin-top: 2px;
+  }
+  #setup-ai-rec {
+    display: none; font-size: 12px; color: #80D8FF; text-align: center;
+    line-height: 1.5; padding: 8px 16px; max-width: 280px;
+    background: rgba(128,216,255,0.08); border-radius: 10px;
+  }
 </style>
 </head>
 <body>
@@ -135,6 +145,7 @@
   <button class="diff-btn" id="btn-easy">🟢 簡單</button>
   <button class="diff-btn" id="btn-medium">🟠 普通</button>
   <button class="diff-btn" id="btn-hard">🔴 困難</button>
+  <div id="setup-ai-rec"></div>
   <p id="setup-hint">棋盤區：點擊旋轉 · 左右滑動移動<br>快速下滑硬降 · 按住下拖軟降</p>
 </div>
 
@@ -196,6 +207,8 @@
 <div id="overlay">
   <h2 id="overlay-title">🏆 勝利！</h2>
   <p id="overlay-sub">你贏了！</p>
+  <p id="ai-tip"></p>
+  <div id="ai-recommend"></div>
   <button id="replay-btn">重新開始</button>
 </div>
 
@@ -232,6 +245,8 @@ let CELL_SIZE, NEXT_CELL, cfg, gameRunning = false, ghostEnabled = true;
 let pState, cState;
 let lastFallP, lastFallC, lastRiseP, lastRiseC;
 let animFrame;
+let currentDifficulty = 'easy';
+let gameStartTime = 0;
 
 // ─── Line Clear Animations ───────────────────────────────────────────────────
 // Each entry: { canvasId, row, startTime, duration }
@@ -296,7 +311,7 @@ function randomPiece() {
 function initState() {
   const piece = randomPiece();
   const next  = randomPiece();
-  return { board: emptyBoard(), piece, next, score: 0, combo: 0, dead: false };
+  return { board: emptyBoard(), piece, next, score: 0, lines: 0, combo: 0, dead: false };
 }
 
 // ─── Tetris Core ──────────────────────────────────────────────────────────────
@@ -356,6 +371,7 @@ function lockPiece(state, canvasId) {
     const multiplier = Math.pow(1.5, state.combo - 1);
     const points = Math.floor(SCORE_TABLE[cleared] * multiplier);
     state.score += points;
+    state.lines += cleared;
     // Trigger animations
     const now = performance.now();
     for (const row of clearedRows) {
@@ -670,6 +686,8 @@ function shapeEquals(a, b) {
 // ─── Game Loop ────────────────────────────────────────────────────────────────
 function startGame(difficulty) {
   cfg = DIFF_CONFIG[difficulty];
+  currentDifficulty = difficulty;
+  gameStartTime = Date.now();
   document.getElementById('diff-badge').textContent = difficulty.toUpperCase();
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('game-screen').style.display  = 'flex';
@@ -750,17 +768,74 @@ function showResult() {
   const overlay = document.getElementById('overlay');
   const title   = document.getElementById('overlay-title');
   const sub     = document.getElementById('overlay-sub');
+  const aiTip   = document.getElementById('ai-tip');
+  const aiRec   = document.getElementById('ai-recommend');
+  let result = 'lose';
   if (pState.dead && cState.dead) {
     title.textContent = '🤝 平手！';
     sub.textContent   = `雙方分數：你 ${pState.score} vs 電腦 ${cState.score}`;
+    result = 'draw';
   } else if (cState.dead) {
     title.textContent = '🏆 你贏了！';
     sub.textContent   = `你的分數：${pState.score}　電腦：${cState.score}`;
+    result = 'win';
   } else {
     title.textContent = '💀 電腦勝利';
     sub.textContent   = `你的分數：${pState.score}　電腦：${cState.score}`;
   }
+  // Save game history and request AI suggestion
+  aiTip.textContent = '';
+  aiRec.textContent = '';
+  aiRec.style.display = 'none';
+  saveGameAndRequestSuggestion(result);
   overlay.classList.add('show');
+}
+
+function saveGameAndRequestSuggestion(result) {
+  const record = {
+    score: pState.score,
+    lines: pState.lines,
+    duration_sec: Math.round((Date.now() - gameStartTime) / 1000),
+    level: currentDifficulty,
+    result: result,
+    timestamp: new Date().toISOString(),
+  };
+  // Load history from localStorage, keep last 5
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('tetris_history') || '[]'); } catch(e) {}
+  history.unshift(record);
+  if (history.length > 5) history = history.slice(0, 5);
+  localStorage.setItem('tetris_history', JSON.stringify(history));
+
+  // Call bridge API for AI suggestion
+  if (history.length < 2) return; // need at least 2 games for meaningful suggestion
+  fetch('http://127.0.0.1:8765/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task: 'game_difficulty_suggest', history: history }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success && data.result) {
+      const r = data.result;
+      const aiTip = document.getElementById('ai-tip');
+      const aiRec = document.getElementById('ai-recommend');
+      const setupRec = document.getElementById('setup-ai-rec');
+      // Show encouragement on overlay
+      aiTip.textContent = r.encouragement || '';
+      // Show recommended level
+      const levelMap = { easy: '🟢 簡單', medium: '🟠 普通', hard: '🔴 困難' };
+      const recText = `AI 建議：${levelMap[r.recommended_level] || r.recommended_level}`;
+      aiRec.textContent = recText;
+      aiRec.style.display = 'block';
+      // Also show on setup screen
+      if (setupRec) {
+        setupRec.textContent = `${recText}（${r.reason || ''}）`;
+        setupRec.style.display = 'block';
+      }
+    }
+  })
+  .catch(() => {}); // silently fail — game works without AI
 }
 
 // ─── Player Action Functions ───────────────────────────────────────────────────
@@ -793,8 +868,10 @@ function playerDown() {
 function playerDrop() {
   if (!gameRunning || pState.dead) return;
   hardDrop(pState);
-  // Force immediate lock on next loop tick
-  lastFallP = performance.now() - cfg.fallMs;
+  // Immediately lock — don't wait for next loop tick
+  const cleared = lockPiece(pState, 'p-canvas');
+  if (cleared > 0 && ATTACK_TABLE[cleared] > 0) addGarbage(cState, ATTACK_TABLE[cleared]);
+  lastFallP = performance.now();
 }
 
 // ─── Haptic feedback helper ───────────────────────────────────────────────────
