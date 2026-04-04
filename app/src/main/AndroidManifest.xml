@@ -98,6 +98,9 @@
         <!-- Knowledge Base Activity -->
         <activity android:name=".KnowledgeActivity" android:exported="false" />
 
+        <!-- Evolution Proposals Activity -->
+        <activity android:name=".EvolutionActivity" android:exported="false" />
+
         <!-- Flight Activity -->
         <activity android:name=".FlightActivity" android:exported="false" />
 
