@@ -21,14 +21,22 @@ jobs:
         run: |
           VERSION_NAME=$(grep 'versionName' app/build.gradle | sed 's/.*"\(.*\)".*/\1/')
           VERSION_CODE=$(grep 'versionCode' app/build.gradle | sed 's/[^0-9]*//g')
+          COMMIT_MSG=$(git log -1 --pretty=%s)
           echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          # Use multiline output for commit message (safe for special chars)
+          {
+            echo "commit_msg<<EOF_MSG"
+            echo "$COMMIT_MSG"
+            echo "EOF_MSG"
+          } >> "$GITHUB_OUTPUT"
           echo "### Build Info" >> "$GITHUB_STEP_SUMMARY"
           echo "| Item | Value |" >> "$GITHUB_STEP_SUMMARY"
           echo "|------|-------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| App Version | v${VERSION_NAME} (code ${VERSION_CODE}) |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Branch | ${{ github.ref_name }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Commit | ${{ github.sha }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Message | ${COMMIT_MSG} |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -87,9 +95,10 @@ jobs:
           tag_name: v${{ steps.version.outputs.name }}-c${{ steps.version.outputs.code }}
           name: Mybot v${{ steps.version.outputs.name }}
           body: |
+            ${{ steps.version.outputs.commit_msg }}
+
             **Version**: v${{ steps.version.outputs.name }} (code ${{ steps.version.outputs.code }})
             **Build**: #${{ github.run_number }}
-            **Commit**: ${{ github.sha }}
           files: app/build/outputs/apk/debug/app-debug.apk
           make_latest: true
         env:
