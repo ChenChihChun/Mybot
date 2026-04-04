@@ -20,7 +20,17 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -57,6 +67,100 @@ public class KnowledgeActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         refreshList();
+        syncFromBridge();
+    }
+
+    /** Fetch unsynced AI knowledge from Bridge and import into local DB. */
+    private void syncFromBridge() {
+        new Thread(() -> {
+            try {
+                URL url = new URL("http://127.0.0.1:8765/knowledge/discoveries");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(15000);
+
+                int code = conn.getResponseCode();
+                if (code != 200) return;
+
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                JSONObject json = new JSONObject(sb.toString());
+                if (!json.optBoolean("success", false)) return;
+
+                JSONObject data = json.optJSONObject("data");
+                if (data == null) return;
+
+                JSONArray entries = data.optJSONArray("entries");
+                if (entries == null || entries.length() == 0) return;
+
+                List<Integer> syncedIds = new ArrayList<>();
+                int imported = 0;
+
+                for (int i = 0; i < entries.length(); i++) {
+                    try {
+                        JSONObject entry = entries.getJSONObject(i);
+                        int entryId = entry.optInt("id", -1);
+                        String title = entry.optString("title", "");
+                        String summary = entry.optString("summary", "");
+                        String keyPoints = entry.optString("key_points", "");
+                        String sourceUrl = entry.optString("source_url", "");
+                        String category = entry.optString("category", "科技");
+
+                        if (title.isEmpty() || summary.isEmpty()) continue;
+
+                        long result = dbHelper.insert(title, summary, keyPoints, sourceUrl, category);
+                        if (result != -1) imported++;
+                        if (entryId > 0) syncedIds.add(entryId);
+                    } catch (Exception e) {
+                        AppLog.w("Knowledge", "同步知識條目失敗: " + e.getMessage());
+                    }
+                }
+
+                // Mark as synced on Bridge
+                if (!syncedIds.isEmpty()) {
+                    try {
+                        URL syncUrl = new URL("http://127.0.0.1:8765/knowledge/discoveries/synced");
+                        HttpURLConnection syncConn = (HttpURLConnection) syncUrl.openConnection();
+                        syncConn.setRequestMethod("POST");
+                        syncConn.setRequestProperty("Content-Type", "application/json");
+                        syncConn.setDoOutput(true);
+                        syncConn.setConnectTimeout(5000);
+                        syncConn.setReadTimeout(5000);
+
+                        JSONObject body = new JSONObject();
+                        JSONArray idsArray = new JSONArray();
+                        for (int id : syncedIds) idsArray.put(id);
+                        body.put("ids", idsArray);
+
+                        OutputStream os = syncConn.getOutputStream();
+                        os.write(body.toString().getBytes(StandardCharsets.UTF_8));
+                        os.close();
+                        syncConn.getResponseCode();
+                        syncConn.disconnect();
+                    } catch (Exception ignored) {}
+                }
+
+                if (imported > 0) {
+                    int finalImported = imported;
+                    AppLog.i("Knowledge", "自動同步: 匯入 " + imported + " 則AI知識");
+                    runOnUiThread(() -> {
+                        refreshChips();
+                        refreshList();
+                        Toast.makeText(KnowledgeActivity.this,
+                                "已同步 " + finalImported + " 則 AI 知識", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            } catch (Exception e) {
+                // Silent fail — Bridge may not be running
+            }
+        }).start();
     }
 
     private void buildUI() {
