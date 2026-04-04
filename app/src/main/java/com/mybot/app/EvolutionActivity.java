@@ -11,6 +11,7 @@ import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -103,6 +104,49 @@ public class EvolutionActivity extends AppCompatActivity {
         }).start();
     }
 
+    private void triggerRefresh(Button btn) {
+        btn.setEnabled(false);
+        btn.setText("研究中...");
+        AppLog.i("Evolution", "手動觸發研究新方案");
+        Toast.makeText(this, "開始研究新方案，約需 1-2 分鐘", Toast.LENGTH_LONG).show();
+
+        new Thread(() -> {
+            try {
+                URL url = new URL("http://127.0.0.1:8765/evolution/refresh");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                OutputStream os = conn.getOutputStream();
+                os.write("{}".getBytes(StandardCharsets.UTF_8));
+                os.close();
+
+                int code = conn.getResponseCode();
+                conn.disconnect();
+
+                AppLog.i("Evolution", "研究觸發結果: HTTP " + code);
+                runOnUiThread(() -> {
+                    btn.setEnabled(true);
+                    btn.setText("\uD83D\uDD2C 研究新方案");
+                    if (code == 200) {
+                        Toast.makeText(this, "研究已啟動，稍後重新整理即可看到新提案", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "觸發失敗: HTTP " + code, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } catch (Exception e) {
+                AppLog.e("Evolution", "觸發研究失敗: " + e.getMessage());
+                runOnUiThread(() -> {
+                    btn.setEnabled(true);
+                    btn.setText("\uD83D\uDD2C 研究新方案");
+                    Toast.makeText(this, "觸發失敗，請確認 Bridge 運行中", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
     private void buildUI() {
         LinearLayout root = UIHelper.pageRoot(this);
         root.addView(UIHelper.topBar(this, "\uD83E\uDDEC 自我演化"));
@@ -126,6 +170,15 @@ public class EvolutionActivity extends AppCompatActivity {
         content.addView(chipScroll);
 
         buildChips();
+
+        // Research button
+        Button refreshBtn = UIHelper.primaryButton(this, "\uD83D\uDD2C 研究新方案");
+        refreshBtn.setOnClickListener(v -> triggerRefresh(refreshBtn));
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnLp.setMargins(0, dp(4), 0, dp(8));
+        refreshBtn.setLayoutParams(btnLp);
+        content.addView(refreshBtn);
 
         // Count label
         countLabel = new TextView(this);
