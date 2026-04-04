@@ -368,8 +368,60 @@ public class EvolutionActivity extends AppCompatActivity {
             actionRow.addView(retryBtn);
         }
 
+        // Delete button (not for implementing)
+        if (!"implementing".equals(status)) {
+            TextView deleteBtn = new TextView(this);
+            deleteBtn.setText("刪除");
+            deleteBtn.setTextColor(UIHelper.ACCENT_RED);
+            deleteBtn.setTextSize(12);
+            deleteBtn.setPadding(dp(10), dp(6), dp(10), dp(6));
+            deleteBtn.setOnClickListener(v -> confirmDelete(p));
+            actionRow.addView(deleteBtn);
+        }
+
         card.addView(actionRow);
         return card;
+    }
+
+    private void confirmDelete(JSONObject p) {
+        new AlertDialog.Builder(this)
+                .setTitle("刪除提案")
+                .setMessage("確定要刪除「" + p.optString("what", "") + "」？")
+                .setPositiveButton("刪除", (d, w) -> deleteProposal(p.optInt("id")))
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void deleteProposal(int id) {
+        new Thread(() -> {
+            try {
+                URL url = new URL("http://127.0.0.1:8765/evolution/proposals/delete");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                JSONObject body = new JSONObject();
+                body.put("id", id);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(body.toString().getBytes(StandardCharsets.UTF_8));
+                os.close();
+                conn.getResponseCode();
+                conn.disconnect();
+
+                AppLog.i("Evolution", "刪除提案 #" + id);
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "已刪除", Toast.LENGTH_SHORT).show();
+                    syncFromBridge();
+                });
+            } catch (Exception e) {
+                AppLog.e("Evolution", "刪除失敗: " + e.getMessage());
+                runOnUiThread(() -> Toast.makeText(this, "刪除失敗", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     private void confirmApprove(JSONObject p) {
