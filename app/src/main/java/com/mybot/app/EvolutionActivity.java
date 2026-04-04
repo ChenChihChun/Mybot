@@ -357,6 +357,17 @@ public class EvolutionActivity extends AppCompatActivity {
             actionRow.addView(rejectBtn);
         }
 
+        // Retry button for rejected/failed
+        if ("rejected".equals(status) || "failed".equals(status)) {
+            TextView retryBtn = new TextView(this);
+            retryBtn.setText("重試");
+            retryBtn.setTextColor(UIHelper.ACCENT_ORANGE);
+            retryBtn.setTextSize(12);
+            retryBtn.setPadding(dp(10), dp(6), dp(10), dp(6));
+            retryBtn.setOnClickListener(v -> confirmApprove(p));
+            actionRow.addView(retryBtn);
+        }
+
         card.addView(actionRow);
         return card;
     }
@@ -483,6 +494,11 @@ public class EvolutionActivity extends AppCompatActivity {
                 updateProposalStatus(p.optInt("id"), "rejected");
             });
             builder.setNeutralButton("關閉", null);
+        } else if ("rejected".equals(status) || "failed".equals(status)) {
+            builder.setPositiveButton("重試", (d, w) -> {
+                updateProposalStatus(p.optInt("id"), "approved");
+            });
+            builder.setNegativeButton("關閉", null);
         } else {
             builder.setPositiveButton("關閉", null);
         }
