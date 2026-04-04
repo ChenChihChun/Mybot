@@ -56,8 +56,9 @@
   .board-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .board-label { font-size: 12px; color: #8FA8BA; letter-spacing: 1px; }
   canvas { display: block; border: 2px solid #243040; border-radius: 4px; image-rendering: pixelated; }
-  .next-wrap { font-size: 10px; color: #5A7080; text-align: center; margin-top: 2px; }
-  .next-label { margin-bottom: 2px; }
+  .next-wrap, .hold-wrap { font-size: 10px; color: #5A7080; text-align: center; margin-top: 2px; }
+  .next-label, .hold-label { margin-bottom: 2px; }
+  .hold-wrap.used { opacity: 0.4; }
 
   /* Transparent swipe capture layer */
   #swipe-zone {
@@ -146,7 +147,7 @@
   <button class="diff-btn" id="btn-medium">🟠 普通</button>
   <button class="diff-btn" id="btn-hard">🔴 困難</button>
   <div id="setup-ai-rec"></div>
-  <p id="setup-hint">棋盤區：點擊旋轉 · 左右滑動移動<br>快速下滑硬降 · 按住下拖軟降</p>
+  <p id="setup-hint">棋盤區：點擊旋轉 · 左右滑動移動<br>快速下滑硬降 · 按住下拖軟降 · 上滑暫存</p>
 </div>
 
 <!-- Game Screen -->
@@ -168,9 +169,15 @@
     <div class="board-wrap">
       <div class="board-label">玩家</div>
       <canvas id="p-canvas"></canvas>
-      <div class="next-wrap">
-        <div class="next-label">NEXT</div>
-        <canvas id="p-next"></canvas>
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <div class="hold-wrap" id="p-hold-wrap">
+          <div class="hold-label">HOLD</div>
+          <canvas id="p-hold"></canvas>
+        </div>
+        <div class="next-wrap">
+          <div class="next-label">NEXT</div>
+          <canvas id="p-next"></canvas>
+        </div>
       </div>
     </div>
     <div class="board-wrap">
@@ -290,6 +297,7 @@ function setupCanvases() {
   resizeCanvas('c-canvas', COLS * CELL_SIZE, ROWS * CELL_SIZE);
   resizeCanvas('p-next', 4 * NEXT_CELL, 4 * NEXT_CELL);
   resizeCanvas('c-next', 4 * NEXT_CELL, 4 * NEXT_CELL);
+  resizeCanvas('p-hold', 4 * NEXT_CELL, 4 * NEXT_CELL);
 }
 
 // ─── Game State ───────────────────────────────────────────────────────────────
@@ -311,7 +319,7 @@ function randomPiece() {
 function initState() {
   const piece = randomPiece();
   const next  = randomPiece();
-  return { board: emptyBoard(), piece, next, score: 0, lines: 0, combo: 0, dead: false };
+  return { board: emptyBoard(), piece, next, hold: null, hasHeld: false, score: 0, lines: 0, combo: 0, dead: false };
 }
 
 // ─── Tetris Core ──────────────────────────────────────────────────────────────
@@ -392,6 +400,7 @@ function lockPiece(state, canvasId) {
   }
   state.piece = state.next;
   state.next  = randomPiece();
+  state.hasHeld = false;
   if (collides(state.board, state.piece, 0, 0)) {
     state.dead = true;
   }
@@ -508,6 +517,24 @@ function drawNext(canvasId, state) {
     for (let c = 0; c < shape[r].length; c++) {
       if (!shape[r][c]) continue;
       drawCell(ctx, (ox + c) * cs, (oy + r) * cs, cs, state.next.color);
+    }
+  }
+}
+
+function drawHold(canvasId, state) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const cs = NEXT_CELL;
+  ctx.fillStyle = '#0A1520';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (!state.hold) return;
+  const shape = state.hold.shape;
+  const ox = Math.floor((4 - shape[0].length) / 2);
+  const oy = Math.floor((4 - shape.length) / 2);
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      drawCell(ctx, (ox + c) * cs, (oy + r) * cs, cs, state.hold.color);
     }
   }
 }
@@ -754,6 +781,10 @@ function loop(now) {
   drawEffects('c-canvas', now);
   drawNext('p-next', pState);
   drawNext('c-next', cState);
+  drawHold('p-hold', pState);
+  // Update hold wrap opacity based on hasHeld flag
+  const holdWrap = document.getElementById('p-hold-wrap');
+  if (holdWrap) holdWrap.classList.toggle('used', pState.hasHeld);
 
   if (pState.dead || cState.dead) {
     gameRunning = false;
@@ -871,6 +902,32 @@ function playerDrop() {
   // Immediately lock — don't wait for next loop tick
   const cleared = lockPiece(pState, 'p-canvas');
   if (cleared > 0 && ATTACK_TABLE[cleared] > 0) addGarbage(cState, ATTACK_TABLE[cleared]);
+  lastFallP = performance.now();
+}
+function playerHold() {
+  if (!gameRunning || pState.dead || pState.hasHeld) return;
+  pState.hasHeld = true;
+  if (pState.hold) {
+    // Swap current piece with held piece
+    const held = pState.hold;
+    // Store current piece's key info for hold (reset position)
+    pState.hold = { shape: pState.piece.shape, color: pState.piece.color };
+    // Restore held piece at spawn position
+    pState.piece = {
+      shape: held.shape,
+      color: held.color,
+      x: Math.floor((COLS - held.shape[0].length) / 2),
+      y: 0,
+    };
+  } else {
+    // First hold: store current, spawn next
+    pState.hold = { shape: pState.piece.shape, color: pState.piece.color };
+    pState.piece = pState.next;
+    pState.next = randomPiece();
+  }
+  // Update hold visual state
+  const wrap = document.getElementById('p-hold-wrap');
+  if (wrap) wrap.classList.toggle('used', pState.hasHeld);
   lastFallP = performance.now();
 }
 
@@ -1015,6 +1072,13 @@ makeTapBtn('btn-drop',  playerDrop);
     const dy = t.clientY - startY;
     const dt = performance.now() - startTime;
 
+    // Quick upward flick → hold piece
+    if (!wasSoftDrop && dy < -60 && dx < 40 && dt < 400) {
+      vibrate(20);
+      playerHold();
+      return;
+    }
+
     // Quick downward flick → hard drop
     // Criteria: mostly downward, fast gesture, was NOT soft-dropping
     // This prevents accidental hard drop after releasing a soft drop
@@ -1053,6 +1117,7 @@ document.addEventListener('keydown', e => {
     case 'ArrowUp':    playerRotate(); break;
     case 'ArrowDown':  playerDown();   break;
     case ' ':          playerDrop();   break;
+    case 'c': case 'C': case 'Shift': playerHold(); break;
   }
 });
 document.addEventListener('keyup', e => { keyHeld[e.key] = false; });
