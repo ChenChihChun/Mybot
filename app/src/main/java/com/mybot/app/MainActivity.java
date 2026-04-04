@@ -259,9 +259,8 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout tRow2 = gridRow3();
         addCompact(tRow2, "\uD83D\uDCCB", "系統日誌", UIHelper.TEXT_SECONDARY,
                 v -> startActivity(new Intent(this, LogActivity.class)), 0);
-        View ph2 = new View(this);
-        ph2.setVisibility(View.INVISIBLE);
-        tRow2.addView(ph2, gridCellLp(g));
+        addCompact(tRow2, "\u23F0", "排程管理", UIHelper.TEXT_SECONDARY,
+                v -> startActivity(new Intent(this, CronActivity.class)), g);
         View ph3 = new View(this);
         ph3.setVisibility(View.INVISIBLE);
         tRow2.addView(ph3, gridCellLp(g));

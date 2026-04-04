@@ -118,6 +118,8 @@
 
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
+        <!-- Cron Manager Activity -->
+        <activity android:name=".CronActivity" android:exported="false" />
 
         <!-- Screen Capture Permission Activity (transparent) -->
         <activity

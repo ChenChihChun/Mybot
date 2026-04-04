@@ -979,4 +979,115 @@ public class BridgeClient {
             }
         });
     }
+
+    // ── Cron Manager ──────────────────────────────────────────────────────────
+
+    public interface CronCallback {
+        void onResult(JSONObject data, String error);
+    }
+
+    /**
+     * GET /cron/jobs — list all cron jobs with status.
+     */
+    public static void getCronJobs(CronCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getCronJobs: 取得排程列表");
+            try {
+                URL url = new URL(BASE_URL + "/cron/jobs");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "getCronJobs成功: " + (data != null ? data.optJSONArray("jobs").length() + "個排程" : "null"));
+                        mainHandler.post(() -> callback.onResult(data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "無排程資料");
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "getCronJobs失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
+    /**
+     * POST /cron/jobs/toggle — enable/disable a cron job.
+     */
+    public static void toggleCronJob(String jobId, boolean enabled, CronCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "toggleCronJob: " + jobId + " → " + (enabled ? "啟用" : "停用"));
+            try {
+                JSONObject body = new JSONObject();
+                body.put("id", jobId);
+                body.put("enabled", enabled);
+                String[] result = postJsonWithError(BASE_URL + "/cron/jobs/toggle", body.toString());
+                if (result[0] != null) {
+                    JSONObject json = new JSONObject(result[0]);
+                    if (json.optBoolean("success", false)) {
+                        AppLog.i("Bridge", "toggleCronJob成功: " + jobId);
+                        mainHandler.post(() -> callback.onResult(json.optJSONObject("data"), null));
+                        return;
+                    }
+                    String msg = json.optString("error", "操作失敗");
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(null, result[1]));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "toggleCronJob失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
+    /**
+     * POST /cron/jobs/schedule — update cron job schedule.
+     */
+    public static void updateCronSchedule(String jobId, String schedule, CronCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "updateCronSchedule: " + jobId + " → " + schedule);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("id", jobId);
+                body.put("schedule", schedule);
+                String[] result = postJsonWithError(BASE_URL + "/cron/jobs/schedule", body.toString());
+                if (result[0] != null) {
+                    JSONObject json = new JSONObject(result[0]);
+                    if (json.optBoolean("success", false)) {
+                        AppLog.i("Bridge", "updateCronSchedule成功: " + jobId);
+                        mainHandler.post(() -> callback.onResult(json.optJSONObject("data"), null));
+                        return;
+                    }
+                    String msg = json.optString("error", "操作失敗");
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(null, result[1]));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "updateCronSchedule失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
 }
