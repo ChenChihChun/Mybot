@@ -67,50 +67,25 @@
     touch-action: none; user-select: none; -webkit-user-select: none;
   }
 
-  /* ── Controls — two-thumb layout ── */
-  #controls {
-    display: flex; flex-direction: row; align-items: stretch;
-    padding: 6px 8px 16px; gap: 10px;
-    background: #0A1520; border-top: 1px solid #1A2A38;
-    flex-shrink: 0;
+  /* ── Floating action buttons (right side) ── */
+  #float-btns {
+    position: absolute; right: 8px; bottom: 30%;
+    display: flex; flex-direction: column; gap: 12px;
+    z-index: 20;
   }
-
-  /* Left group: ◀  ▼  ▶  (left thumb) */
-  #ctrl-move {
-    flex: 3; display: flex; gap: 5px;
-  }
-  /* Right group: ↻ and ⬇ stacked vertically (right thumb) */
-  #ctrl-action {
-    flex: 2; display: flex; flex-direction: column; gap: 5px;
-  }
-
-  .ctrl-btn {
-    flex: 1; min-height: 54px; border-radius: 16px; border: 2px solid transparent;
-    color: #C0D8E8; font-size: 26px;
+  .float-btn {
+    width: 56px; height: 56px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; user-select: none; -webkit-user-select: none;
-    transition: background 0.06s, transform 0.04s, border-color 0.06s;
-    touch-action: none;
+    font-size: 22px; border: 2px solid transparent;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    cursor: pointer;
+    opacity: 0.75; transition: opacity 0.1s, transform 0.04s;
   }
-
-  #btn-left   { background: #1A2E42; }
-  #btn-down   { background: #1A2E42; }
-  #btn-right  { background: #1A2E42; }
-  #btn-rotate { background: #1A3A4A; color: #60C8E8; font-size: 30px; border-color: #1A4A5A; }
-  #btn-drop   { background: #1A2F1A; color: #60E870; font-size: 24px; border-color: #1A4A1A; }
-
-  .ctrl-btn.pressed { transform: scale(0.90); }
-  #btn-left.pressed,
-  #btn-right.pressed,
-  #btn-down.pressed  { background: #2A5070 !important; border-color: #3A7090; }
-  #btn-rotate.pressed { background: #1E5A6A !important; border-color: #40A0C0; }
-  #btn-drop.pressed   { background: #1E5A1E !important; border-color: #40C040; }
-
-  /* Hint strip */
-  #gesture-hint {
-    text-align: center; font-size: 10px; color: #2A3A48; padding: 2px 0 0;
-    flex-basis: 100%; order: -1; letter-spacing: 0.5px;
-  }
+  .float-btn.pressed { transform: scale(0.88); opacity: 1; }
+  #btn-hold { background: #1A2A42; color: #60A8E8; border-color: #1A3A5A; }
+  #btn-drop { background: #1A2F1A; color: #60E870; border-color: #1A4A1A; }
+  #btn-hold.pressed { background: #1E4A6A; border-color: #40A0C0; }
+  #btn-drop.pressed { background: #1E5A1E; border-color: #40C040; }
 
   /* ── Overlay ── */
   #overlay {
@@ -159,7 +134,7 @@
   <button class="diff-btn" id="btn-hard">🔴 困難</button>
   <div id="setup-ai-rec"></div>
   <div id="stats-bar"></div>
-  <p id="setup-hint">棋盤區：點擊旋轉 · 左右滑動移動<br>快速下滑硬降 · 按住下拖軟降 · 上滑暫存</p>
+  <p id="setup-hint">點擊旋轉 · 左右滑動 · 下滑落下<br>右側按鈕：⏫暫存 ⏬快速落下</p>
 </div>
 
 <!-- Game Screen -->
@@ -206,22 +181,10 @@
     </div>
     <!-- Transparent gesture capture layer over boards -->
     <div id="swipe-zone"></div>
-  </div>
-
-  <!--
-    Controls — two-thumb layout:
-    Left thumb  → [◀] [▼] [▶]  (move left / soft-drop / move right)
-    Right thumb → [↻] stacked over [⬇]  (rotate / hard-drop)
-  -->
-  <div id="controls">
-    <div id="ctrl-move">
-      <button class="ctrl-btn" id="btn-left">◀</button>
-      <button class="ctrl-btn" id="btn-down">▼</button>
-      <button class="ctrl-btn" id="btn-right">▶</button>
-    </div>
-    <div id="ctrl-action">
-      <button class="ctrl-btn" id="btn-rotate">↻</button>
-      <button class="ctrl-btn" id="btn-drop">⏬</button>
+    <!-- Floating action buttons (right side) -->
+    <div id="float-btns">
+      <button class="float-btn" id="btn-hold">⏫</button>
+      <button class="float-btn" id="btn-drop">⏬</button>
     </div>
   </div>
 </div>
@@ -320,7 +283,7 @@ refreshStats();
 function calcCellSize() {
   const vw = window.innerWidth;
   const boardsArea = document.getElementById('boards-area');
-  const areaH = boardsArea.offsetHeight || (window.innerHeight - 120 - 80);
+  const areaH = boardsArea.offsetHeight || (window.innerHeight - 120 - 10);
   const maxByWidth  = Math.floor((vw - 16 * 2 - 16) / 2 / COLS);
   const maxByHeight = Math.floor(areaH / ROWS);
   CELL_SIZE = Math.max(10, Math.min(maxByWidth, maxByHeight, 22));
@@ -1096,10 +1059,7 @@ function makeTapBtn(btnId, action) {
   btn.addEventListener('mouseleave',stop);
 }
 
-makeDasBtn('btn-left',  playerLeft);
-makeDasBtn('btn-right', playerRight);
-makeDasBtn('btn-down',  playerDown);
-makeTapBtn('btn-rotate',playerRotate);
+makeTapBtn('btn-hold',  playerHold);
 makeTapBtn('btn-drop',  playerDrop);
 
 // ─── Swipe Zone Gesture Controls ──────────────────────────────────────────────
