@@ -135,6 +135,16 @@
     line-height: 1.5; padding: 8px 16px; max-width: 280px;
     background: rgba(128,216,255,0.08); border-radius: 10px;
   }
+  #stats-bar {
+    display: none; font-size: 13px; color: #A0B8C8; text-align: center;
+    padding: 8px 16px; margin-top: 6px;
+    background: rgba(160,184,200,0.08); border-radius: 10px;
+    letter-spacing: 1px;
+  }
+  #stats-bar .stat-win  { color: #60E870; font-weight: bold; }
+  #stats-bar .stat-lose { color: #F44336; font-weight: bold; }
+  #stats-bar .stat-draw { color: #FFDD57; font-weight: bold; }
+  #stats-bar .stat-rate { color: #80D8FF; }
 </style>
 </head>
 <body>
@@ -147,6 +157,7 @@
   <button class="diff-btn" id="btn-medium">🟠 普通</button>
   <button class="diff-btn" id="btn-hard">🔴 困難</button>
   <div id="setup-ai-rec"></div>
+  <div id="stats-bar"></div>
   <p id="setup-hint">棋盤區：點擊旋轉 · 左右滑動移動<br>快速下滑硬降 · 按住下拖軟降 · 上滑暫存</p>
 </div>
 
@@ -214,6 +225,7 @@
 <div id="overlay">
   <h2 id="overlay-title">🏆 勝利！</h2>
   <p id="overlay-sub">你贏了！</p>
+  <p id="overlay-stats" style="font-size:13px;color:#8FA8BA;margin-top:4px;"></p>
   <p id="ai-tip"></p>
   <div id="ai-recommend"></div>
   <button id="replay-btn">重新開始</button>
@@ -271,7 +283,33 @@ document.getElementById('replay-btn').addEventListener('click', () => {
   document.getElementById('game-screen').style.display = 'none';
   gameRunning = false;
   cancelAnimationFrame(animFrame);
+  refreshStats();
 });
+
+function refreshStats() {
+  const bar = document.getElementById('stats-bar');
+  let stats;
+  try { stats = JSON.parse(localStorage.getItem('tetris_stats') || '{}'); } catch(e) { return; }
+  const total = stats.total || 0;
+  if (total === 0) { bar.style.display = 'none'; return; }
+  const w = stats.win || 0, l = stats.lose || 0, d = stats.draw || 0;
+  const rate = Math.round((w / total) * 100);
+  bar.textContent = '';
+  function addSpan(text, cls) {
+    const s = document.createElement('span');
+    s.className = cls;
+    s.textContent = text;
+    bar.appendChild(s);
+  }
+  function addText(t) { bar.appendChild(document.createTextNode(t)); }
+  addText('🏆 '); addSpan(w + '勝', 'stat-win');
+  addText(' · '); addSpan(l + '負', 'stat-lose');
+  addText(' · '); addSpan(d + '平', 'stat-draw');
+  addText(' · 勝率 '); addSpan(rate + '%', 'stat-rate');
+  addText(' · 最高 '); addSpan(String(stats.best || 0), 'stat-rate');
+  bar.style.display = 'block';
+}
+refreshStats();
 
 // ─── Canvas sizing ────────────────────────────────────────────────────────────
 function calcCellSize() {
@@ -819,6 +857,16 @@ function showResult() {
   aiRec.textContent = '';
   aiRec.style.display = 'none';
   saveGameAndRequestSuggestion(result);
+  // Show updated stats on overlay
+  try {
+    const st = JSON.parse(localStorage.getItem('tetris_stats') || '{}');
+    const t = st.total || 0;
+    if (t > 0) {
+      const r = Math.round(((st.win||0) / t) * 100);
+      document.getElementById('overlay-stats').textContent =
+        `戰績 ${st.win||0}勝 ${st.lose||0}負 ${st.draw||0}平 · 勝率 ${r}%`;
+    }
+  } catch(e) {}
   overlay.classList.add('show');
 }
 
@@ -831,12 +879,22 @@ function saveGameAndRequestSuggestion(result) {
     result: result,
     timestamp: new Date().toISOString(),
   };
-  // Load history from localStorage, keep last 5
+  // Load history from localStorage, keep last 5 for AI suggestion
   let history = [];
   try { history = JSON.parse(localStorage.getItem('tetris_history') || '[]'); } catch(e) {}
   history.unshift(record);
   if (history.length > 5) history = history.slice(0, 5);
   localStorage.setItem('tetris_history', JSON.stringify(history));
+
+  // Update cumulative stats
+  let stats = { win: 0, lose: 0, draw: 0, best: 0, total: 0 };
+  try { stats = JSON.parse(localStorage.getItem('tetris_stats') || '{}'); } catch(e) {}
+  stats.win  = (stats.win  || 0) + (result === 'win'  ? 1 : 0);
+  stats.lose = (stats.lose || 0) + (result === 'lose' ? 1 : 0);
+  stats.draw = (stats.draw || 0) + (result === 'draw' ? 1 : 0);
+  stats.total = (stats.total || 0) + 1;
+  if (pState.score > (stats.best || 0)) stats.best = pState.score;
+  localStorage.setItem('tetris_stats', JSON.stringify(stats));
 
   // Call bridge API for AI suggestion
   if (history.length < 2) return; // need at least 2 games for meaningful suggestion
