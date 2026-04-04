@@ -4,11 +4,17 @@ import android.app.AlertDialog;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Button;
@@ -32,9 +38,17 @@ public class EvolutionActivity extends AppCompatActivity {
 
     private LinearLayout listContainer;
     private LinearLayout chipContainer;
+    private LinearLayout progressCard;
     private TextView countLabel;
+    private TextView stageText;
+    private TextView stepsText;
+    private TextView elapsedText;
+    private Button refreshBtn;
     private String selectedStatus = null; // null = all
     private List<JSONObject> proposals = new ArrayList<>();
+    private final Handler pollHandler = new Handler(Looper.getMainLooper());
+    private Runnable pollRunnable;
+    private long researchStartTime;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +62,13 @@ public class EvolutionActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         syncFromBridge();
+        checkResearchStatus();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopPolling();
     }
 
     private void syncFromBridge() {
@@ -105,10 +126,153 @@ public class EvolutionActivity extends AppCompatActivity {
     }
 
     private void triggerRefresh(Button btn) {
+        AppLog.i("Evolution", "開啟研究方向選擇");
         btn.setEnabled(false);
-        btn.setText("研究中...");
-        AppLog.i("Evolution", "手動觸發研究新方案");
-        Toast.makeText(this, "開始研究新方案，約需 1-2 分鐘", Toast.LENGTH_LONG).show();
+        // Fetch topics then show dialog
+        new Thread(() -> {
+            try {
+                URL url = new URL("http://127.0.0.1:8765/evolution/topics");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+                int code = conn.getResponseCode();
+                if (code != 200) {
+                    runOnUiThread(() -> {
+                        btn.setEnabled(true);
+                        Toast.makeText(this, "無法取得研究方向", Toast.LENGTH_SHORT).show();
+                    });
+                    return;
+                }
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                JSONObject json = new JSONObject(sb.toString());
+                JSONObject data = json.optJSONObject("data");
+                JSONArray topicsArr = data != null ? data.optJSONArray("topics") : null;
+                int todayIndex = data != null ? data.optInt("today_index", 0) : 0;
+
+                if (topicsArr == null || topicsArr.length() == 0) {
+                    runOnUiThread(() -> {
+                        btn.setEnabled(true);
+                        Toast.makeText(this, "無可用研究方向", Toast.LENGTH_SHORT).show();
+                    });
+                    return;
+                }
+
+                List<String> topics = new ArrayList<>();
+                for (int i = 0; i < topicsArr.length(); i++) {
+                    topics.add(topicsArr.getString(i));
+                }
+
+                runOnUiThread(() -> {
+                    btn.setEnabled(true);
+                    showTopicDialog(topics, todayIndex);
+                });
+            } catch (Exception e) {
+                AppLog.e("Evolution", "取得研究方向失敗: " + e.getMessage());
+                runOnUiThread(() -> {
+                    btn.setEnabled(true);
+                    Toast.makeText(this, "取得研究方向失敗", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
+    private void showTopicDialog(List<String> topics, int todayIndex) {
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setBackgroundColor(UIHelper.BG_PRIMARY);
+        int pad = dp(20);
+        layout.setPadding(pad, dp(12), pad, pad);
+
+        TextView hint = new TextView(this);
+        hint.setText("今日預設方向已標記 ★");
+        hint.setTextColor(UIHelper.TEXT_HINT);
+        hint.setTextSize(12);
+        hint.setPadding(0, 0, 0, dp(8));
+        layout.addView(hint);
+
+        RadioGroup radioGroup = new RadioGroup(this);
+        radioGroup.setOrientation(RadioGroup.VERTICAL);
+
+        for (int i = 0; i < topics.size(); i++) {
+            RadioButton rb = new RadioButton(this);
+            String label = topics.get(i);
+            if (label.length() > 50) label = label.substring(0, 50) + "...";
+            rb.setText((i == todayIndex ? "★ " : "") + label);
+            rb.setTextColor(UIHelper.TEXT_PRIMARY);
+            rb.setTextSize(13);
+            rb.setId(i);
+            rb.setPadding(dp(4), dp(6), dp(4), dp(6));
+            if (i == todayIndex) rb.setChecked(true);
+            radioGroup.addView(rb);
+        }
+        // Custom topic option
+        RadioButton customRb = new RadioButton(this);
+        customRb.setText("自訂方向...");
+        customRb.setTextColor(UIHelper.ACCENT_BLUE);
+        customRb.setTextSize(13);
+        customRb.setId(topics.size());
+        customRb.setPadding(dp(4), dp(6), dp(4), dp(6));
+        radioGroup.addView(customRb);
+
+        layout.addView(radioGroup);
+
+        EditText customInput = new EditText(this);
+        customInput.setHint("輸入自訂研究方向...");
+        customInput.setTextColor(UIHelper.TEXT_PRIMARY);
+        customInput.setHintTextColor(UIHelper.TEXT_HINT);
+        customInput.setTextSize(14);
+        customInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        customInput.setVisibility(View.GONE);
+        customInput.setBackground(UIHelper.roundRectStroke(UIHelper.BG_CARD, UIHelper.TEXT_HINT, 8, 1, this));
+        customInput.setPadding(dp(12), dp(10), dp(12), dp(10));
+        LinearLayout.LayoutParams inputLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        inputLp.setMargins(0, dp(8), 0, 0);
+        customInput.setLayoutParams(inputLp);
+        layout.addView(customInput);
+
+        radioGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            customInput.setVisibility(checkedId == topics.size() ? View.VISIBLE : View.GONE);
+        });
+
+        scroll.addView(layout);
+
+        new AlertDialog.Builder(this)
+                .setTitle("選擇研究方向")
+                .setView(scroll)
+                .setPositiveButton("開始研究", (d, w) -> {
+                    int selected = radioGroup.getCheckedRadioButtonId();
+                    String topic;
+                    if (selected == topics.size()) {
+                        topic = customInput.getText().toString().trim();
+                        if (topic.isEmpty()) {
+                            Toast.makeText(this, "請輸入自訂方向", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    } else if (selected >= 0 && selected < topics.size()) {
+                        topic = topics.get(selected);
+                    } else {
+                        topic = topics.get(todayIndex);
+                    }
+                    startResearch(topic);
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void startResearch(String topic) {
+        AppLog.i("Evolution", "開始研究: " + topic);
+        refreshBtn.setEnabled(false);
+        refreshBtn.setText("研究中...");
 
         new Thread(() -> {
             try {
@@ -119,30 +283,250 @@ public class EvolutionActivity extends AppCompatActivity {
                 conn.setReadTimeout(10000);
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setDoOutput(true);
+
+                JSONObject body = new JSONObject();
+                body.put("topic", topic);
                 OutputStream os = conn.getOutputStream();
-                os.write("{}".getBytes(StandardCharsets.UTF_8));
+                os.write(body.toString().getBytes(StandardCharsets.UTF_8));
                 os.close();
 
                 int code = conn.getResponseCode();
+
+                // Read response body for 409 message
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(new InputStreamReader(
+                        code >= 400 ? conn.getErrorStream() : conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
                 conn.disconnect();
 
-                AppLog.i("Evolution", "研究觸發結果: HTTP " + code);
                 runOnUiThread(() -> {
-                    btn.setEnabled(true);
-                    btn.setText("\uD83D\uDD2C 研究新方案");
                     if (code == 200) {
-                        Toast.makeText(this, "研究已啟動，稍後重新整理即可看到新提案", Toast.LENGTH_SHORT).show();
+                        AppLog.i("Evolution", "研究已觸發");
+                        researchStartTime = System.currentTimeMillis();
+                        showProgressCard(topic);
+                        startPolling();
+                    } else if (code == 409) {
+                        // Already running — show progress
+                        AppLog.i("Evolution", "研究已在進行中，顯示進度");
+                        researchStartTime = System.currentTimeMillis();
+                        showProgressCard(topic);
+                        startPolling();
                     } else {
+                        refreshBtn.setEnabled(true);
+                        refreshBtn.setText("\uD83D\uDD2C 研究新方案");
                         Toast.makeText(this, "觸發失敗: HTTP " + code, Toast.LENGTH_SHORT).show();
                     }
                 });
             } catch (Exception e) {
                 AppLog.e("Evolution", "觸發研究失敗: " + e.getMessage());
                 runOnUiThread(() -> {
-                    btn.setEnabled(true);
-                    btn.setText("\uD83D\uDD2C 研究新方案");
+                    refreshBtn.setEnabled(true);
+                    refreshBtn.setText("\uD83D\uDD2C 研究新方案");
                     Toast.makeText(this, "觸發失敗，請確認 Bridge 運行中", Toast.LENGTH_SHORT).show();
                 });
+            }
+        }).start();
+    }
+
+    private void showProgressCard(String topic) {
+        if (progressCard != null) progressCard.setVisibility(View.VISIBLE);
+        stageText.setText("初始化中...");
+        stepsText.setText("○ Session A  ○ Session B  ○ 共識比對  ○ 完成");
+        elapsedText.setText("已進行 0:00");
+        if (topic != null && !topic.isEmpty()) {
+            String shortTopic = topic.length() > 40 ? topic.substring(0, 40) + "..." : topic;
+            stageText.setText("研究方向: " + shortTopic);
+        }
+    }
+
+    private void startPolling() {
+        stopPolling();
+        pollRunnable = new Runnable() {
+            @Override
+            public void run() {
+                updateElapsed();
+                fetchStatus();
+                pollHandler.postDelayed(this, 5000);
+            }
+        };
+        pollHandler.postDelayed(pollRunnable, 2000); // first poll after 2s
+    }
+
+    private void stopPolling() {
+        if (pollRunnable != null) {
+            pollHandler.removeCallbacks(pollRunnable);
+            pollRunnable = null;
+        }
+    }
+
+    private void updateElapsed() {
+        if (researchStartTime <= 0) return;
+        long elapsed = (System.currentTimeMillis() - researchStartTime) / 1000;
+        long min = elapsed / 60;
+        long sec = elapsed % 60;
+        if (elapsedText != null) {
+            elapsedText.setText(String.format("已進行 %d:%02d", min, sec));
+        }
+    }
+
+    private void fetchStatus() {
+        new Thread(() -> {
+            try {
+                URL url = new URL("http://127.0.0.1:8765/evolution/refresh/status");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(3000);
+                conn.setReadTimeout(5000);
+                int code = conn.getResponseCode();
+                if (code != 200) return;
+
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                JSONObject json = new JSONObject(sb.toString());
+                JSONObject data = json.optJSONObject("data");
+                if (data == null) return;
+
+                String stage = data.optString("stage", "idle");
+                String detail = data.optString("detail", "");
+
+                runOnUiThread(() -> updateProgressUI(stage, detail));
+            } catch (Exception e) {
+                // Silently ignore polling errors
+            }
+        }).start();
+    }
+
+    private void updateProgressUI(String stage, String detail) {
+        if (stageText == null) return;
+
+        String stageLabel;
+        String steps;
+        String estimate = "";
+
+        switch (stage) {
+            case "starting":
+                stageLabel = "初始化中...";
+                steps = "○ Session A  ○ Session B  ○ 共識比對  ○ 完成";
+                estimate = "預估 ~5 分鐘";
+                break;
+            case "session_a":
+                stageLabel = detail.isEmpty() ? "第一組搜尋中..." : detail;
+                steps = "● Session A  ○ Session B  ○ 共識比對  ○ 完成";
+                estimate = "預估剩餘 ~4 分鐘";
+                break;
+            case "session_b":
+                stageLabel = detail.isEmpty() ? "第二組搜尋中..." : detail;
+                steps = "✓ Session A  ● Session B  ○ 共識比對  ○ 完成";
+                estimate = "預估剩餘 ~2 分鐘";
+                break;
+            case "judging":
+                stageLabel = detail.isEmpty() ? "共識比對中..." : detail;
+                steps = "✓ Session A  ✓ Session B  ● 共識比對  ○ 完成";
+                estimate = "即將完成";
+                break;
+            case "saving":
+                stageLabel = "儲存結果中...";
+                steps = "✓ Session A  ✓ Session B  ✓ 共識比對  ● 儲存";
+                estimate = "即將完成";
+                break;
+            case "done":
+                stageLabel = detail.isEmpty() ? "研究完成！" : detail;
+                steps = "✓ Session A  ✓ Session B  ✓ 共識比對  ✓ 完成";
+                stopPolling();
+                if (progressCard != null) {
+                    pollHandler.postDelayed(() -> {
+                        progressCard.setVisibility(View.GONE);
+                        refreshBtn.setEnabled(true);
+                        refreshBtn.setText("\uD83D\uDD2C 研究新方案");
+                    }, 3000);
+                }
+                syncFromBridge();
+                Toast.makeText(this, "研究完成！已載入新提案", Toast.LENGTH_SHORT).show();
+                return;
+            case "error":
+                stageLabel = detail.isEmpty() ? "研究失敗" : detail;
+                steps = "✗ 發生錯誤";
+                stopPolling();
+                if (progressCard != null) {
+                    pollHandler.postDelayed(() -> {
+                        progressCard.setVisibility(View.GONE);
+                        refreshBtn.setEnabled(true);
+                        refreshBtn.setText("\uD83D\uDD2C 研究新方案");
+                    }, 3000);
+                }
+                Toast.makeText(this, "研究失敗: " + detail, Toast.LENGTH_LONG).show();
+                return;
+            case "idle":
+            default:
+                // Not running, hide progress
+                if (progressCard != null) progressCard.setVisibility(View.GONE);
+                refreshBtn.setEnabled(true);
+                refreshBtn.setText("\uD83D\uDD2C 研究新方案");
+                stopPolling();
+                return;
+        }
+
+        stageText.setText(stageLabel);
+        stepsText.setText(steps);
+        if (!estimate.isEmpty()) {
+            elapsedText.setText(elapsedText.getText() + "  " + estimate);
+        }
+    }
+
+    private void checkResearchStatus() {
+        new Thread(() -> {
+            try {
+                URL url = new URL("http://127.0.0.1:8765/evolution/refresh/status");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(3000);
+                conn.setReadTimeout(5000);
+                int code = conn.getResponseCode();
+                if (code != 200) return;
+
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                JSONObject json = new JSONObject(sb.toString());
+                JSONObject data = json.optJSONObject("data");
+                if (data == null) return;
+
+                String stage = data.optString("stage", "idle");
+                if (!"idle".equals(stage) && !"done".equals(stage) && !"error".equals(stage)) {
+                    // Research is in progress, show progress card and start polling
+                    String startedAt = data.optString("started_at", "");
+                    runOnUiThread(() -> {
+                        researchStartTime = System.currentTimeMillis();
+                        // Try to compute from started_at if available
+                        if (!startedAt.isEmpty()) {
+                            try {
+                                // Approximate: parse ISO and compute diff
+                                long approx = System.currentTimeMillis() - 60000; // fallback
+                                researchStartTime = approx;
+                            } catch (Exception ignored) {}
+                        }
+                        showProgressCard(data.optString("topic", ""));
+                        refreshBtn.setEnabled(false);
+                        refreshBtn.setText("研究中...");
+                        startPolling();
+                        updateProgressUI(stage, data.optString("detail", ""));
+                    });
+                }
+            } catch (Exception e) {
+                // Silently ignore
             }
         }).start();
     }
@@ -172,13 +556,54 @@ public class EvolutionActivity extends AppCompatActivity {
         buildChips();
 
         // Research button
-        Button refreshBtn = UIHelper.primaryButton(this, "\uD83D\uDD2C 研究新方案");
+        refreshBtn = UIHelper.primaryButton(this, "\uD83D\uDD2C 研究新方案");
         refreshBtn.setOnClickListener(v -> triggerRefresh(refreshBtn));
         LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         btnLp.setMargins(0, dp(4), 0, dp(8));
         refreshBtn.setLayoutParams(btnLp);
         content.addView(refreshBtn);
+
+        // Progress card (hidden by default)
+        progressCard = new LinearLayout(this);
+        progressCard.setOrientation(LinearLayout.VERTICAL);
+        progressCard.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 14, this));
+        progressCard.setElevation(dp(3));
+        int pPad = dp(14);
+        progressCard.setPadding(pPad, dp(12), pPad, dp(12));
+        progressCard.setVisibility(View.GONE);
+
+        LinearLayout.LayoutParams pcLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        pcLp.setMargins(0, 0, 0, dp(10));
+        progressCard.setLayoutParams(pcLp);
+
+        // Progress header
+        TextView progressTitle = new TextView(this);
+        progressTitle.setText("\uD83D\uDD2C 研究進行中");
+        progressTitle.setTextColor(UIHelper.ACCENT_BLUE);
+        progressTitle.setTextSize(14);
+        progressTitle.setTypeface(null, Typeface.BOLD);
+        progressCard.addView(progressTitle);
+
+        stageText = new TextView(this);
+        stageText.setTextColor(UIHelper.TEXT_PRIMARY);
+        stageText.setTextSize(13);
+        stageText.setPadding(0, dp(6), 0, dp(4));
+        progressCard.addView(stageText);
+
+        stepsText = new TextView(this);
+        stepsText.setTextColor(UIHelper.TEXT_SECONDARY);
+        stepsText.setTextSize(12);
+        stepsText.setPadding(0, dp(2), 0, dp(4));
+        progressCard.addView(stepsText);
+
+        elapsedText = new TextView(this);
+        elapsedText.setTextColor(UIHelper.TEXT_HINT);
+        elapsedText.setTextSize(11);
+        progressCard.addView(elapsedText);
+
+        content.addView(progressCard);
 
         // Count label
         countLabel = new TextView(this);
