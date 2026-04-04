@@ -942,8 +942,11 @@ function makeDasBtn(btnId, action) {
   const btn = document.getElementById(btnId);
   let dasTimeout = null;
   let dasInterval = null;
+  let usedTouch = false;
 
   function start(e) {
+    if (e.type === 'touchstart') usedTouch = true;
+    if (e.type === 'mousedown' && usedTouch) return;
     e.preventDefault();
     btn.classList.add('pressed');
     vibrate(10);
@@ -972,8 +975,17 @@ function makeDasBtn(btnId, action) {
 
 function makeTapBtn(btnId, action) {
   const btn = document.getElementById(btnId);
+  let lastTap = 0;
+  let usedTouch = false;
   function start(e) {
+    // Prevent mouse events from firing after touch (double-trigger on mobile)
+    if (e.type === 'touchstart') usedTouch = true;
+    if (e.type === 'mousedown' && usedTouch) return;
     e.preventDefault();
+    // Debounce: ignore taps within 120ms of previous
+    const now = performance.now();
+    if (now - lastTap < 120) return;
+    lastTap = now;
     btn.classList.add('pressed');
     vibrate(15);
     action();
