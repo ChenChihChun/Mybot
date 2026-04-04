@@ -226,6 +226,12 @@ let pState, cState;
 let lastFallP, lastFallC, lastRiseP, lastRiseC;
 let animFrame;
 
+// ─── Line Clear Animations ───────────────────────────────────────────────────
+// Each entry: { canvasId, row, startTime, duration }
+let rowFlashEffects = [];
+// Each entry: { canvasId, x, y, text, startTime, duration }
+let scorePopEffects = [];
+
 // ─── Setup Screen ─────────────────────────────────────────────────────────────
 document.getElementById('btn-easy').addEventListener('click',   () => startGame('easy'));
 document.getElementById('btn-medium').addEventListener('click', () => startGame('medium'));
@@ -313,7 +319,7 @@ function rotateCW(shape) {
   return newShape;
 }
 
-function lockPiece(state) {
+function lockPiece(state, canvasId) {
   const { board, piece } = state;
   for (let r = 0; r < piece.shape.length; r++) {
     for (let c = 0; c < piece.shape[r].length; c++) {
@@ -322,6 +328,11 @@ function lockPiece(state) {
       if (ny < 0) { state.dead = true; return 0; }
       board[ny][piece.x + c] = piece.color;
     }
+  }
+  // Find cleared rows before splicing (for animation)
+  const clearedRows = [];
+  for (let r = 0; r < ROWS; r++) {
+    if (board[r].every(c => c !== null)) clearedRows.push(r);
   }
   let cleared = 0;
   for (let r = ROWS - 1; r >= 0; ) {
@@ -336,7 +347,23 @@ function lockPiece(state) {
   if (cleared > 0) {
     state.combo++;
     const multiplier = Math.pow(1.5, state.combo - 1);
-    state.score += Math.floor(SCORE_TABLE[cleared] * multiplier);
+    const points = Math.floor(SCORE_TABLE[cleared] * multiplier);
+    state.score += points;
+    // Trigger animations
+    const now = performance.now();
+    for (const row of clearedRows) {
+      rowFlashEffects.push({ canvasId, row, startTime: now, duration: 200 });
+    }
+    // Score popup at middle of cleared rows
+    const midRow = clearedRows[Math.floor(clearedRows.length / 2)];
+    scorePopEffects.push({
+      canvasId,
+      x: COLS * CELL_SIZE / 2,
+      y: midRow * CELL_SIZE,
+      text: '+' + points,
+      startTime: now,
+      duration: 600,
+    });
   } else {
     state.combo = 0;
   }
@@ -452,6 +479,43 @@ function drawNext(canvasId, state) {
       if (!shape[r][c]) continue;
       drawCell(ctx, (ox + c) * cs, (oy + r) * cs, cs, state.next.color);
     }
+  }
+}
+
+// ─── Line Clear Effects ──────────────────────────────────────────────────────
+function drawEffects(canvasId, now) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const cs = CELL_SIZE;
+
+  // Row flash: white overlay fading out over 200ms
+  for (let i = rowFlashEffects.length - 1; i >= 0; i--) {
+    const fx = rowFlashEffects[i];
+    if (fx.canvasId !== canvasId) continue;
+    const elapsed = now - fx.startTime;
+    if (elapsed >= fx.duration) { rowFlashEffects.splice(i, 1); continue; }
+    const alpha = 1 - elapsed / fx.duration;
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.7 * alpha).toFixed(3) + ')';
+    ctx.fillRect(0, fx.row * cs, COLS * cs, cs);
+  }
+
+  // Score popup: float upward + fade out over 600ms
+  for (let i = scorePopEffects.length - 1; i >= 0; i--) {
+    const fx = scorePopEffects[i];
+    if (fx.canvasId !== canvasId) continue;
+    const elapsed = now - fx.startTime;
+    if (elapsed >= fx.duration) { scorePopEffects.splice(i, 1); continue; }
+    const progress = elapsed / fx.duration;
+    const alpha = 1 - progress;
+    const offsetY = -30 * progress;
+    ctx.save();
+    ctx.font = 'bold ' + Math.max(12, cs) + 'px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,100,' + alpha.toFixed(3) + ')';
+    ctx.shadowColor = 'rgba(255,200,0,' + (alpha * 0.8).toFixed(3) + ')';
+    ctx.shadowBlur = 8;
+    ctx.fillText(fx.text, fx.x, fx.y + offsetY);
+    ctx.restore();
   }
 }
 
@@ -600,6 +664,8 @@ function startGame(difficulty) {
 
   pState = initState();
   cState = initState();
+  rowFlashEffects = [];
+  scorePopEffects = [];
   aiTargetMove = null;
   if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
   gameRunning = true;
@@ -620,7 +686,7 @@ function loop(now) {
     if (!collides(pState.board, pState.piece, 0, 1)) {
       pState.piece.y++;
     } else {
-      const cleared = lockPiece(pState);
+      const cleared = lockPiece(pState, 'p-canvas');
       if (cleared > 0 && ATTACK_TABLE[cleared] > 0) addGarbage(cState, ATTACK_TABLE[cleared]);
     }
   }
@@ -631,7 +697,7 @@ function loop(now) {
     if (!collides(cState.board, cState.piece, 0, 1)) {
       cState.piece.y++;
     } else {
-      const cleared = lockPiece(cState);
+      const cleared = lockPiece(cState, 'c-canvas');
       if (cleared > 0 && ATTACK_TABLE[cleared] > 0) addGarbage(pState, ATTACK_TABLE[cleared]);
       aiTargetMove = null;
       if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
@@ -652,6 +718,8 @@ function loop(now) {
 
   drawBoard('p-canvas', pState);
   drawBoard('c-canvas', cState);
+  drawEffects('p-canvas', now);
+  drawEffects('c-canvas', now);
   drawNext('p-next', pState);
   drawNext('c-next', cState);
 
