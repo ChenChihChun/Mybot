@@ -57,6 +57,7 @@
   .board-label { font-size: 12px; color: #8FA8BA; letter-spacing: 1px; }
   canvas { display: block; border: 2px solid #243040; border-radius: 4px; image-rendering: pixelated; }
   .next-wrap, .hold-wrap { font-size: 10px; color: #5A7080; text-align: center; margin-top: 2px; }
+  .next-wrap canvas { margin-top: 1px; }
   .next-label, .hold-label { margin-bottom: 2px; }
   .hold-wrap.used { opacity: 0.4; }
 
@@ -187,7 +188,9 @@
         </div>
         <div class="next-wrap">
           <div class="next-label">NEXT</div>
-          <canvas id="p-next"></canvas>
+          <canvas id="p-next0"></canvas>
+          <canvas id="p-next1"></canvas>
+          <canvas id="p-next2"></canvas>
         </div>
       </div>
     </div>
@@ -196,7 +199,9 @@
       <canvas id="c-canvas"></canvas>
       <div class="next-wrap">
         <div class="next-label">NEXT</div>
-        <canvas id="c-next"></canvas>
+        <canvas id="c-next0"></canvas>
+        <canvas id="c-next1"></canvas>
+        <canvas id="c-next2"></canvas>
       </div>
     </div>
     <!-- Transparent gesture capture layer over boards -->
@@ -333,8 +338,10 @@ function setupCanvases() {
   calcCellSize();
   resizeCanvas('p-canvas', COLS * CELL_SIZE, ROWS * CELL_SIZE);
   resizeCanvas('c-canvas', COLS * CELL_SIZE, ROWS * CELL_SIZE);
-  resizeCanvas('p-next', 4 * NEXT_CELL, 4 * NEXT_CELL);
-  resizeCanvas('c-next', 4 * NEXT_CELL, 4 * NEXT_CELL);
+  for (let i = 0; i < NEXT_COUNT; i++) {
+    resizeCanvas('p-next' + i, 4 * NEXT_CELL, 3 * NEXT_CELL);
+    resizeCanvas('c-next' + i, 4 * NEXT_CELL, 3 * NEXT_CELL);
+  }
   resizeCanvas('p-hold', 4 * NEXT_CELL, 4 * NEXT_CELL);
 }
 
@@ -343,8 +350,23 @@ function emptyBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(null));
 }
 
-function randomPiece() {
-  const key = PIECE_KEYS[Math.floor(Math.random() * PIECE_KEYS.length)];
+// ─── 7-Bag Randomizer ─────────────────────────────────────────────────────────
+const NEXT_COUNT = 3;  // number of preview pieces
+let pBag = [], cBag = [];
+
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function newBag() {
+  return shuffleArray([...PIECE_KEYS]);
+}
+
+function spawnPiece(key) {
   const t = TETROMINOES[key];
   return {
     shape: t.shape.map(r => [...r]),
@@ -354,10 +376,23 @@ function randomPiece() {
   };
 }
 
-function initState() {
-  const piece = randomPiece();
-  const next  = randomPiece();
-  return { board: emptyBoard(), piece, next, hold: null, hasHeld: false, score: 0, lines: 0, combo: 0, dead: false };
+function pullFromBag(bag) {
+  if (bag.length === 0) bag.push(...newBag());
+  return bag.shift();
+}
+
+function initState(bag) {
+  bag.length = 0;
+  bag.push(...newBag(), ...newBag()); // ensure enough pieces
+  const piece = spawnPiece(pullFromBag(bag));
+  const queue = [];
+  for (let i = 0; i < NEXT_COUNT; i++) queue.push(spawnPiece(pullFromBag(bag)));
+  return { board: emptyBoard(), piece, queue, hold: null, hasHeld: false, score: 0, lines: 0, combo: 0, dead: false };
+}
+
+function advanceQueue(state, bag) {
+  state.piece = state.queue.shift();
+  state.queue.push(spawnPiece(pullFromBag(bag)));
 }
 
 // ─── Tetris Core ──────────────────────────────────────────────────────────────
@@ -436,8 +471,8 @@ function lockPiece(state, canvasId) {
   } else {
     state.combo = 0;
   }
-  state.piece = state.next;
-  state.next  = randomPiece();
+  const bag = (state === pState) ? pBag : cBag;
+  advanceQueue(state, bag);
   state.hasHeld = false;
   if (collides(state.board, state.piece, 0, 0)) {
     state.dead = true;
@@ -542,20 +577,27 @@ function drawCell(ctx, x, y, size, color) {
   ctx.fillRect(x + 1, y + size - 3, size - 2, 2);
 }
 
-function drawNext(canvasId, state) {
-  const canvas = document.getElementById(canvasId);
-  const ctx = canvas.getContext('2d');
+function drawNextQueue(prefix, state) {
   const cs = NEXT_CELL;
-  ctx.fillStyle = '#0A1520';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const shape = state.next.shape;
-  const ox = Math.floor((4 - shape[0].length) / 2);
-  const oy = Math.floor((4 - shape.length) / 2);
-  for (let r = 0; r < shape.length; r++) {
-    for (let c = 0; c < shape[r].length; c++) {
-      if (!shape[r][c]) continue;
-      drawCell(ctx, (ox + c) * cs, (oy + r) * cs, cs, state.next.color);
+  for (let i = 0; i < NEXT_COUNT; i++) {
+    const canvas = document.getElementById(prefix + '-next' + i);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0A1520';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const p = state.queue[i];
+    if (!p) continue;
+    const shape = p.shape;
+    const ox = Math.floor((4 - shape[0].length) / 2);
+    const oy = Math.floor((3 - shape.length) / 2);
+    const alpha = i === 0 ? 1.0 : (i === 1 ? 0.7 : 0.45);
+    ctx.globalAlpha = alpha;
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (!shape[r][c]) continue;
+        drawCell(ctx, (ox + c) * cs, (oy + r) * cs, cs, p.color);
+      }
     }
+    ctx.globalAlpha = 1.0;
   }
 }
 
@@ -759,8 +801,8 @@ function startGame(difficulty) {
 
   setupCanvases();
 
-  pState = initState();
-  cState = initState();
+  pState = initState(pBag);
+  cState = initState(cBag);
   rowFlashEffects = [];
   scorePopEffects = [];
   aiTargetMove = null;
@@ -817,8 +859,8 @@ function loop(now) {
   drawBoard('c-canvas', cState);
   drawEffects('p-canvas', now);
   drawEffects('c-canvas', now);
-  drawNext('p-next', pState);
-  drawNext('c-next', cState);
+  drawNextQueue('p', pState);
+  drawNextQueue('c', cState);
   drawHold('p-hold', pState);
   // Update hold wrap opacity based on hasHeld flag
   const holdWrap = document.getElementById('p-hold-wrap');
@@ -968,9 +1010,7 @@ function playerHold() {
   if (pState.hold) {
     // Swap current piece with held piece
     const held = pState.hold;
-    // Store current piece's key info for hold (reset position)
     pState.hold = { shape: pState.piece.shape, color: pState.piece.color };
-    // Restore held piece at spawn position
     pState.piece = {
       shape: held.shape,
       color: held.color,
@@ -978,10 +1018,9 @@ function playerHold() {
       y: 0,
     };
   } else {
-    // First hold: store current, spawn next
+    // First hold: store current, advance queue
     pState.hold = { shape: pState.piece.shape, color: pState.piece.color };
-    pState.piece = pState.next;
-    pState.next = randomPiece();
+    advanceQueue(pState, pBag);
   }
   // Update hold visual state
   const wrap = document.getElementById('p-hold-wrap');
