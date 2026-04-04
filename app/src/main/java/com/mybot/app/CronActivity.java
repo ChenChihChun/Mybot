@@ -126,6 +126,7 @@ public class CronActivity extends AppCompatActivity {
     private LinearLayout buildJobCard(JSONObject job) {
         String id = job.optString("id");
         String name = job.optString("name");
+        String description = job.optString("description", "");
         String scheduleDisplay = job.optString("schedule_display");
         String schedule = job.optString("schedule");
         boolean enabled = job.optBoolean("enabled", true);
@@ -177,6 +178,16 @@ public class CronActivity extends AppCompatActivity {
         });
         row1.addView(toggle);
         card.addView(row1);
+
+        // Description
+        if (description != null && !description.isEmpty()) {
+            TextView descView = new TextView(this);
+            descView.setText(description);
+            descView.setTextSize(12);
+            descView.setTextColor(UIHelper.TEXT_HINT);
+            descView.setPadding(UIHelper.dp(this, 22), UIHelper.dp(this, 2), 0, 0);
+            card.addView(descView);
+        }
 
         // Row 2: schedule + edit button
         LinearLayout row2 = new LinearLayout(this);
