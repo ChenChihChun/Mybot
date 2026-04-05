@@ -24,6 +24,8 @@
   #btn-easy   { background: #4CAF50; color: #fff; }
   #btn-medium { background: #FF9800; color: #fff; }
   #btn-hard   { background: #F44336; color: #fff; }
+  #btn-endless { background: #7C4DFF; color: #fff; width: 200px; padding: 14px 0; border-radius: 12px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; letter-spacing: 1px; transition: transform 0.1s, opacity 0.1s; margin-top: 8px; }
+  #btn-endless:active { transform: scale(0.96); opacity: 0.85; }
 
   /* ── Game screen ── */
   #game-screen { display: none; flex-direction: column; height: 100%; }
@@ -140,6 +142,7 @@
   <button class="diff-btn" id="btn-easy">🟢 簡單</button>
   <button class="diff-btn" id="btn-medium">🟠 普通</button>
   <button class="diff-btn" id="btn-hard">🔴 困難</button>
+  <button id="btn-endless">♾️ 無限模式</button>
   <div id="setup-ai-rec"></div>
   <div id="stats-bar"></div>
   <p id="setup-hint">點擊旋轉 · 左右滑動 · 下滑落下<br>右側按鈕：⏫暫存 ⏬快速落下</p>
@@ -241,7 +244,10 @@ let pState, cState;
 let lastFallP, lastFallC, lastRiseP, lastRiseC;
 let animFrame;
 let currentDifficulty = 'easy';
+let gameMode = 'pk'; // 'pk' or 'endless'
 let gameStartTime = 0;
+let endlessFallMs = 800; // current fall speed in endless mode
+let endlessLevel = 1;
 
 // ─── Line Clear Animations ───────────────────────────────────────────────────
 // Each entry: { canvasId, row, startTime, duration }
@@ -253,6 +259,7 @@ let scorePopEffects = [];
 document.getElementById('btn-easy').addEventListener('click',   () => startGame('easy'));
 document.getElementById('btn-medium').addEventListener('click', () => startGame('medium'));
 document.getElementById('btn-hard').addEventListener('click',   () => startGame('hard'));
+document.getElementById('btn-endless').addEventListener('click', () => startGame('endless'));
 document.getElementById('replay-btn').addEventListener('click', () => {
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('setup-screen').style.display = 'flex';
@@ -304,6 +311,26 @@ function refreshStats() {
     row.appendChild(btn);
     bar.appendChild(row);
   }
+  // Endless mode stats
+  const est = getStats('endless');
+  if ((est.games || 0) > 0) {
+    hasAny = true;
+    const row = document.createElement('div');
+    row.className = 'stats-row';
+    _addSpan(row, '♾️無限', 'stats-label');
+    row.appendChild(document.createTextNode(' '));
+    _addSpan(row, (est.games||0) + '局', 'stat-rate');
+    row.appendChild(document.createTextNode(' · 最高 '));
+    _addSpan(row, String(est.best || 0), 'stat-win');
+    row.appendChild(document.createTextNode(' · 最高等級 '));
+    _addSpan(row, 'Lv.' + (est.bestLevel || 1), 'stat-rate');
+    const btn = document.createElement('button');
+    btn.className = 'stats-reset';
+    btn.textContent = '✕';
+    btn.onclick = (e) => { e.stopPropagation(); resetStats('endless'); };
+    row.appendChild(btn);
+    bar.appendChild(row);
+  }
   bar.style.display = hasAny ? 'block' : 'none';
 }
 refreshStats();
@@ -313,9 +340,16 @@ function calcCellSize() {
   const vw = window.innerWidth;
   const boardsArea = document.getElementById('boards-area');
   const areaH = boardsArea.offsetHeight || (window.innerHeight - 120 - 10);
-  const maxByWidth  = Math.floor((vw - 16 * 2 - 16) / 2 / COLS);
-  const maxByHeight = Math.floor(areaH / ROWS);
-  CELL_SIZE = Math.max(10, Math.min(maxByWidth, maxByHeight, 22));
+  if (gameMode === 'endless') {
+    // Single board — can use more width
+    const maxByWidth  = Math.floor((vw - 16 * 2 - 80) / COLS);
+    const maxByHeight = Math.floor(areaH / ROWS);
+    CELL_SIZE = Math.max(10, Math.min(maxByWidth, maxByHeight, 28));
+  } else {
+    const maxByWidth  = Math.floor((vw - 16 * 2 - 16) / 2 / COLS);
+    const maxByHeight = Math.floor(areaH / ROWS);
+    CELL_SIZE = Math.max(10, Math.min(maxByWidth, maxByHeight, 22));
+  }
   NEXT_CELL = Math.max(8, Math.floor(CELL_SIZE * 0.75));
 }
 
@@ -329,10 +363,14 @@ function resizeCanvas(id, w, h) {
 function setupCanvases() {
   calcCellSize();
   resizeCanvas('p-canvas', COLS * CELL_SIZE, ROWS * CELL_SIZE);
-  resizeCanvas('c-canvas', COLS * CELL_SIZE, ROWS * CELL_SIZE);
+  if (gameMode === 'pk') {
+    resizeCanvas('c-canvas', COLS * CELL_SIZE, ROWS * CELL_SIZE);
+    for (let i = 0; i < NEXT_COUNT; i++) {
+      resizeCanvas('c-next' + i, 4 * NEXT_CELL, 3 * NEXT_CELL);
+    }
+  }
   for (let i = 0; i < NEXT_COUNT; i++) {
     resizeCanvas('p-next' + i, 4 * NEXT_CELL, 3 * NEXT_CELL);
-    resizeCanvas('c-next' + i, 4 * NEXT_CELL, 3 * NEXT_CELL);
   }
   resizeCanvas('p-hold', 4 * NEXT_CELL, 4 * NEXT_CELL);
 }
@@ -463,7 +501,7 @@ function lockPiece(state, canvasId) {
   } else {
     state.combo = 0;
   }
-  const bag = (state === pState) ? pBag : cBag;
+  const bag = (state === pState || gameMode === 'endless') ? pBag : cBag;
   advanceQueue(state, bag);
   state.hasHeld = false;
   if (collides(state.board, state.piece, 0, 0)) {
@@ -786,17 +824,43 @@ function shapeEquals(a, b) {
 
 // ─── Game Loop ────────────────────────────────────────────────────────────────
 function startGame(difficulty) {
-  cfg = DIFF_CONFIG[difficulty];
-  currentDifficulty = difficulty;
+  if (difficulty === 'endless') {
+    gameMode = 'endless';
+    currentDifficulty = 'endless';
+    endlessFallMs = 800;
+    endlessLevel = 1;
+    cfg = { fallMs: 800 }; // initial, will be overridden dynamically
+  } else {
+    gameMode = 'pk';
+    cfg = DIFF_CONFIG[difficulty];
+    currentDifficulty = difficulty;
+  }
   gameStartTime = Date.now();
-  document.getElementById('diff-badge').textContent = difficulty.toUpperCase();
+
+  // Toggle UI for endless vs PK
+  const computerWrap = document.querySelectorAll('.board-wrap')[1];
+  const cScoreBlock = document.getElementById('c-score').parentElement;
+  if (gameMode === 'endless') {
+    document.getElementById('diff-badge').textContent = 'Lv.1';
+    computerWrap.style.display = 'none';
+    cScoreBlock.innerHTML = '<div class="score-label">等級</div><div class="score-value" id="e-level">1</div>';
+  } else {
+    document.getElementById('diff-badge').textContent = difficulty.toUpperCase();
+    computerWrap.style.display = '';
+    cScoreBlock.innerHTML = '<div class="score-label">電腦</div><div class="score-value" id="c-score">0</div>';
+  }
+
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('game-screen').style.display  = 'flex';
 
   setupCanvases();
 
   pState = initState(pBag);
-  cState = initState(cBag);
+  if (gameMode === 'pk') {
+    cState = initState(cBag);
+  } else {
+    cState = { dead: true, score: 0, lines: 0 }; // dummy
+  }
   rowFlashEffects = [];
   scorePopEffects = [];
   aiTargetMove = null;
@@ -808,7 +872,7 @@ function startGame(difficulty) {
   lastRiseP = now; lastRiseC = now;
 
   cancelAnimationFrame(animFrame);
-  animFrame = requestAnimationFrame(loop);
+  animFrame = requestAnimationFrame(gameMode === 'endless' ? loopEndless : loop);
 }
 
 function loop(now) {
@@ -869,41 +933,105 @@ function loop(now) {
   animFrame = requestAnimationFrame(loop);
 }
 
+// ─── Endless Mode Loop ────────────────────────────────────────────────────────
+function getEndlessFallMs(lines) {
+  // Level up every 10 lines; speed increases each level
+  // Start 800ms → min 80ms
+  const level = Math.floor(lines / 10) + 1;
+  return Math.max(80, 800 - (level - 1) * 60);
+}
+
+function loopEndless(now) {
+  if (!gameRunning) return;
+
+  // Update speed based on lines cleared
+  const newLevel = Math.floor(pState.lines / 10) + 1;
+  endlessFallMs = getEndlessFallMs(pState.lines);
+  if (newLevel !== endlessLevel) {
+    endlessLevel = newLevel;
+    document.getElementById('diff-badge').textContent = 'Lv.' + endlessLevel;
+    const lvEl = document.getElementById('e-level');
+    if (lvEl) lvEl.textContent = endlessLevel;
+  }
+
+  if (now - lastFallP >= endlessFallMs) {
+    lastFallP = now;
+    if (!collides(pState.board, pState.piece, 0, 1)) {
+      pState.piece.y++;
+    } else {
+      lockPiece(pState, 'p-canvas');
+    }
+  }
+
+  document.getElementById('p-score').textContent = pState.score;
+
+  drawBoard('p-canvas', pState);
+  drawEffects('p-canvas', now);
+  drawNextQueue('p', pState);
+  drawHold('p-hold', pState);
+  const holdWrap = document.getElementById('p-hold-wrap');
+  if (holdWrap) holdWrap.classList.toggle('used', pState.hasHeld);
+
+  if (pState.dead) {
+    gameRunning = false;
+    showResult();
+    return;
+  }
+
+  animFrame = requestAnimationFrame(loopEndless);
+}
+
 function showResult() {
   const overlay = document.getElementById('overlay');
   const title   = document.getElementById('overlay-title');
   const sub     = document.getElementById('overlay-sub');
   const aiTip   = document.getElementById('ai-tip');
   const aiRec   = document.getElementById('ai-recommend');
-  let result = 'lose';
-  if (pState.dead && cState.dead) {
-    title.textContent = '🤝 平手！';
-    sub.textContent   = `雙方分數：你 ${pState.score} vs 電腦 ${cState.score}`;
-    result = 'draw';
-  } else if (cState.dead) {
-    title.textContent = '🏆 你贏了！';
-    sub.textContent   = `你的分數：${pState.score}　電腦：${cState.score}`;
-    result = 'win';
-  } else {
-    title.textContent = '💀 電腦勝利';
-    sub.textContent   = `你的分數：${pState.score}　電腦：${cState.score}`;
-  }
-  // Save game history and request AI suggestion
   aiTip.textContent = '';
   aiRec.textContent = '';
   aiRec.style.display = 'none';
-  saveGameAndRequestSuggestion(result);
-  // Show updated per-difficulty stats on overlay
-  try {
-    const diffLabel = { easy: '簡單', medium: '普通', hard: '困難' }[currentDifficulty] || '';
-    const st = getStats(currentDifficulty);
-    const t = st.total || 0;
-    if (t > 0) {
-      const r = Math.round(((st.win||0) / t) * 100);
-      document.getElementById('overlay-stats').textContent =
-        `${diffLabel} 戰績 ${st.win||0}勝 ${st.lose||0}負 · 勝率 ${r}%`;
+
+  if (gameMode === 'endless') {
+    // Endless mode result
+    const est = getStats('endless');
+    const prevBest = est.best || 0;
+    const isNewBest = pState.score > prevBest;
+    title.textContent = isNewBest ? '🎉 新紀錄！' : '💀 遊戲結束';
+    sub.textContent = `分數：${pState.score}　等級：Lv.${endlessLevel}　消除：${pState.lines} 行`;
+    // Save endless stats
+    est.games = (est.games || 0) + 1;
+    if (isNewBest) est.best = pState.score;
+    if (endlessLevel > (est.bestLevel || 0)) est.bestLevel = endlessLevel;
+    localStorage.setItem('tetris_stats_endless', JSON.stringify(est));
+    document.getElementById('overlay-stats').textContent =
+      `最高分：${est.best}　最高等級：Lv.${est.bestLevel}　共 ${est.games} 局`;
+  } else {
+    let result = 'lose';
+    if (pState.dead && cState.dead) {
+      title.textContent = '🤝 平手！';
+      sub.textContent   = `雙方分數：你 ${pState.score} vs 電腦 ${cState.score}`;
+      result = 'draw';
+    } else if (cState.dead) {
+      title.textContent = '🏆 你贏了！';
+      sub.textContent   = `你的分數：${pState.score}　電腦：${cState.score}`;
+      result = 'win';
+    } else {
+      title.textContent = '💀 電腦勝利';
+      sub.textContent   = `你的分數：${pState.score}　電腦：${cState.score}`;
     }
-  } catch(e) {}
+    saveGameAndRequestSuggestion(result);
+    // Show updated per-difficulty stats on overlay
+    try {
+      const diffLabel = { easy: '簡單', medium: '普通', hard: '困難' }[currentDifficulty] || '';
+      const st = getStats(currentDifficulty);
+      const t = st.total || 0;
+      if (t > 0) {
+        const r = Math.round(((st.win||0) / t) * 100);
+        document.getElementById('overlay-stats').textContent =
+          `${diffLabel} 戰績 ${st.win||0}勝 ${st.lose||0}負 · 勝率 ${r}%`;
+      }
+    } catch(e) {}
+  }
   overlay.classList.add('show');
 }
 
@@ -997,7 +1125,7 @@ function playerDrop() {
   hardDrop(pState);
   // Immediately lock — don't wait for next loop tick
   const cleared = lockPiece(pState, 'p-canvas');
-  if (cleared > 0 && ATTACK_TABLE[cleared] > 0) addGarbage(cState, ATTACK_TABLE[cleared]);
+  if (gameMode === 'pk' && cleared > 0 && ATTACK_TABLE[cleared] > 0) addGarbage(cState, ATTACK_TABLE[cleared]);
   lastFallP = performance.now();
 }
 function playerHold() {
