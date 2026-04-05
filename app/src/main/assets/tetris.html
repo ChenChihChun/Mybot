@@ -112,15 +112,23 @@
     background: rgba(128,216,255,0.08); border-radius: 10px;
   }
   #stats-bar {
-    display: none; font-size: 13px; color: #A0B8C8; text-align: center;
-    padding: 8px 16px; margin-top: 6px;
+    font-size: 12px; color: #A0B8C8; text-align: center;
+    padding: 8px 12px; margin-top: 6px;
     background: rgba(160,184,200,0.08); border-radius: 10px;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
   }
   #stats-bar .stat-win  { color: #60E870; font-weight: bold; }
   #stats-bar .stat-lose { color: #F44336; font-weight: bold; }
   #stats-bar .stat-draw { color: #FFDD57; font-weight: bold; }
   #stats-bar .stat-rate { color: #80D8FF; }
+  .stats-row { margin: 3px 0; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .stats-label { color: #5A7A90; min-width: 36px; text-align: right; }
+  .stats-reset {
+    background: none; border: 1px solid rgba(244,67,54,0.3); color: #F44336;
+    font-size: 10px; padding: 1px 6px; border-radius: 4px; cursor: pointer;
+    margin-left: 4px;
+  }
+  .stats-reset:active { background: rgba(244,67,54,0.2); }
 </style>
 </head>
 <body>
@@ -254,28 +262,49 @@ document.getElementById('replay-btn').addEventListener('click', () => {
   refreshStats();
 });
 
+function getStats(diff) {
+  try { return JSON.parse(localStorage.getItem('tetris_stats_' + diff) || '{}'); } catch(e) { return {}; }
+}
+function resetStats(diff) {
+  localStorage.removeItem('tetris_stats_' + diff);
+  refreshStats();
+}
+function _addSpan(parent, text, cls) {
+  const s = document.createElement('span');
+  s.className = cls;
+  s.textContent = text;
+  parent.appendChild(s);
+}
 function refreshStats() {
   const bar = document.getElementById('stats-bar');
-  let stats;
-  try { stats = JSON.parse(localStorage.getItem('tetris_stats') || '{}'); } catch(e) { return; }
-  const total = stats.total || 0;
-  if (total === 0) { bar.style.display = 'none'; return; }
-  const w = stats.win || 0, l = stats.lose || 0, d = stats.draw || 0;
-  const rate = Math.round((w / total) * 100);
   bar.textContent = '';
-  function addSpan(text, cls) {
-    const s = document.createElement('span');
-    s.className = cls;
-    s.textContent = text;
-    bar.appendChild(s);
+  const labels = { easy: '🟢簡單', medium: '🟠普通', hard: '🔴困難' };
+  let hasAny = false;
+  for (const diff of ['easy', 'medium', 'hard']) {
+    const st = getStats(diff);
+    const total = st.total || 0;
+    if (total === 0) continue;
+    hasAny = true;
+    const w = st.win || 0, l = st.lose || 0, rate = Math.round((w / total) * 100);
+    const row = document.createElement('div');
+    row.className = 'stats-row';
+    _addSpan(row, labels[diff], 'stats-label');
+    row.appendChild(document.createTextNode(' '));
+    _addSpan(row, w + '勝', 'stat-win');
+    row.appendChild(document.createTextNode(' · '));
+    _addSpan(row, l + '負', 'stat-lose');
+    row.appendChild(document.createTextNode(' · 勝率 '));
+    _addSpan(row, rate + '%', 'stat-rate');
+    row.appendChild(document.createTextNode(' · 最高 '));
+    _addSpan(row, String(st.best || 0), 'stat-rate');
+    const btn = document.createElement('button');
+    btn.className = 'stats-reset';
+    btn.textContent = '✕';
+    btn.onclick = (e) => { e.stopPropagation(); resetStats(diff); };
+    row.appendChild(btn);
+    bar.appendChild(row);
   }
-  function addText(t) { bar.appendChild(document.createTextNode(t)); }
-  addText('🏆 '); addSpan(w + '勝', 'stat-win');
-  addText(' · '); addSpan(l + '負', 'stat-lose');
-  addText(' · '); addSpan(d + '平', 'stat-draw');
-  addText(' · 勝率 '); addSpan(rate + '%', 'stat-rate');
-  addText(' · 最高 '); addSpan(String(stats.best || 0), 'stat-rate');
-  bar.style.display = 'block';
+  bar.style.display = hasAny ? 'block' : 'none';
 }
 refreshStats();
 
@@ -864,14 +893,15 @@ function showResult() {
   aiRec.textContent = '';
   aiRec.style.display = 'none';
   saveGameAndRequestSuggestion(result);
-  // Show updated stats on overlay
+  // Show updated per-difficulty stats on overlay
   try {
-    const st = JSON.parse(localStorage.getItem('tetris_stats') || '{}');
+    const diffLabel = { easy: '簡單', medium: '普通', hard: '困難' }[currentDifficulty] || '';
+    const st = getStats(currentDifficulty);
     const t = st.total || 0;
     if (t > 0) {
       const r = Math.round(((st.win||0) / t) * 100);
       document.getElementById('overlay-stats').textContent =
-        `戰績 ${st.win||0}勝 ${st.lose||0}負 ${st.draw||0}平 · 勝率 ${r}%`;
+        `${diffLabel} 戰績 ${st.win||0}勝 ${st.lose||0}負 · 勝率 ${r}%`;
     }
   } catch(e) {}
   overlay.classList.add('show');
@@ -893,15 +923,16 @@ function saveGameAndRequestSuggestion(result) {
   if (history.length > 5) history = history.slice(0, 5);
   localStorage.setItem('tetris_history', JSON.stringify(history));
 
-  // Update cumulative stats
+  // Update per-difficulty stats
+  const statsKey = 'tetris_stats_' + currentDifficulty;
   let stats = { win: 0, lose: 0, draw: 0, best: 0, total: 0 };
-  try { stats = JSON.parse(localStorage.getItem('tetris_stats') || '{}'); } catch(e) {}
+  try { stats = JSON.parse(localStorage.getItem(statsKey) || '{}'); } catch(e) {}
   stats.win  = (stats.win  || 0) + (result === 'win'  ? 1 : 0);
   stats.lose = (stats.lose || 0) + (result === 'lose' ? 1 : 0);
   stats.draw = (stats.draw || 0) + (result === 'draw' ? 1 : 0);
   stats.total = (stats.total || 0) + 1;
   if (pState.score > (stats.best || 0)) stats.best = pState.score;
-  localStorage.setItem('tetris_stats', JSON.stringify(stats));
+  localStorage.setItem(statsKey, JSON.stringify(stats));
 
   // Call bridge API for AI suggestion
   if (history.length < 2) return; // need at least 2 games for meaningful suggestion
