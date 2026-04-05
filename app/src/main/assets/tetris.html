@@ -455,6 +455,8 @@ function addGarbage(state, lines) {
     const row = Array.from({ length: COLS }, (_, c) => c === hole ? null : '#3A3A3A');
     state.board.shift();
     state.board.push(row);
+    // Push piece up with the board so it doesn't clip into garbage
+    state.piece.y = Math.max(state.piece.y - 1, -2);
   }
   if (collides(state.board, state.piece, 0, 0)) {
     state.dead = true;
