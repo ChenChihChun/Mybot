@@ -249,9 +249,8 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, TravelActivity.class)), 0);
         addCompact(fRow5, "\uD83E\uDDEC", "自我演化", UIHelper.ACCENT_GREEN,
                 v -> startActivity(new Intent(this, EvolutionActivity.class)), g);
-        View ph1 = new View(this);
-        ph1.setVisibility(View.INVISIBLE);
-        fRow5.addView(ph1, gridCellLp(g));
+        addCompact(fRow5, "\uD83C\uDF0D", "地圖問答", UIHelper.ACCENT_BLUE,
+                v -> startActivity(new Intent(this, QuizActivity.class)), g);
         content.addView(fRow5);
 
         // ── Games (dynamic, hideable via long-press) ──

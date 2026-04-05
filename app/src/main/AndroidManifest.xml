@@ -101,6 +101,9 @@
         <!-- Evolution Proposals Activity -->
         <activity android:name=".EvolutionActivity" android:exported="false" />
 
+        <!-- Quiz Activity -->
+        <activity android:name=".QuizActivity" android:exported="false" />
+
         <!-- Flight Activity -->
         <activity android:name=".FlightActivity" android:exported="false" />
 
