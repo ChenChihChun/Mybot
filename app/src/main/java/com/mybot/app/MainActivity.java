@@ -433,7 +433,7 @@ public class MainActivity extends AppCompatActivity {
             String label = (String) game[1];
             if (hidden.contains(label)) continue;
             String icon = (String) game[0];
-            int color = (int) game[2];
+            int color = (Integer) game[2];
             Class<?> actCls = (Class<?>) game[3];
             LinearLayout card = UIHelper.compactCard(this, icon, label, color);
             card.setOnClickListener(v -> startActivity(new Intent(this, actCls)));
