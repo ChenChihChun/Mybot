@@ -126,6 +126,11 @@
             android:screenOrientation="portrait"
             android:exported="false" />
 
+        <!-- 2048 Game -->
+        <activity android:name=".Game2048Activity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
         <!-- Cron Manager Activity -->

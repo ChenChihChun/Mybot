@@ -1,6 +1,8 @@
 package com.mybot.app;
 
+import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -19,6 +21,11 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -32,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
     private Handler healthHandler;
     private boolean lastOnline = true; // track state change for push notification
     private LinearLayout dashExpenseCard, dashTodoCard, dashKnowledgeCard, dashFitnessCard;
+    private LinearLayout gameContainer;
 
     private final Runnable healthCheckRunnable = new Runnable() {
         @Override
@@ -235,26 +243,23 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, FlightActivity.class)), g);
         content.addView(fRow4);
 
-        // Row 5: 旅遊規劃, 俄羅斯方塊, Lights Out
+        // Row 5: 旅遊規劃, 自我演化
         LinearLayout fRow5 = gridRow3();
         addCompact(fRow5, "\uD83D\uDDFA\uFE0F", "\u65C5\u904A\u898F\u5283", UIHelper.ACCENT_GREEN,
                 v -> startActivity(new Intent(this, TravelActivity.class)), 0);
-        addCompact(fRow5, "\uD83C\uDFAE", "\u4FC4\u7F85\u65AF\u65B9\u584A", UIHelper.ACCENT_BLUE,
-                v -> startActivity(new Intent(this, TetrisActivity.class)), g);
-        addCompact(fRow5, "\uD83D\uDCA1", "Lights Out", UIHelper.ACCENT_ORANGE,
-                v -> startActivity(new Intent(this, LightsOutActivity.class)), g);
-        content.addView(fRow5);
-
-        // Row 6: 自我演化, Color Flood
-        LinearLayout fRow6 = gridRow3();
-        addCompact(fRow6, "\uD83E\uDDEC", "自我演化", UIHelper.ACCENT_GREEN,
-                v -> startActivity(new Intent(this, EvolutionActivity.class)), 0);
-        addCompact(fRow6, "\uD83C\uDFA8", "Color Flood", UIHelper.ACCENT_RED,
-                v -> startActivity(new Intent(this, ColorFloodActivity.class)), g);
+        addCompact(fRow5, "\uD83E\uDDEC", "自我演化", UIHelper.ACCENT_GREEN,
+                v -> startActivity(new Intent(this, EvolutionActivity.class)), g);
         View ph1 = new View(this);
         ph1.setVisibility(View.INVISIBLE);
-        fRow6.addView(ph1, gridCellLp(g));
-        content.addView(fRow6);
+        fRow5.addView(ph1, gridCellLp(g));
+        content.addView(fRow5);
+
+        // ── Games (dynamic, hideable via long-press) ──
+        content.addView(UIHelper.sectionHeader(this, "GAMES"));
+        gameContainer = new LinearLayout(this);
+        gameContainer.setOrientation(LinearLayout.VERTICAL);
+        content.addView(gameContainer);
+        buildGameSection();
 
         // ── Tools (3 columns) ──
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));
@@ -407,6 +412,96 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout card = UIHelper.compactCard(this, icon, label, color);
         card.setOnClickListener(listener);
         row.addView(card, gridCellLp(leftMargin));
+    }
+
+    private void buildGameSection() {
+        gameContainer.removeAllViews();
+        Set<String> hidden = getSharedPreferences("app_prefs", MODE_PRIVATE)
+                .getStringSet("hidden_games", new HashSet<>());
+
+        int g = UIHelper.dp(this, 8);
+        List<LinearLayout> cards = new ArrayList<>();
+
+        // Game registry — add new games here
+        Object[][] games = {
+                {"\uD83C\uDFAE", "\u4FC4\u7F85\u65AF\u65B9\u584A", UIHelper.ACCENT_BLUE, TetrisActivity.class},
+                {"\uD83D\uDCA1", "Lights Out", UIHelper.ACCENT_ORANGE, LightsOutActivity.class},
+                {"\uD83C\uDFA8", "Color Flood", UIHelper.ACCENT_RED, ColorFloodActivity.class},
+        };
+
+        for (Object[] game : games) {
+            String label = (String) game[1];
+            if (hidden.contains(label)) continue;
+            String icon = (String) game[0];
+            int color = (int) game[2];
+            Class<?> actCls = (Class<?>) game[3];
+            LinearLayout card = UIHelper.compactCard(this, icon, label, color);
+            card.setOnClickListener(v -> startActivity(new Intent(this, actCls)));
+            card.setOnLongClickListener(v -> {
+                new AlertDialog.Builder(this)
+                        .setTitle("\u96B1\u85CF\u904A\u6232")
+                        .setMessage("\u78BA\u5B9A\u8981\u96B1\u85CF\u300C" + label + "\u300D\uFF1F\n\u53EF\u5F9E GAMES \u5340\u57DF\u5E95\u90E8\u6062\u5FA9")
+                        .setPositiveButton("\u96B1\u85CF", (d, w) -> hideGame(label))
+                        .setNegativeButton("\u53D6\u6D88", null)
+                        .show();
+                return true;
+            });
+            cards.add(card);
+        }
+
+        // Build rows of 3
+        for (int i = 0; i < cards.size(); i += 3) {
+            LinearLayout row = gridRow3();
+            for (int j = i; j < Math.min(i + 3, cards.size()); j++) {
+                row.addView(cards.get(j), gridCellLp(j == i ? 0 : g));
+            }
+            for (int j = cards.size(); j < i + 3; j++) {
+                View ph = new View(this);
+                ph.setVisibility(View.INVISIBLE);
+                row.addView(ph, gridCellLp(g));
+            }
+            gameContainer.addView(row);
+        }
+
+        // Restore button if any games are hidden
+        if (!hidden.isEmpty()) {
+            TextView restore = new TextView(this);
+            restore.setText("\u2728 \u6062\u5FA9\u5DF2\u96B1\u85CF\u904A\u6232\uFF08" + hidden.size() + "\uFF09");
+            restore.setTextSize(12);
+            restore.setTextColor(UIHelper.TEXT_HINT);
+            restore.setGravity(Gravity.CENTER);
+            restore.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+            restore.setOnClickListener(v -> {
+                String[] names = hidden.toArray(new String[0]);
+                boolean[] checked = new boolean[names.length];
+                for (int i = 0; i < checked.length; i++) checked[i] = true;
+                new AlertDialog.Builder(this)
+                        .setTitle("\u6062\u5FA9\u904A\u6232")
+                        .setMultiChoiceItems(names, checked, (d, which, isChecked) -> checked[which] = isChecked)
+                        .setPositiveButton("\u6062\u5FA9", (d, w) -> {
+                            Set<String> newHidden = new HashSet<>(hidden);
+                            for (int i = 0; i < names.length; i++) {
+                                if (checked[i]) newHidden.remove(names[i]);
+                            }
+                            getSharedPreferences("app_prefs", MODE_PRIVATE).edit()
+                                    .putStringSet("hidden_games", newHidden).apply();
+                            AppLog.i("Games", "\u6062\u5FA9\u904A\u6232");
+                            buildGameSection();
+                        })
+                        .setNegativeButton("\u53D6\u6D88", null)
+                        .show();
+            });
+            gameContainer.addView(restore);
+        }
+    }
+
+    private void hideGame(String label) {
+        SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        Set<String> hidden = new HashSet<>(prefs.getStringSet("hidden_games", new HashSet<>()));
+        hidden.add(label);
+        prefs.edit().putStringSet("hidden_games", hidden).apply();
+        AppLog.i("Games", "\u96B1\u85CF\u904A\u6232: " + label);
+        buildGameSection();
     }
 
     private LinearLayout.LayoutParams gridCellLp(int leftMargin) {
