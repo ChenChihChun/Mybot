@@ -406,4 +406,28 @@ public class ReminderHelper {
         return context.getSharedPreferences(KNOWLEDGE_PREFS, Context.MODE_PRIVATE)
                 .getBoolean(KEY_ENABLED, false);
     }
+
+    // --- Notification Poll (polls Bridge every 2 minutes) ---
+    private static final int NOTIF_POLL_REQUEST_CODE = 9500;
+    private static final long NOTIF_POLL_INTERVAL_MS = 2 * 60 * 1000L; // 2 minutes
+
+    public static void scheduleNotificationPoll(Context context) {
+        scheduleNextNotificationPoll(context);
+    }
+
+    public static void scheduleNextNotificationPoll(Context context) {
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Intent intent = new Intent(context, NotificationPollReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, NOTIF_POLL_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        long triggerAt = System.currentTimeMillis() + NOTIF_POLL_INTERVAL_MS;
+        safeSetExact(am, triggerAt, pi);
+    }
+
+    public static void restoreNotificationPoll(Context context) {
+        scheduleNextNotificationPoll(context);
+    }
 }
