@@ -245,16 +245,15 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, LightsOutActivity.class)), g);
         content.addView(fRow5);
 
-        // Row 6: 自我演化
+        // Row 6: 自我演化, Color Flood
         LinearLayout fRow6 = gridRow3();
         addCompact(fRow6, "\uD83E\uDDEC", "自我演化", UIHelper.ACCENT_GREEN,
                 v -> startActivity(new Intent(this, EvolutionActivity.class)), 0);
+        addCompact(fRow6, "\uD83C\uDFA8", "Color Flood", UIHelper.ACCENT_RED,
+                v -> startActivity(new Intent(this, ColorFloodActivity.class)), g);
         View ph1 = new View(this);
         ph1.setVisibility(View.INVISIBLE);
         fRow6.addView(ph1, gridCellLp(g));
-        View ph2 = new View(this);
-        ph2.setVisibility(View.INVISIBLE);
-        fRow6.addView(ph2, gridCellLp(g));
         content.addView(fRow6);
 
         // ── Tools (3 columns) ──

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Color Flood</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-family: -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 16px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 12px;
+}
+.stat {
+  text-align: center;
+}
+.stat-value {
+  font-size: 28px;
+  font-weight: bold;
+}
+.stat-label {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+#board {
+  display: grid;
+  gap: 2px;
+  width: min(85vw, 400px);
+  height: min(85vw, 400px);
+  margin: 8px 0 16px;
+}
+.cell {
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+.palette {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0 16px;
+}
+.pal-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.pal-btn:active { transform: scale(0.9); }
+.pal-btn.current { border-color: #fff; transform: scale(1.1); }
+.bottom {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-top: 4px;
+}
+.btn {
+  background: #16213e;
+  color: #e0e0e0;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 15px;
+  cursor: pointer;
+}
+.btn:active { background: #0f3460; }
+.msg {
+  font-size: 20px;
+  font-weight: bold;
+  min-height: 28px;
+  margin: 4px 0;
+}
+.win { color: #4ade80; }
+.lose { color: #f87171; }
+.best-row {
+  font-size: 13px;
+  color: #888;
+  margin-top: 8px;
+}
+.size-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.size-btn {
+  background: #16213e;
+  color: #aaa;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.size-btn.active { color: #fff; border-color: #4ade80; background: #1a3a2e; }
+</style>
+</head>
+<body>
+
+<div class="size-row">
+  <button class="size-btn" data-size="6">6x6</button>
+  <button class="size-btn active" data-size="8">8x8</button>
+  <button class="size-btn" data-size="10">10x10</button>
+  <button class="size-btn" data-size="12">12x12</button>
+</div>
+
+<div class="header">
+  <div class="stat">
+    <div class="stat-value" id="moves">0</div>
+    <div class="stat-label">步數</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" id="maxMoves">22</div>
+    <div class="stat-label">上限</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" id="pct">0%</div>
+    <div class="stat-label">覆蓋</div>
+  </div>
+</div>
+
+<div id="board"></div>
+
+<div class="msg" id="msg"></div>
+
+<div class="palette" id="palette"></div>
+
+<div class="bottom">
+  <button class="btn" id="newGame">新遊戲</button>
+</div>
+
+<div class="best-row" id="bestRow"></div>
+
+<script>
+var COLORS = ['#e74c3c','#3498db','#2ecc71','#f1c40f','#9b59b6','#e67e22'];
+var SIZE_LIMITS = {6:14, 8:22, 10:30, 12:38};
+
+var SIZE = 8;
+var MAX_MOVES = 22;
+var grid = [];
+var moves = 0;
+var gameOver = false;
+
+function createCell(color) {
+  var cell = document.createElement('div');
+  cell.className = 'cell';
+  cell.style.backgroundColor = color;
+  return cell;
+}
+
+function createPalBtn(color, idx) {
+  var btn = document.createElement('div');
+  btn.className = 'pal-btn' + (idx === grid[0][0] ? ' current' : '');
+  btn.style.backgroundColor = color;
+  btn.addEventListener('click', function() { pickColor(idx); });
+  return btn;
+}
+
+function init() {
+  MAX_MOVES = SIZE_LIMITS[SIZE];
+  grid = [];
+  moves = 0;
+  gameOver = false;
+  for (var r = 0; r < SIZE; r++) {
+    grid[r] = [];
+    for (var c = 0; c < SIZE; c++) {
+      grid[r][c] = Math.floor(Math.random() * 6);
+    }
+  }
+  render();
+  renderPalette();
+  document.getElementById('moves').textContent = '0';
+  document.getElementById('maxMoves').textContent = MAX_MOVES;
+  document.getElementById('pct').textContent = '0%';
+  document.getElementById('msg').textContent = '';
+  document.getElementById('msg').className = 'msg';
+  updateBest();
+}
+
+function render() {
+  var board = document.getElementById('board');
+  board.style.gridTemplateColumns = 'repeat(' + SIZE + ', 1fr)';
+  while (board.firstChild) board.removeChild(board.firstChild);
+  for (var r = 0; r < SIZE; r++) {
+    for (var c = 0; c < SIZE; c++) {
+      board.appendChild(createCell(COLORS[grid[r][c]]));
+    }
+  }
+}
+
+function renderPalette() {
+  var pal = document.getElementById('palette');
+  while (pal.firstChild) pal.removeChild(pal.firstChild);
+  for (var i = 0; i < COLORS.length; i++) {
+    pal.appendChild(createPalBtn(COLORS[i], i));
+  }
+}
+
+function getFloodRegion() {
+  var target = grid[0][0];
+  var visited = [];
+  for (var r = 0; r < SIZE; r++) {
+    visited[r] = [];
+    for (var c = 0; c < SIZE; c++) visited[r][c] = false;
+  }
+  var stack = [[0, 0]];
+  var region = [];
+  visited[0][0] = true;
+  var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+  while (stack.length) {
+    var pos = stack.pop();
+    var pr = pos[0], pc = pos[1];
+    region.push(pos);
+    for (var d = 0; d < dirs.length; d++) {
+      var nr = pr + dirs[d][0], nc = pc + dirs[d][1];
+      if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && !visited[nr][nc] && grid[nr][nc] === target) {
+        visited[nr][nc] = true;
+        stack.push([nr, nc]);
+      }
+    }
+  }
+  return region;
+}
+
+function pickColor(colorIdx) {
+  if (gameOver) return;
+  if (colorIdx === grid[0][0]) return;
+
+  var region = getFloodRegion();
+  for (var i = 0; i < region.length; i++) {
+    grid[region[i][0]][region[i][1]] = colorIdx;
+  }
+  moves++;
+
+  render();
+  renderPalette();
+
+  var totalCells = SIZE * SIZE;
+  var floodedNow = getFloodRegion().length;
+  var pct = Math.round(floodedNow / totalCells * 100);
+
+  document.getElementById('moves').textContent = moves;
+  document.getElementById('pct').textContent = pct + '%';
+
+  if (floodedNow === totalCells) {
+    gameOver = true;
+    document.getElementById('msg').textContent = '通關！用了 ' + moves + ' 步';
+    document.getElementById('msg').className = 'msg win';
+    saveBest(moves);
+  } else if (moves >= MAX_MOVES) {
+    gameOver = true;
+    document.getElementById('msg').textContent = '步數用完！覆蓋 ' + pct + '%';
+    document.getElementById('msg').className = 'msg lose';
+  }
+}
+
+function saveBest(m) {
+  var key = 'colorflood_best_' + SIZE;
+  var prev = localStorage.getItem(key);
+  if (!prev || m < parseInt(prev)) {
+    localStorage.setItem(key, m);
+  }
+  updateBest();
+}
+
+function updateBest() {
+  var key = 'colorflood_best_' + SIZE;
+  var best = localStorage.getItem(key);
+  document.getElementById('bestRow').textContent = best ? SIZE + 'x' + SIZE + ' 最佳紀錄：' + best + ' 步' : '';
+}
+
+document.getElementById('newGame').addEventListener('click', init);
+
+var sizeBtns = document.querySelectorAll('.size-btn');
+for (var s = 0; s < sizeBtns.length; s++) {
+  (function(btn) {
+    btn.addEventListener('click', function() {
+      for (var j = 0; j < sizeBtns.length; j++) sizeBtns[j].classList.remove('active');
+      btn.classList.add('active');
+      SIZE = parseInt(btn.getAttribute('data-size'));
+      init();
+    });
+  })(sizeBtns[s]);
+}
+
+init();
+</script>
+</body>
+</html>

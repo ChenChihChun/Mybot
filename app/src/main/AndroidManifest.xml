@@ -121,6 +121,11 @@
             android:screenOrientation="portrait"
             android:exported="false" />
 
+        <!-- Color Flood Game -->
+        <activity android:name=".ColorFloodActivity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
         <!-- Cron Manager Activity -->
