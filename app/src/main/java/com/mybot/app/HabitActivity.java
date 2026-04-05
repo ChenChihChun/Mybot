@@ -16,6 +16,13 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
@@ -130,6 +137,48 @@ public class HabitActivity extends AppCompatActivity {
             boolean completed = completedIds.contains(habit.id);
             listContainer.addView(buildHabitCard(habit, completed, today));
         }
+
+        // Sync habit status to Bridge for streak alert
+        syncHabitsToBridge(habits, completedIds, today);
+    }
+
+    private void syncHabitsToBridge(List<HabitDbHelper.Habit> habits, Set<Long> completedIds, String today) {
+        new Thread(() -> {
+            try {
+                JSONArray arr = new JSONArray();
+                for (HabitDbHelper.Habit h : habits) {
+                    JSONObject obj = new JSONObject();
+                    obj.put("name", h.name);
+                    obj.put("streak", dbHelper.getStreak(h.id));
+                    obj.put("completed", completedIds.contains(h.id));
+                    arr.put(obj);
+                }
+                JSONObject body = new JSONObject();
+                body.put("habits", arr);
+
+                URL url = new URL("http://127.0.0.1:8765/habits/status");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(3000);
+                conn.setReadTimeout(3000);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(body.toString().getBytes(StandardCharsets.UTF_8));
+                os.close();
+
+                int code = conn.getResponseCode();
+                conn.disconnect();
+                if (code == 200) {
+                    AppLog.i("Habit", "已同步 " + habits.size() + " 個習慣狀態到 Bridge");
+                }
+            } catch (java.net.ConnectException e) {
+                // Bridge not running — silent
+            } catch (Exception e) {
+                AppLog.w("Habit", "同步習慣狀態失敗: " + e.getMessage());
+            }
+        }).start();
     }
 
     private LinearLayout buildHabitCard(HabitDbHelper.Habit habit, boolean completed, String today) {
