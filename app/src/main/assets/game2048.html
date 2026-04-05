@@ -371,10 +371,13 @@ function move(dir) {
   document.getElementById('score').textContent = score;
   document.getElementById('best').textContent = bestScore;
 
-  if (!won && maxTile() >= 2048) won = true;
+  if (!won && maxTile() >= 2048) {
+    won = true;
+    saveStats(true);
+  }
   if (!canMove()) {
     over = true;
-    saveStats(false);
+    if (!won) saveStats(false);
   }
 
   drawTiles(newTiles, mergedTiles);

@@ -427,6 +427,7 @@ public class MainActivity extends AppCompatActivity {
                 {"\uD83C\uDFAE", "\u4FC4\u7F85\u65AF\u65B9\u584A", UIHelper.ACCENT_BLUE, TetrisActivity.class},
                 {"\uD83D\uDCA1", "Lights Out", UIHelper.ACCENT_ORANGE, LightsOutActivity.class},
                 {"\uD83C\uDFA8", "Color Flood", UIHelper.ACCENT_RED, ColorFloodActivity.class},
+                {"\uD83E\uDDE9", "2048", UIHelper.ACCENT_GREEN, Game2048Activity.class},
         };
 
         for (Object[] game : games) {
