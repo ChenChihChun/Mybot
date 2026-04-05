@@ -235,15 +235,27 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, FlightActivity.class)), g);
         content.addView(fRow4);
 
-        // Row 5: 旅遊規劃, 俄羅斯方塊
+        // Row 5: 旅遊規劃, 俄羅斯方塊, Lights Out
         LinearLayout fRow5 = gridRow3();
         addCompact(fRow5, "\uD83D\uDDFA\uFE0F", "\u65C5\u904A\u898F\u5283", UIHelper.ACCENT_GREEN,
                 v -> startActivity(new Intent(this, TravelActivity.class)), 0);
         addCompact(fRow5, "\uD83C\uDFAE", "\u4FC4\u7F85\u65AF\u65B9\u584A", UIHelper.ACCENT_BLUE,
                 v -> startActivity(new Intent(this, TetrisActivity.class)), g);
-        addCompact(fRow5, "\uD83E\uDDEC", "自我演化", UIHelper.ACCENT_GREEN,
-                v -> startActivity(new Intent(this, EvolutionActivity.class)), g);
+        addCompact(fRow5, "\uD83D\uDCA1", "Lights Out", UIHelper.ACCENT_ORANGE,
+                v -> startActivity(new Intent(this, LightsOutActivity.class)), g);
         content.addView(fRow5);
+
+        // Row 6: 自我演化
+        LinearLayout fRow6 = gridRow3();
+        addCompact(fRow6, "\uD83E\uDDEC", "自我演化", UIHelper.ACCENT_GREEN,
+                v -> startActivity(new Intent(this, EvolutionActivity.class)), 0);
+        View ph1 = new View(this);
+        ph1.setVisibility(View.INVISIBLE);
+        fRow6.addView(ph1, gridCellLp(g));
+        View ph2 = new View(this);
+        ph2.setVisibility(View.INVISIBLE);
+        fRow6.addView(ph2, gridCellLp(g));
+        content.addView(fRow6);
 
         // ── Tools (3 columns) ──
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));

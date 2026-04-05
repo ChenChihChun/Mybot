@@ -116,6 +116,11 @@
             android:screenOrientation="portrait"
             android:exported="false" />
 
+        <!-- Lights Out Puzzle -->
+        <activity android:name=".LightsOutActivity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
+
         <!-- Log Activity -->
         <activity android:name=".LogActivity" android:exported="false" />
         <!-- Cron Manager Activity -->

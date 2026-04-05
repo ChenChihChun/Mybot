@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Lights Out</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0F1923;
+  color: #ECEFF1;
+  font-family: -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 16px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.stats {
+  display: flex;
+  gap: 24px;
+  margin: 12px 0 20px;
+  font-size: 16px;
+}
+.stats span { color: #90A4AE; }
+.stats strong { color: #4FC3F7; font-size: 20px; }
+#grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  width: min(85vw, 340px);
+  aspect-ratio: 1;
+}
+.cell {
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.cell.on {
+  background: #FFA726;
+  box-shadow: 0 0 12px rgba(255, 167, 38, 0.5);
+}
+.cell.off {
+  background: #1A2733;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+}
+.btn-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+button.action {
+  background: #1A2733;
+  color: #4FC3F7;
+  border: 1px solid #4FC3F7;
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-size: 15px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button.action:active { background: #223344; }
+#message {
+  margin-top: 16px;
+  font-size: 20px;
+  min-height: 28px;
+  color: #66BB6A;
+  font-weight: bold;
+}
+.record {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #90A4AE;
+}
+</style>
+</head>
+<body>
+
+<div class="stats">
+  <div><span>步數</span><br><strong id="steps">0</strong></div>
+  <div><span>最佳</span><br><strong id="best">-</strong></div>
+  <div><span>勝場</span><br><strong id="wins">0</strong></div>
+</div>
+
+<div id="grid"></div>
+
+<div class="btn-row">
+  <button class="action" onclick="newGame()">新局</button>
+  <button class="action" onclick="resetBoard()">重置</button>
+</div>
+
+<div id="message"></div>
+<div id="record" class="record"></div>
+
+<script>
+const N = 5;
+let board = [];
+let initial = [];
+let steps = 0;
+let solved = false;
+let wins = parseInt(localStorage.getItem('lo_wins') || '0');
+let best = localStorage.getItem('lo_best');
+best = best ? parseInt(best) : null;
+
+function init() {
+  const grid = document.getElementById('grid');
+  // Clear existing children safely
+  while (grid.firstChild) grid.removeChild(grid.firstChild);
+  for (let i = 0; i < N * N; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'cell off';
+    btn.dataset.idx = i;
+    btn.addEventListener('click', () => onPress(i));
+    grid.appendChild(btn);
+  }
+  updateUI();
+  newGame();
+}
+
+// Generate a solvable board by applying random presses from solved state
+function newGame() {
+  board = new Array(N * N).fill(0);
+  // Apply random toggles (guaranteed solvable since we build from solution)
+  const presses = Math.floor(Math.random() * 8) + 5; // 5-12 presses
+  const used = new Set();
+  for (let i = 0; i < presses; i++) {
+    let idx;
+    do { idx = Math.floor(Math.random() * N * N); } while (used.has(idx));
+    used.add(idx);
+    applyToggle(idx);
+  }
+  // Ensure at least some lights are on
+  if (board.every(c => c === 0)) {
+    applyToggle(Math.floor(Math.random() * N * N));
+  }
+  initial = board.slice();
+  steps = 0;
+  solved = false;
+  document.getElementById('message').textContent = '';
+  render();
+  updateUI();
+}
+
+function resetBoard() {
+  board = initial.slice();
+  steps = 0;
+  solved = false;
+  document.getElementById('message').textContent = '';
+  render();
+  updateUI();
+}
+
+function applyToggle(idx) {
+  const r = Math.floor(idx / N), c = idx % N;
+  board[idx] ^= 1;
+  if (r > 0) board[(r-1)*N+c] ^= 1;
+  if (r < N-1) board[(r+1)*N+c] ^= 1;
+  if (c > 0) board[r*N+c-1] ^= 1;
+  if (c < N-1) board[r*N+c+1] ^= 1;
+}
+
+function onPress(idx) {
+  if (solved) return;
+  applyToggle(idx);
+  steps++;
+  render();
+  updateUI();
+  if (board.every(c => c === 0)) {
+    solved = true;
+    wins++;
+    localStorage.setItem('lo_wins', wins);
+    if (!best || steps < best) {
+      best = steps;
+      localStorage.setItem('lo_best', best);
+    }
+    document.getElementById('message').textContent =
+      '\u{1F389} ' + steps + ' \u6B65\u901A\u95DC\uFF01';
+    updateUI();
+  }
+}
+
+function render() {
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach((c, i) => {
+    c.className = 'cell ' + (board[i] ? 'on' : 'off');
+  });
+}
+
+function updateUI() {
+  document.getElementById('steps').textContent = steps;
+  document.getElementById('best').textContent = best || '-';
+  document.getElementById('wins').textContent = wins;
+}
+
+init();
+</script>
+</body>
+</html>
