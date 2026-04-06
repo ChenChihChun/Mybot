@@ -139,6 +139,7 @@
         <!-- Cron Manager Activity -->
         <activity android:name=".CronActivity" android:exported="false" />
         <activity android:name=".ApodActivity" android:exported="false" />
+        <activity android:name=".CryptoActivity" android:exported="false" />
 
         <!-- Screen Capture Permission Activity (transparent) -->
         <activity

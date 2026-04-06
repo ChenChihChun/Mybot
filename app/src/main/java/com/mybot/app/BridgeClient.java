@@ -1090,4 +1090,212 @@ public class BridgeClient {
             }
         });
     }
+
+    // ==================== Crypto ====================
+
+    public interface CryptoCallback {
+        void onResult(JSONObject data, String error);
+    }
+
+    /**
+     * GET /crypto/price — fetch real-time BTC/USDT price.
+     */
+    public static void getCryptoPrice(CryptoCallback callback) {
+        executor.execute(() -> {
+            try {
+                URL url = new URL(BASE_URL + "/crypto/price");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        mainHandler.post(() -> callback.onResult(data, null));
+                        return;
+                    }
+                }
+                mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onResult(null, e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * GET /crypto/simulation — fetch current simulation status.
+     */
+    public static void getCryptoSimulation(CryptoCallback callback) {
+        executor.execute(() -> {
+            try {
+                URL url = new URL(BASE_URL + "/crypto/simulation");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        mainHandler.post(() -> callback.onResult(data, null));
+                        return;
+                    }
+                }
+                mainHandler.post(() -> callback.onResult(null, "No simulation"));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onResult(null, e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * POST /crypto/simulation/create — create new simulation.
+     */
+    public static void createCryptoSimulation(double balance, CryptoCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "createCryptoSimulation: " + balance);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("balance", balance);
+                String[] result = postJsonWithError(BASE_URL + "/crypto/simulation/create", body.toString(), 10000);
+                if (result[0] != null) {
+                    JSONObject json = new JSONObject(result[0]);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "createCryptoSimulation成功");
+                        mainHandler.post(() -> callback.onResult(data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "建立失敗");
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(null, result[1]));
+                }
+            } catch (Exception e) {
+                AppLog.e("Bridge", "createCryptoSimulation失敗: " + e.getMessage());
+                mainHandler.post(() -> callback.onResult(null, e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * POST /crypto/simulation/trade — execute paper trade.
+     */
+    public static void executeCryptoTrade(String side, double amountUsdt, CryptoCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "executeCryptoTrade: " + side + " " + amountUsdt);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("side", side);
+                body.put("amount_usdt", amountUsdt);
+                String[] result = postJsonWithError(BASE_URL + "/crypto/simulation/trade", body.toString(), 10000);
+                if (result[0] != null) {
+                    JSONObject json = new JSONObject(result[0]);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "cryptoTrade成功: " + side);
+                        mainHandler.post(() -> callback.onResult(data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "交易失敗");
+                    AppLog.w("Bridge", "cryptoTrade失敗: " + msg);
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(null, result[1]));
+                }
+            } catch (Exception e) {
+                AppLog.e("Bridge", "executeCryptoTrade異常: " + e.getMessage());
+                mainHandler.post(() -> callback.onResult(null, e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * POST /crypto/simulation/reset — reset simulation.
+     */
+    public static void resetCryptoSimulation(double balance, CryptoCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "resetCryptoSimulation: " + balance);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("balance", balance);
+                String[] result = postJsonWithError(BASE_URL + "/crypto/simulation/reset", body.toString(), 10000);
+                if (result[0] != null) {
+                    JSONObject json = new JSONObject(result[0]);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "resetCryptoSimulation成功");
+                        mainHandler.post(() -> callback.onResult(data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "重置失敗");
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(null, result[1]));
+                }
+            } catch (Exception e) {
+                AppLog.e("Bridge", "resetCryptoSimulation異常: " + e.getMessage());
+                mainHandler.post(() -> callback.onResult(null, e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * GET /crypto/trades — fetch trade history.
+     */
+    public static void getCryptoTrades(CryptoCallback callback) {
+        executor.execute(() -> {
+            try {
+                URL url = new URL(BASE_URL + "/crypto/trades");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        // Wrap the array in an object for the callback
+                        JSONObject wrapper = new JSONObject();
+                        wrapper.put("trades", json.optJSONArray("data"));
+                        mainHandler.post(() -> callback.onResult(wrapper, null));
+                        return;
+                    }
+                }
+                mainHandler.post(() -> callback.onResult(null, "No trades"));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onResult(null, e.getMessage()));
+            }
+        });
+    }
 }

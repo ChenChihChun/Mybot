@@ -257,9 +257,8 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout fRow6 = gridRow3();
         addCompact(fRow6, "\uD83C\uDF0C", "\u5929\u6587\u65E5\u5716", UIHelper.ACCENT_PURPLE,
                 v -> startActivity(new Intent(this, ApodActivity.class)), 0);
-        View ph6b = new View(this);
-        ph6b.setVisibility(View.INVISIBLE);
-        fRow6.addView(ph6b, gridCellLp(g));
+        addCompact(fRow6, "\u20BF", "BTC\u6A21\u64EC", UIHelper.ACCENT_ORANGE,
+                v -> startActivity(new Intent(this, CryptoActivity.class)), g);
         View ph6c = new View(this);
         ph6c.setVisibility(View.INVISIBLE);
         fRow6.addView(ph6c, gridCellLp(g));
