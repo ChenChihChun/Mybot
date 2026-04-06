@@ -1298,4 +1298,70 @@ public class BridgeClient {
             }
         });
     }
+
+    /**
+     * GET /crypto/strategy/signal — fetch current HA strategy signal.
+     */
+    public static void getCryptoStrategySignal(CryptoCallback callback) {
+        executor.execute(() -> {
+            try {
+                URL url = new URL(BASE_URL + "/crypto/strategy/signal");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        mainHandler.post(() -> callback.onResult(data, null));
+                        return;
+                    }
+                }
+                mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onResult(null, e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * POST /crypto/strategy/toggle — enable/disable strategy auto-trading.
+     */
+    public static void toggleCryptoStrategy(boolean enabled, CryptoCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "toggleCryptoStrategy: " + enabled);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("enabled", enabled);
+                String[] result = postJsonWithError(BASE_URL + "/crypto/strategy/toggle", body.toString(), 10000);
+                if (result[0] != null) {
+                    JSONObject json = new JSONObject(result[0]);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "toggleCryptoStrategy成功: " + enabled);
+                        mainHandler.post(() -> callback.onResult(data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "切換失敗");
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(null, result[1]));
+                }
+            } catch (Exception e) {
+                AppLog.e("Bridge", "toggleCryptoStrategy異常: " + e.getMessage());
+                mainHandler.post(() -> callback.onResult(null, e.getMessage()));
+            }
+        });
+    }
 }

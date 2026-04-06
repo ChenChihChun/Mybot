@@ -25,9 +25,10 @@ import java.text.DecimalFormat;
 public class CryptoActivity extends AppCompatActivity {
 
     private TextView priceText, changeText, highLowText, volumeText;
-    private LinearLayout simContent, tradeContent;
+    private LinearLayout simContent, tradeContent, strategyContent;
     private TextView simStatus, tradeStatus;
     private boolean hasSimulation = false;
+    private boolean strategyEnabled = false;
     private final Handler refreshHandler = new Handler(Looper.getMainLooper());
     private final Runnable refreshRunnable = this::refreshPrice;
     private static final int REFRESH_INTERVAL = 5000; // 5 seconds
@@ -46,6 +47,7 @@ public class CryptoActivity extends AppCompatActivity {
         refreshPrice();
         loadSimulation();
         loadTrades();
+        loadStrategy();
         refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL);
     }
 
@@ -89,6 +91,8 @@ public class CryptoActivity extends AppCompatActivity {
                 }
             });
         }
+        // Refresh strategy signal
+        loadStrategy();
     }
 
     private void buildUI() {
@@ -104,6 +108,7 @@ public class CryptoActivity extends AppCompatActivity {
         content.setPadding(cp, UIHelper.dp(this, 8), cp, cp);
 
         content.addView(buildPriceCard());
+        content.addView(buildStrategyCard());
         content.addView(buildSimulationCard());
         content.addView(buildTradeCard());
 
@@ -457,6 +462,142 @@ public class CryptoActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    // ==================== Strategy Card ====================
+
+    private LinearLayout buildStrategyCard() {
+        LinearLayout card = makeCard();
+
+        // Title row
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView title = new TextView(this);
+        title.setText("HA 策略");
+        title.setTextSize(15);
+        title.setTextColor(UIHelper.ACCENT_ORANGE);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        TextView toggleBtn = new TextView(this);
+        toggleBtn.setTextSize(13);
+        toggleBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        toggleBtn.setPadding(UIHelper.dp(this, 12), UIHelper.dp(this, 6),
+                UIHelper.dp(this, 12), UIHelper.dp(this, 6));
+        updateToggleBtn(toggleBtn, false);
+        toggleBtn.setOnClickListener(v -> {
+            boolean newState = !strategyEnabled;
+            AppLog.i("Crypto", "Strategy toggle: " + newState);
+            BridgeClient.toggleCryptoStrategy(newState, (data, err) -> {
+                if (data != null) {
+                    strategyEnabled = data.optBoolean("enabled", false);
+                    updateToggleBtn(toggleBtn, strategyEnabled);
+                    loadStrategy();
+                }
+            });
+        });
+
+        titleRow.addView(title);
+        titleRow.addView(toggleBtn);
+        card.addView(titleRow);
+
+        // Content
+        strategyContent = new LinearLayout(this);
+        strategyContent.setOrientation(LinearLayout.VERTICAL);
+        strategyContent.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        card.addView(strategyContent);
+
+        TextView hint = new TextView(this);
+        hint.setText("載入中...");
+        hint.setTextSize(12);
+        hint.setTextColor(UIHelper.TEXT_HINT);
+        strategyContent.addView(hint);
+
+        return card;
+    }
+
+    private void updateToggleBtn(TextView btn, boolean enabled) {
+        if (enabled) {
+            btn.setText("運行中");
+            btn.setTextColor(UIHelper.ACCENT_GREEN);
+            btn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.ACCENT_GREEN, 10, 1, this));
+        } else {
+            btn.setText("已停止");
+            btn.setTextColor(UIHelper.TEXT_HINT);
+            btn.setBackground(UIHelper.roundRectStroke(Color.TRANSPARENT, UIHelper.TEXT_HINT, 10, 1, this));
+        }
+    }
+
+    private void loadStrategy() {
+        BridgeClient.getCryptoStrategySignal((data, error) -> {
+            strategyContent.removeAllViews();
+            if (error != null || data == null) {
+                TextView tv = new TextView(this);
+                tv.setText("無法取得策略信號");
+                tv.setTextSize(12);
+                tv.setTextColor(UIHelper.TEXT_HINT);
+                strategyContent.addView(tv);
+                return;
+            }
+
+            strategyEnabled = data.optBoolean("strategy_enabled", false);
+            String signal = data.optString("signal", "hold");
+            String reason = data.optString("reason", "");
+            int consecutive = data.optInt("consecutive", 0);
+
+            // Signal indicator
+            int signalColor;
+            String signalText;
+            switch (signal) {
+                case "buy":
+                    signalColor = UIHelper.ACCENT_GREEN;
+                    signalText = "BUY";
+                    break;
+                case "sell":
+                    signalColor = UIHelper.ACCENT_RED;
+                    signalText = "SELL";
+                    break;
+                default:
+                    signalColor = UIHelper.TEXT_HINT;
+                    signalText = "HOLD";
+                    break;
+            }
+
+            // Signal row
+            LinearLayout signalRow = new LinearLayout(this);
+            signalRow.setOrientation(LinearLayout.HORIZONTAL);
+            signalRow.setGravity(Gravity.CENTER_VERTICAL);
+
+            TextView signalBadge = new TextView(this);
+            signalBadge.setText(signalText);
+            signalBadge.setTextSize(16);
+            signalBadge.setTextColor(Color.WHITE);
+            signalBadge.setTypeface(Typeface.DEFAULT_BOLD);
+            signalBadge.setGravity(Gravity.CENTER);
+            signalBadge.setBackground(UIHelper.roundRect(signalColor, 8, this));
+            signalBadge.setPadding(UIHelper.dp(this, 14), UIHelper.dp(this, 6),
+                    UIHelper.dp(this, 14), UIHelper.dp(this, 6));
+            signalRow.addView(signalBadge);
+
+            TextView reasonTv = new TextView(this);
+            reasonTv.setText(reason);
+            reasonTv.setTextSize(13);
+            reasonTv.setTextColor(UIHelper.TEXT_PRIMARY);
+            reasonTv.setPadding(UIHelper.dp(this, 10), 0, 0, 0);
+            signalRow.addView(reasonTv);
+
+            strategyContent.addView(signalRow);
+
+            // Description
+            TextView desc = new TextView(this);
+            desc.setText("Heikin-Ashi: 連續第 2 根同方向 K 線觸發信號\n自動交易: 買入用 50% 餘額，賣出全部持倉");
+            desc.setTextSize(11);
+            desc.setTextColor(UIHelper.TEXT_HINT);
+            desc.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+            strategyContent.addView(desc);
+        });
     }
 
     // ==================== Trade History Card ====================
