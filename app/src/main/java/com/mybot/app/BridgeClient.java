@@ -116,9 +116,9 @@ public class BridgeClient {
     }
 
     public static void generateWorkoutPlan(double height, double weight, String goal,
-                                            String level, String feedback, WorkoutCallback callback) {
+                                            String customGoal, String level, String feedback, WorkoutCallback callback) {
         executor.execute(() -> {
-            AppLog.i("Bridge", "generateWorkoutPlan: goal=" + goal + " level=" + level);
+            AppLog.i("Bridge", "generateWorkoutPlan: goal=" + goal + " customGoal=" + customGoal + " level=" + level);
             try {
                 JSONObject body = new JSONObject();
                 body.put("task", "generate_workout_plan");
@@ -126,11 +126,18 @@ public class BridgeClient {
                 body.put("weight_kg", weight);
                 body.put("bmi", Math.round(weight / Math.pow(height / 100.0, 2) * 10) / 10.0);
                 body.put("goal", goal);
+                if (customGoal != null && !customGoal.isEmpty()) {
+                    body.put("custom_goal", customGoal);
+                }
                 body.put("level", level);
                 if (feedback != null && !feedback.isEmpty()) {
                     body.put("feedback", feedback);
                 }
+                String customGoalPrompt = (customGoal != null && !customGoal.isEmpty())
+                        ? "用戶的具體目標描述: 「" + customGoal + "」。請特別針對此描述調整訓練方向，並在計畫中說明如何幫助達成此目標。"
+                        : "";
                 body.put("prompt", "請為這位用戶生成一週七天的居家無器材運動計畫。"
+                        + customGoalPrompt
                         + "回傳 JSON 格式，包含 days 陣列，每天包含: "
                         + "day_of_week(1-7), day_label(週一~週日), focus(訓練重點), "
                         + "exercises 陣列(每個動作: name, sets, reps, rest_sec, duration_sec, tips, video_keyword)。"

@@ -79,6 +79,11 @@ public class FitnessActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         buildUI();
+        if (generating && statusText != null) {
+            statusText.setText("AI 運動計畫生成中，請稍候...");
+            statusText.setTextColor(UIHelper.ACCENT_BLUE);
+            statusText.setVisibility(View.VISIBLE);
+        }
     }
 
     private void buildUI() {
@@ -129,6 +134,16 @@ public class FitnessActivity extends AppCompatActivity {
         profileRow.addView(goalBadge);
         profileRow.addView(levelBadge);
         profileCard.addView(profileRow);
+
+        if (profile.customGoal != null && !profile.customGoal.isEmpty()) {
+            TextView customGoalText = new TextView(this);
+            customGoalText.setText("目標: " + profile.customGoal);
+            customGoalText.setTextSize(12);
+            customGoalText.setTextColor(UIHelper.TEXT_SECONDARY);
+            customGoalText.setPadding(0, UIHelper.dp(this, 6), 0, 0);
+            profileCard.addView(customGoalText);
+        }
+
         contentArea.addView(profileCard);
 
         // Stats card
@@ -461,32 +476,42 @@ public class FitnessActivity extends AppCompatActivity {
         return row;
     }
 
+    private volatile boolean generating = false;
+
     private void generatePlan(FitnessDbHelper.Profile profile, Button btn) {
         btn.setEnabled(false);
         btn.setText("AI 生成中...");
-        statusText.setText("正在透過 AI Bridge 生成運動計畫，請稍候...");
+        statusText.setText("正在透過 AI Bridge 生成運動計畫，請稍候...\n（可離開此頁面，完成後會通知您）");
         statusText.setTextColor(UIHelper.ACCENT_BLUE);
+        generating = true;
         AppLog.i("Fitness", "AI計畫生成開始: goal=" + profile.goal + " level=" + profile.level);
 
+        // Use application context for DB operations to survive activity destruction
+        FitnessDbHelper bgDb = new FitnessDbHelper(getApplicationContext());
+
         BridgeClient.generateWorkoutPlan(profile.heightCm, profile.weightKg,
-                profile.goal, profile.level, null, (responseJson, offline, error) -> {
-                    btn.setEnabled(true);
-                    btn.setText("AI 生成本週運動計畫");
+                profile.goal, profile.customGoal, profile.level, null, (responseJson, offline, error) -> {
+                    generating = false;
 
                     if (offline) {
                         AppLog.e("Fitness", "AI計畫生成失敗: Bridge離線 " + (error != null ? error : "無法連線"));
-                        statusText.setText("Bridge 離線: " + (error != null ? error : "無法連線"));
-                        statusText.setTextColor(UIHelper.ACCENT_RED);
+                        if (!isFinishing() && !isDestroyed()) {
+                            btn.setEnabled(true);
+                            btn.setText("AI 生成本週運動計畫");
+                            statusText.setText("Bridge 離線: " + (error != null ? error : "無法連線"));
+                            statusText.setTextColor(UIHelper.ACCENT_RED);
+                        }
                         return;
                     }
 
+                    // Parse and save to DB first (independent of UI)
+                    boolean saved = false;
+                    String errorMsg = null;
                     try {
                         JSONObject resp = new JSONObject(responseJson);
                         JSONObject result = resp.optJSONObject("result");
                         if (result == null) {
-                            // Try parsing the response text as JSON
                             String text = resp.optString("text", resp.optString("response", ""));
-                            // Find JSON in the text
                             int jsonStart = text.indexOf("{");
                             int jsonEnd = text.lastIndexOf("}");
                             if (jsonStart >= 0 && jsonEnd > jsonStart) {
@@ -497,11 +522,11 @@ public class FitnessActivity extends AppCompatActivity {
                         if (result != null && result.has("days")) {
                             JSONArray days = result.getJSONArray("days");
                             String weekLabel = FitnessDbHelper.getCurrentWeekLabel();
-                            dbHelper.clearWeekPlan(weekLabel);
+                            bgDb.clearWeekPlan(weekLabel);
 
                             for (int i = 0; i < days.length(); i++) {
                                 JSONObject day = days.getJSONObject(i);
-                                dbHelper.insertPlanDay(weekLabel,
+                                bgDb.insertPlanDay(weekLabel,
                                         day.optInt("day_of_week", i + 1),
                                         day.optString("day_label", FitnessDbHelper.getDowLabel(i + 1)),
                                         day.optString("focus", "綜合"),
@@ -509,18 +534,32 @@ public class FitnessActivity extends AppCompatActivity {
                             }
 
                             AppLog.i("Fitness", "AI計畫生成完成: " + days.length() + "天");
+                            saved = true;
+                        } else {
+                            AppLog.e("Fitness", "AI計畫生成失敗: 回應格式不符");
+                            errorMsg = "AI 回應格式不符，請重試";
+                        }
+                    } catch (Exception e) {
+                        AppLog.e("Fitness", "AI計畫解析失敗: " + e.getMessage());
+                        errorMsg = "解析失敗: " + e.getMessage();
+                    }
+
+                    // Update UI only if activity is still alive
+                    if (!isFinishing() && !isDestroyed()) {
+                        btn.setEnabled(true);
+                        btn.setText("AI 生成本週運動計畫");
+                        if (saved) {
                             statusText.setText("計畫已生成！");
                             statusText.setTextColor(UIHelper.ACCENT_GREEN);
                             buildUI();
                         } else {
-                            AppLog.e("Fitness", "AI計畫生成失敗: 回應格式不符");
-                            statusText.setText("AI 回應格式不符，請重試");
-                            statusText.setTextColor(UIHelper.ACCENT_ORANGE);
+                            statusText.setText(errorMsg != null ? errorMsg : "生成失敗");
+                            statusText.setTextColor(UIHelper.ACCENT_RED);
                         }
-                    } catch (Exception e) {
-                        AppLog.e("Fitness", "AI計畫解析失敗: " + e.getMessage());
-                        statusText.setText("解析失敗: " + e.getMessage());
-                        statusText.setTextColor(UIHelper.ACCENT_RED);
+                    } else if (saved) {
+                        // Activity not visible — send notification
+                        NotificationHelper.sendNotification(getApplicationContext(),
+                                "健身計畫已生成", "本週運動計畫已就緒，點擊查看");
                     }
                 });
     }

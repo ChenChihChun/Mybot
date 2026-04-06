@@ -13,7 +13,7 @@ import java.util.List;
 public class FitnessDbHelper extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "mybot_fitness.db";
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
 
     // Profile table
     public static final String T_PROFILE = "fitness_profile";
@@ -35,6 +35,7 @@ public class FitnessDbHelper extends SQLiteOpenHelper {
                 + "height_cm REAL, "
                 + "weight_kg REAL, "
                 + "goal TEXT, "           // reduce_fat, build_muscle, flexibility, stamina, general
+                + "custom_goal TEXT, "    // user-defined custom goal description
                 + "level TEXT, "          // beginner, intermediate, advanced
                 + "updated_at INTEGER)");
 
@@ -65,11 +66,9 @@ public class FitnessDbHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + T_PROFILE);
-        db.execSQL("DROP TABLE IF EXISTS " + T_PLAN);
-        db.execSQL("DROP TABLE IF EXISTS " + T_LOG);
-        db.execSQL("DROP TABLE IF EXISTS " + T_WEIGHT);
-        onCreate(db);
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE " + T_PROFILE + " ADD COLUMN custom_goal TEXT");
+        }
     }
 
     // --- Profile ---
@@ -82,6 +81,8 @@ public class FitnessDbHelper extends SQLiteOpenHelper {
             p.heightCm = c.getDouble(c.getColumnIndexOrThrow("height_cm"));
             p.weightKg = c.getDouble(c.getColumnIndexOrThrow("weight_kg"));
             p.goal = c.getString(c.getColumnIndexOrThrow("goal"));
+            int customGoalIdx = c.getColumnIndex("custom_goal");
+            if (customGoalIdx >= 0) p.customGoal = c.getString(customGoalIdx);
             p.level = c.getString(c.getColumnIndexOrThrow("level"));
             p.updatedAt = c.getLong(c.getColumnIndexOrThrow("updated_at"));
         }
@@ -89,13 +90,14 @@ public class FitnessDbHelper extends SQLiteOpenHelper {
         return p;
     }
 
-    public void saveProfile(double height, double weight, String goal, String level) {
+    public void saveProfile(double height, double weight, String goal, String customGoal, String level) {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put("id", 1);
         cv.put("height_cm", height);
         cv.put("weight_kg", weight);
         cv.put("goal", goal);
+        cv.put("custom_goal", customGoal);
         cv.put("level", level);
         cv.put("updated_at", System.currentTimeMillis());
         db.insertWithOnConflict(T_PROFILE, null, cv, SQLiteDatabase.CONFLICT_REPLACE);
@@ -305,6 +307,7 @@ public class FitnessDbHelper extends SQLiteOpenHelper {
         public double heightCm;
         public double weightKg;
         public String goal;
+        public String customGoal;
         public String level;
         public long updatedAt;
 

@@ -1,6 +1,13 @@
 # Changelog
 
-## v4.30 (2026-04-06)
+## v4.31 (2026-04-06)
+- **Feature: 健身自訂目標 — Custom Fitness Goal Input**
+  - Modified `FitnessDbHelper.java` — DB_VERSION 1→2, 新增 `custom_goal` 欄位 (ALTER TABLE migration), `saveProfile()` 增加 customGoal 參數, Profile class 新增 customGoal 欄位
+  - Modified `FitnessProfileActivity.java` — 新增自訂目標 EditText 輸入框（多行、placeholder 提示），儲存/載入 customGoal
+  - Modified `BridgeClient.java` — `generateWorkoutPlan()` 增加 customGoal 參數，AI prompt 加入用戶自訂目標描述
+  - Modified `FitnessActivity.java` — profile card 顯示自訂目標，傳入 customGoal 給 AI 生成
+- **Bugfix: 健身計畫生成可離開畫面 — Background Plan Generation**
+  - Modified `FitnessActivity.java` — DB 儲存與 UI 更新分離，用 applicationContext 的 FitnessDbHelper 確保背景存檔；`isFinishing()`/`isDestroyed()` 保護 UI 操作；生成完成若不在畫面則發通知；`onResume` 恢復 generating 狀態顯示
 - **Enhancement: 多時間框架趨勢過濾 — Multi-Timeframe HA Trend Filter**
   - Modified `~/bridge/crypto/strategies.py` — 新增 `aggregate_klines()` 聚合1分K為N分K，`get_trend()` 用30分HA判斷大方向，`should_trade()` 順勢交易（多頭只做多、空頭只做空）
   - Modified `~/bridge/crypto/routes.py` — `_run_strategy_check()` 依 trend_timeframe 拉取足夠K線，`/crypto/strategy/signal` 回傳 trend + trend_reason

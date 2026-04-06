@@ -97,6 +97,14 @@ public class FitnessProfileActivity extends AppCompatActivity {
         goalContainer.addView(goalRow2);
         form.addView(goalContainer);
 
+        // Custom goal description
+        form.addView(fieldLabel("自訂目標描述（選填，AI 會根據此調整方向）"));
+        EditText customGoalInput = UIHelper.styledInput(this, "例: 想練引體向上、改善駝背、跑5K...");
+        customGoalInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        customGoalInput.setMinLines(2);
+        customGoalInput.setMaxLines(4);
+        form.addView(customGoalInput);
+
         // Level
         form.addView(fieldLabel("體能等級"));
         LinearLayout levelRow = new LinearLayout(this);
@@ -188,9 +196,10 @@ public class FitnessProfileActivity extends AppCompatActivity {
                 return;
             }
 
+            String customGoal = customGoalInput.getText().toString().trim();
             FitnessDbHelper db = new FitnessDbHelper(this);
-            db.saveProfile(h, w, goalKeys[selectedGoalIdx], levelKeys[selectedLevelIdx]);
-            AppLog.i("Fitness", "個人檔案已儲存: goal=" + goalKeys[selectedGoalIdx] + " level=" + levelKeys[selectedLevelIdx]);
+            db.saveProfile(h, w, goalKeys[selectedGoalIdx], customGoal.isEmpty() ? null : customGoal, levelKeys[selectedLevelIdx]);
+            AppLog.i("Fitness", "個人檔案已儲存: goal=" + goalKeys[selectedGoalIdx] + " customGoal=" + (customGoal.isEmpty() ? "無" : customGoal) + " level=" + levelKeys[selectedLevelIdx]);
             Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show();
             finish();
         });
@@ -216,6 +225,9 @@ public class FitnessProfileActivity extends AppCompatActivity {
         if (profile != null) {
             heightInput.setText(String.valueOf(profile.heightCm));
             weightInput.setText(String.valueOf(profile.weightKg));
+            if (profile.customGoal != null && !profile.customGoal.isEmpty()) {
+                customGoalInput.setText(profile.customGoal);
+            }
             for (int i = 0; i < goalKeys.length; i++) {
                 if (goalKeys[i].equals(profile.goal)) { selectGoal(i); break; }
             }
