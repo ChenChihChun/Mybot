@@ -1378,19 +1378,26 @@ public class BridgeClient {
                 conn.setReadTimeout(10000);
 
                 int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
                 if (code == 200) {
-                    String body = readStream(conn.getInputStream());
-                    JSONObject json = new JSONObject(body);
+                    JSONObject json = new JSONObject(sb.toString());
                     if (json.optBoolean("success", false)) {
-                        // Wrap array in a JSONObject for CryptoCallback
                         JSONObject wrapper = new JSONObject();
                         wrapper.put("versions", json.optJSONArray("data"));
                         wrapper.put("count", json.optInt("count", 0));
+                        AppLog.i("Bridge", "getCryptoStrategyVersions成功: " + wrapper.optInt("count") + " versions");
                         mainHandler.post(() -> callback.onResult(wrapper, null));
                         return;
                     }
                 }
-                mainHandler.post(() -> callback.onResult(null, "Failed to load strategy versions"));
+                mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
             } catch (Exception e) {
                 AppLog.e("Bridge", "getCryptoStrategyVersions異常: " + e.getMessage());
                 mainHandler.post(() -> callback.onResult(null, e.getMessage()));
