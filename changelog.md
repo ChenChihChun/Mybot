@@ -1,5 +1,31 @@
 # Changelog
 
+## v4.30 (2026-04-06)
+- **Enhancement: 多時間框架趨勢過濾 — Multi-Timeframe HA Trend Filter**
+  - Modified `~/bridge/crypto/strategies.py` — 新增 `aggregate_klines()` 聚合1分K為N分K，`get_trend()` 用30分HA判斷大方向，`should_trade()` 順勢交易（多頭只做多、空頭只做空）
+  - Modified `~/bridge/crypto/routes.py` — `_run_strategy_check()` 依 trend_timeframe 拉取足夠K線，`/crypto/strategy/signal` 回傳 trend + trend_reason
+  - Modified `app/src/main/java/com/mybot/app/CryptoActivity.java` — 策略卡顯示趨勢方向（多頭綠/空頭紅）+ 趨勢原因文字 + 版本號 + active filters
+  - Modified `app/build.gradle` — versionCode 153, versionName 4.30
+
+## v4.29 (2026-04-06)
+- **Feature: 策略進化系統 — AI-Driven HA Filter Evolution**
+  - Added `~/bridge/crypto/indicators.py` — 純 Python 技術指標庫（SMA, EMA, RSI, BBand, MACD, Volume MA, ATR, ADX, Stochastic）
+  - Modified `~/bridge/crypto/strategies.py` — 完整重寫：FILTER_REGISTRY (16種濾網) + evaluate_filters() + describe_filters() + 可配置 params
+  - Modified `~/bridge/crypto/db.py` — 手續費價格調整法（buy×1.001, sell×0.999）+ get_version_performance_detail()
+  - Modified `~/bridge/crypto/routes.py` — 版本整合 + _ensure_initial_version() + /crypto/strategy/versions endpoint
+  - Added `~/bridge/crypto/reflector.py` — 每日17:00 Claude分析績效 → 建議增/改/刪濾網 → 建立新策略版本
+  - Modified `~/bridge/cron_manager.py` — 註冊 crypto_reflector job
+  - Modified `app/src/main/java/com/mybot/app/CryptoActivity.java` — 新增策略進化卡（版本歷史+勝率）
+  - Modified `app/src/main/java/com/mybot/app/BridgeClient.java` — 新增 getCryptoStrategyVersions()
+  - Modified `app/build.gradle` — versionCode 152, versionName 4.29
+
+## v4.28 (2026-04-06)
+- **Feature: BTC Heikin-Ashi 自動策略交易**
+  - Modified `~/bridge/crypto/strategies.py` — Heikin-Ashi 策略信號（連續陽/陰線買賣）
+  - Modified `~/bridge/crypto/routes.py` — 自動交易循環 + strategy toggle endpoint
+  - Modified `app/src/main/java/com/mybot/app/CryptoActivity.java` — 策略卡（HA信號 + 啟停開關）
+  - Modified `app/build.gradle` — versionCode 151, versionName 4.28
+
 ## v3.96 (2026-04-04)
 - **Enhancement: 自選股分析歷史保留**
   - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — 分析結果持久化快取（最多10筆/股），進入頁面自動顯示；最新結果展開顯示，歷史結果摺疊可點擊展開；刪除自選股時同步清除快取

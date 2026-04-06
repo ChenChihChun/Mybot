@@ -592,13 +592,31 @@ public class CryptoActivity extends AppCompatActivity {
 
             strategyContent.addView(signalRow);
 
+            // Trend info
+            String trend = data.optString("trend", "");
+            String trendReason = data.optString("trend_reason", "");
+            if (!trendReason.isEmpty()) {
+                TextView trendTv = new TextView(this);
+                trendTv.setText("趨勢: " + trendReason);
+                trendTv.setTextSize(12);
+                trendTv.setPadding(0, UIHelper.dp(this, 6), 0, 0);
+                if ("bullish".equals(trend)) {
+                    trendTv.setTextColor(UIHelper.ACCENT_GREEN);
+                } else if ("bearish".equals(trend)) {
+                    trendTv.setTextColor(UIHelper.ACCENT_RED);
+                } else {
+                    trendTv.setTextColor(UIHelper.TEXT_HINT);
+                }
+                strategyContent.addView(trendTv);
+            }
+
             // Active filters info
             String activeFilters = data.optString("active_filters", "HA");
             int version = data.optInt("version", 0);
             String versionText = version > 0 ? "v" + version + " " : "";
 
             TextView desc = new TextView(this);
-            desc.setText(versionText + activeFilters + "\n自動交易: 買入用 50% 餘額，賣出全部持倉");
+            desc.setText(versionText + activeFilters + "\n自動交易: 順勢買入 50% 餘額，順勢賣出全部持倉");
             desc.setTextSize(11);
             desc.setTextColor(UIHelper.TEXT_HINT);
             desc.setPadding(0, UIHelper.dp(this, 8), 0, 0);
