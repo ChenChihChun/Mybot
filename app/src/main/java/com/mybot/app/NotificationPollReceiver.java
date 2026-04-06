@@ -67,9 +67,11 @@ public class NotificationPollReceiver extends BroadcastReceiver {
                         int id = n.optInt("id", -1);
                         String title = n.optString("title", "Mybot");
                         String content = n.optString("content", "");
+                        String notifUrl = n.optString("url", "");
 
                         if (id > 0 && !content.isEmpty()) {
-                            NotificationHelper.sendNotification(context, title, content);
+                            NotificationHelper.sendNotification(context, title, content,
+                                    notifUrl.isEmpty() ? null : notifUrl);
                             ackIds.add(id);
                             AppLog.i("NotificationPoll", "顯示通知: " + title);
                         }
