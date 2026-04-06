@@ -80,6 +80,15 @@ public class CryptoActivity extends AppCompatActivity {
             refreshHandler.removeCallbacks(refreshRunnable);
             refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL);
         });
+        // Also refresh simulation to update unrealized P&L with latest price
+        if (hasSimulation) {
+            BridgeClient.getCryptoSimulation((simData, simErr) -> {
+                if (simData != null) {
+                    simContent.removeAllViews();
+                    displaySimulation(simData);
+                }
+            });
+        }
     }
 
     private void buildUI() {
