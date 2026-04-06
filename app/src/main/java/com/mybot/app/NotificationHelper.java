@@ -44,7 +44,8 @@ public class NotificationHelper {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true);
 
-        if (url != null && !url.isEmpty()) {
+        if (url != null && !url.isEmpty()
+                && (url.startsWith("https://") || url.startsWith("http://"))) {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             PendingIntent pi = PendingIntent.getActivity(context, notificationId, intent,
