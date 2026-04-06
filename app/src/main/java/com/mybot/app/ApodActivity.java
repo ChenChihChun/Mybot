@@ -123,7 +123,8 @@ public class ApodActivity extends AppCompatActivity {
             } catch (java.net.ConnectException e) {
                 mainHandler.post(() -> statusLabel.setText("Bridge \u672A\u9023\u7DDA"));
             } catch (Exception e) {
-                mainHandler.post(() -> statusLabel.setText("\u8F09\u5165\u5931\u6557: " + e.getMessage()));
+                AppLog.w("APOD", "\u8F09\u5165\u5931\u6557: " + e.getMessage());
+                mainHandler.post(() -> statusLabel.setText("\u8F09\u5165\u5931\u6557"));
             }
         });
     }
@@ -203,9 +204,7 @@ public class ApodActivity extends AppCompatActivity {
             viewOriginal.setText("\uD83D\uDD17 \u67E5\u770B\u539F\u5716");
             viewOriginal.setTextSize(12);
             viewOriginal.setTextColor(UIHelper.ACCENT_BLUE);
-            viewOriginal.setOnClickListener(v -> {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(imageUrl)));
-            });
+            viewOriginal.setOnClickListener(v -> openUrl(imageUrl));
             header.addView(viewOriginal);
         }
 
@@ -237,13 +236,17 @@ public class ApodActivity extends AppCompatActivity {
             srcView.setTextSize(11);
             srcView.setTextColor(UIHelper.ACCENT_PURPLE);
             srcView.setPadding(0, UIHelper.dp(this, 8), 0, 0);
-            srcView.setOnClickListener(v -> {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(sourceUrl)));
-            });
+            srcView.setOnClickListener(v -> openUrl(sourceUrl));
             card.addView(srcView);
         }
 
         return card;
+    }
+
+    private void openUrl(String url) {
+        if (url != null && (url.startsWith("https://") || url.startsWith("http://"))) {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        }
     }
 
     private void loadImage(ImageView imageView, String url) {
@@ -289,11 +292,16 @@ public class ApodActivity extends AppCompatActivity {
         });
     }
 
+    private static final int MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+
     private byte[] readAllBytes(InputStream is) throws Exception {
         java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
         byte[] buf = new byte[8192];
         int n;
+        int total = 0;
         while ((n = is.read(buf)) != -1) {
+            total += n;
+            if (total > MAX_IMAGE_SIZE) throw new Exception("Image too large");
             baos.write(buf, 0, n);
         }
         return baos.toByteArray();
