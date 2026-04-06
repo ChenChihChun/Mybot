@@ -25,7 +25,7 @@ import java.text.DecimalFormat;
 public class CryptoActivity extends AppCompatActivity {
 
     private TextView priceText, changeText, highLowText, volumeText;
-    private LinearLayout simContent, tradeContent, strategyContent;
+    private LinearLayout simContent, tradeContent, strategyContent, evolutionContent;
     private TextView simStatus, tradeStatus;
     private boolean hasSimulation = false;
     private boolean strategyEnabled = false;
@@ -48,6 +48,7 @@ public class CryptoActivity extends AppCompatActivity {
         loadSimulation();
         loadTrades();
         loadStrategy();
+        loadEvolution();
         refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL);
     }
 
@@ -109,6 +110,7 @@ public class CryptoActivity extends AppCompatActivity {
 
         content.addView(buildPriceCard());
         content.addView(buildStrategyCard());
+        content.addView(buildEvolutionCard());
         content.addView(buildSimulationCard());
         content.addView(buildTradeCard());
 
@@ -590,14 +592,169 @@ public class CryptoActivity extends AppCompatActivity {
 
             strategyContent.addView(signalRow);
 
-            // Description
+            // Active filters info
+            String activeFilters = data.optString("active_filters", "HA");
+            int version = data.optInt("version", 0);
+            String versionText = version > 0 ? "v" + version + " " : "";
+
             TextView desc = new TextView(this);
-            desc.setText("Heikin-Ashi: 連續第 2 根同方向 K 線觸發信號\n自動交易: 買入用 50% 餘額，賣出全部持倉");
+            desc.setText(versionText + activeFilters + "\n自動交易: 買入用 50% 餘額，賣出全部持倉");
             desc.setTextSize(11);
             desc.setTextColor(UIHelper.TEXT_HINT);
             desc.setPadding(0, UIHelper.dp(this, 8), 0, 0);
             strategyContent.addView(desc);
         });
+    }
+
+    // ==================== Evolution Card ====================
+
+    private LinearLayout buildEvolutionCard() {
+        LinearLayout card = makeCard();
+
+        TextView title = new TextView(this);
+        title.setText("策略進化");
+        title.setTextSize(15);
+        title.setTextColor(UIHelper.ACCENT_ORANGE);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        card.addView(title);
+
+        evolutionContent = new LinearLayout(this);
+        evolutionContent.setOrientation(LinearLayout.VERTICAL);
+        evolutionContent.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        card.addView(evolutionContent);
+
+        TextView hint = new TextView(this);
+        hint.setText("載入中...");
+        hint.setTextSize(12);
+        hint.setTextColor(UIHelper.TEXT_HINT);
+        evolutionContent.addView(hint);
+
+        return card;
+    }
+
+    private void loadEvolution() {
+        BridgeClient.getCryptoStrategyVersions((data, error) -> {
+            evolutionContent.removeAllViews();
+            if (error != null || data == null) {
+                TextView tv = new TextView(this);
+                tv.setText("無法取得策略版本");
+                tv.setTextSize(12);
+                tv.setTextColor(UIHelper.TEXT_HINT);
+                evolutionContent.addView(tv);
+                return;
+            }
+            try {
+                JSONArray versions = data.optJSONArray("versions");
+                if (versions == null || versions.length() == 0) {
+                    TextView tv = new TextView(this);
+                    tv.setText("尚無策略版本");
+                    tv.setTextSize(12);
+                    tv.setTextColor(UIHelper.TEXT_HINT);
+                    evolutionContent.addView(tv);
+                    return;
+                }
+                for (int i = 0; i < versions.length() && i < 10; i++) {
+                    JSONObject v = versions.getJSONObject(i);
+                    evolutionContent.addView(buildVersionRow(v));
+                }
+            } catch (Exception e) {
+                AppLog.e("Crypto", "loadEvolution error: " + e.getMessage());
+            }
+        });
+    }
+
+    private LinearLayout buildVersionRow(JSONObject v) {
+        boolean isActive = v.optInt("is_active", 0) == 1;
+        int versionNum = v.optInt("version", 0);
+        double winRate = v.optDouble("win_rate", 0);
+        int wins = v.optInt("win_count", 0);
+        int losses = v.optInt("loss_count", 0);
+        String filtersDesc = v.optString("filters_desc", "HA");
+        String description = v.optString("description", "");
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, UIHelper.dp(this, 5), 0, UIHelper.dp(this, 5));
+
+        // Version badge
+        TextView badge = new TextView(this);
+        badge.setText("v" + versionNum);
+        badge.setTextSize(12);
+        badge.setTypeface(Typeface.DEFAULT_BOLD);
+        badge.setGravity(Gravity.CENTER);
+        int badgeSize = UIHelper.dp(this, 32);
+        badge.setLayoutParams(new LinearLayout.LayoutParams(badgeSize, badgeSize));
+        if (isActive) {
+            badge.setTextColor(Color.WHITE);
+            badge.setBackground(UIHelper.roundRect(UIHelper.ACCENT_GREEN, 8, this));
+        } else {
+            badge.setTextColor(UIHelper.TEXT_HINT);
+            badge.setBackground(UIHelper.roundRect(0xFF2A2A3A, 8, this));
+        }
+        row.addView(badge);
+
+        // Details
+        LinearLayout details = new LinearLayout(this);
+        details.setOrientation(LinearLayout.VERTICAL);
+        details.setPadding(UIHelper.dp(this, 8), 0, 0, 0);
+        LinearLayout.LayoutParams detailLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        details.setLayoutParams(detailLp);
+
+        TextView filtersTv = new TextView(this);
+        filtersTv.setText(filtersDesc);
+        filtersTv.setTextSize(12);
+        filtersTv.setTextColor(isActive ? UIHelper.TEXT_PRIMARY : UIHelper.TEXT_SECONDARY);
+        details.addView(filtersTv);
+
+        if (!description.isEmpty()) {
+            TextView descTv = new TextView(this);
+            descTv.setText(description.length() > 40 ? description.substring(0, 40) + "..." : description);
+            descTv.setTextSize(10);
+            descTv.setTextColor(UIHelper.TEXT_HINT);
+            details.addView(descTv);
+        }
+
+        row.addView(details);
+
+        // Win rate
+        LinearLayout rightCol = new LinearLayout(this);
+        rightCol.setOrientation(LinearLayout.VERTICAL);
+        rightCol.setGravity(Gravity.END);
+
+        int total = wins + losses;
+        if (total > 0) {
+            TextView rateTv = new TextView(this);
+            rateTv.setText(String.format("%.1f%%", winRate));
+            rateTv.setTextSize(14);
+            rateTv.setTypeface(Typeface.DEFAULT_BOLD);
+            rateTv.setGravity(Gravity.END);
+            if (winRate >= 55) {
+                rateTv.setTextColor(UIHelper.ACCENT_GREEN);
+            } else if (winRate < 45) {
+                rateTv.setTextColor(UIHelper.ACCENT_RED);
+            } else {
+                rateTv.setTextColor(UIHelper.TEXT_HINT);
+            }
+            rightCol.addView(rateTv);
+
+            TextView countTv = new TextView(this);
+            countTv.setText(wins + "勝/" + losses + "負");
+            countTv.setTextSize(10);
+            countTv.setTextColor(UIHelper.TEXT_HINT);
+            countTv.setGravity(Gravity.END);
+            rightCol.addView(countTv);
+        } else {
+            TextView noData = new TextView(this);
+            noData.setText(isActive ? "運行中" : "無數據");
+            noData.setTextSize(11);
+            noData.setTextColor(UIHelper.TEXT_HINT);
+            noData.setGravity(Gravity.END);
+            rightCol.addView(noData);
+        }
+
+        row.addView(rightCol);
+        return row;
     }
 
     // ==================== Trade History Card ====================

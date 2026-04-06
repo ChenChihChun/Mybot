@@ -1364,4 +1364,37 @@ public class BridgeClient {
             }
         });
     }
+
+    /**
+     * GET /crypto/strategy/versions — fetch strategy version history with win rates.
+     */
+    public static void getCryptoStrategyVersions(CryptoCallback callback) {
+        executor.execute(() -> {
+            try {
+                URL url = new URL(BASE_URL + "/crypto/strategy/versions");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    String body = readStream(conn.getInputStream());
+                    JSONObject json = new JSONObject(body);
+                    if (json.optBoolean("success", false)) {
+                        // Wrap array in a JSONObject for CryptoCallback
+                        JSONObject wrapper = new JSONObject();
+                        wrapper.put("versions", json.optJSONArray("data"));
+                        wrapper.put("count", json.optInt("count", 0));
+                        mainHandler.post(() -> callback.onResult(wrapper, null));
+                        return;
+                    }
+                }
+                mainHandler.post(() -> callback.onResult(null, "Failed to load strategy versions"));
+            } catch (Exception e) {
+                AppLog.e("Bridge", "getCryptoStrategyVersions異常: " + e.getMessage());
+                mainHandler.post(() -> callback.onResult(null, e.getMessage()));
+            }
+        });
+    }
 }
