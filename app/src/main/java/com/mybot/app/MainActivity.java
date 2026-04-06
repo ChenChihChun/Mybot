@@ -253,6 +253,18 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, QuizActivity.class)), g);
         content.addView(fRow5);
 
+        // Row 6: 天文日圖
+        LinearLayout fRow6 = gridRow3();
+        addCompact(fRow6, "\uD83C\uDF0C", "\u5929\u6587\u65E5\u5716", UIHelper.ACCENT_PURPLE,
+                v -> startActivity(new Intent(this, ApodActivity.class)), 0);
+        View ph6b = new View(this);
+        ph6b.setVisibility(View.INVISIBLE);
+        fRow6.addView(ph6b, gridCellLp(g));
+        View ph6c = new View(this);
+        ph6c.setVisibility(View.INVISIBLE);
+        fRow6.addView(ph6c, gridCellLp(g));
+        content.addView(fRow6);
+
         // ── Games (dynamic, hideable via long-press) ──
         content.addView(UIHelper.sectionHeader(this, "GAMES"));
         gameContainer = new LinearLayout(this);
