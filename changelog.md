@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.32 (2026-04-07)
+- **Feature: BTC 做空交易 — Short Selling Support**
+  - Modified `~/bridge/crypto/db.py` — 新增 `short_held`/`avg_short_price` 欄位 (ALTER TABLE migration), 新增 `execute_short()` 開空倉 + `execute_cover()` 平空倉, 0.1% 手續費模擬, PnL 計算含空倉 (sell+cover trades)
+  - Modified `~/bridge/crypto/strategies.py` — `should_trade()` 新增 `position_type` 參數 ("long"/"short"/"none"), 賣出信號+無倉位→自動做空, 買入信號+空倉→自動平空, 趨勢過濾同時適用多空
+  - Modified `~/bridge/crypto/routes.py` — `_run_strategy_check()` 處理 short/cover 自動交易, `/crypto/simulation` 回傳空倉資訊+position_type, `/crypto/simulation/trade` 支援 short/cover side
+  - Modified `~/bridge/crypto/reflector.py` — 策略進化 prompt 說明系統支援做空, 交易明細格式化含 SHORT/COVER
+  - Modified `CryptoActivity.java` — 模擬卡片顯示多倉/空倉分開, 新增做空SHORT+平空COVER按鈕, 交易紀錄支援空/平標示+橘藍配色
+
 ## v4.31 (2026-04-06)
 - **Feature: 健身自訂目標 — Custom Fitness Goal Input**
   - Modified `FitnessDbHelper.java` — DB_VERSION 1→2, 新增 `custom_goal` 欄位 (ALTER TABLE migration), `saveProfile()` 增加 customGoal 參數, Profile class 新增 customGoal 欄位

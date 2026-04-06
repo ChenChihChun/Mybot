@@ -288,6 +288,8 @@ public class CryptoActivity extends AppCompatActivity {
         double balance = data.optDouble("current_balance", 0);
         double btcHeld = data.optDouble("btc_held", 0);
         double avgPrice = data.optDouble("avg_buy_price", 0);
+        double shortHeld = data.optDouble("short_held", 0);
+        double avgShortPrice = data.optDouble("avg_short_price", 0);
         double unrealizedPnl = data.optDouble("unrealized_pnl", 0);
         double realizedPnl = data.optDouble("realized_pnl", 0);
         double totalPnl = data.optDouble("total_pnl", 0);
@@ -296,6 +298,7 @@ public class CryptoActivity extends AppCompatActivity {
         double winRate = data.optDouble("win_rate", 0);
         int winCount = data.optInt("win_count", 0);
         int lossCount = data.optInt("loss_count", 0);
+        String positionType = data.optString("position_type", "none");
 
         // Total value & return
         double returnPct = startBalance > 0 ? (totalPnl / startBalance * 100) : 0;
@@ -305,7 +308,21 @@ public class CryptoActivity extends AppCompatActivity {
                 (totalPnl >= 0 ? "+" : "") + formatUsd(totalPnl) + " (" + String.format("%.2f%%", returnPct) + ")",
                 returnColor);
         addStatRow("可用 USDT", "$" + formatUsd(balance), null, 0);
-        addStatRow("持有 BTC", formatBtc(btcHeld), btcHeld > 0 ? "均價 $" + formatUsd(avgPrice) : null, UIHelper.TEXT_HINT);
+
+        // Long position
+        if (btcHeld > 1e-10) {
+            addStatRow("多倉 BTC", formatBtc(btcHeld), "均價 $" + formatUsd(avgPrice), UIHelper.ACCENT_GREEN);
+        } else {
+            addStatRow("多倉 BTC", "—", null, 0);
+        }
+
+        // Short position
+        if (shortHeld > 1e-10) {
+            addStatRow("空倉 BTC", formatBtc(shortHeld), "均價 $" + formatUsd(avgShortPrice), UIHelper.ACCENT_RED);
+        } else {
+            addStatRow("空倉 BTC", "—", null, 0);
+        }
+
         addStatRow("未實現損益", (unrealizedPnl >= 0 ? "+" : "") + "$" + formatUsd(Math.abs(unrealizedPnl)),
                 null, unrealizedPnl >= 0 ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED);
         addStatRow("已實現損益", (realizedPnl >= 0 ? "+" : "") + "$" + formatUsd(Math.abs(realizedPnl)),
@@ -313,22 +330,36 @@ public class CryptoActivity extends AppCompatActivity {
         addStatRow("勝率", String.format("%.1f%%", winRate),
                 winCount + " 勝 / " + lossCount + " 負", UIHelper.TEXT_HINT);
 
-        // Buy / Sell buttons
-        LinearLayout btnRow = new LinearLayout(this);
-        btnRow.setOrientation(LinearLayout.HORIZONTAL);
-        btnRow.setGravity(Gravity.CENTER);
+        // Trade buttons: row 1 (long), row 2 (short)
+        LinearLayout btnRow1 = new LinearLayout(this);
+        btnRow1.setOrientation(LinearLayout.HORIZONTAL);
+        btnRow1.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams btnRowLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         btnRowLp.setMargins(0, UIHelper.dp(this, 12), 0, 0);
-        btnRow.setLayoutParams(btnRowLp);
+        btnRow1.setLayoutParams(btnRowLp);
 
-        btnRow.addView(makeTradeButton("買入 BUY", UIHelper.ACCENT_GREEN, "buy"));
-        View spacer = new View(this);
-        spacer.setLayoutParams(new LinearLayout.LayoutParams(UIHelper.dp(this, 12), 1));
-        btnRow.addView(spacer);
-        btnRow.addView(makeTradeButton("賣出 SELL", UIHelper.ACCENT_RED, "sell"));
+        btnRow1.addView(makeTradeButton("買入 BUY", UIHelper.ACCENT_GREEN, "buy"));
+        View spacer1 = new View(this);
+        spacer1.setLayoutParams(new LinearLayout.LayoutParams(UIHelper.dp(this, 12), 1));
+        btnRow1.addView(spacer1);
+        btnRow1.addView(makeTradeButton("賣出 SELL", UIHelper.ACCENT_RED, "sell"));
+        simContent.addView(btnRow1);
 
-        simContent.addView(btnRow);
+        LinearLayout btnRow2 = new LinearLayout(this);
+        btnRow2.setOrientation(LinearLayout.HORIZONTAL);
+        btnRow2.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams btnRowLp2 = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnRowLp2.setMargins(0, UIHelper.dp(this, 8), 0, 0);
+        btnRow2.setLayoutParams(btnRowLp2);
+
+        btnRow2.addView(makeTradeButton("做空 SHORT", UIHelper.ACCENT_ORANGE, "short"));
+        View spacer2 = new View(this);
+        spacer2.setLayoutParams(new LinearLayout.LayoutParams(UIHelper.dp(this, 12), 1));
+        btnRow2.addView(spacer2);
+        btnRow2.addView(makeTradeButton("平空 COVER", UIHelper.ACCENT_BLUE, "cover"));
+        simContent.addView(btnRow2);
     }
 
     private void addStatRow(String label, String value, String sub, int subColor) {
@@ -385,7 +416,6 @@ public class CryptoActivity extends AppCompatActivity {
     }
 
     private void showTradeDialog(String side) {
-        boolean isBuy = "buy".equals(side);
         EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         input.setHint("USDT 金額");
@@ -394,8 +424,17 @@ public class CryptoActivity extends AppCompatActivity {
         input.setPadding(UIHelper.dp(this, 16), UIHelper.dp(this, 12),
                 UIHelper.dp(this, 16), UIHelper.dp(this, 12));
 
+        String title;
+        switch (side) {
+            case "buy": title = "買入 BTC (做多)"; break;
+            case "sell": title = "賣出 BTC (平多)"; break;
+            case "short": title = "做空 BTC"; break;
+            case "cover": title = "平空 BTC"; break;
+            default: title = side.toUpperCase(); break;
+        }
+
         new AlertDialog.Builder(this)
-                .setTitle(isBuy ? "買入 BTC" : "賣出 BTC")
+                .setTitle(title)
                 .setMessage("輸入 USDT 金額")
                 .setView(input)
                 .setPositiveButton("確認", (d, w) -> {
@@ -833,13 +872,24 @@ public class CryptoActivity extends AppCompatActivity {
     }
 
     private LinearLayout buildTradeRow(JSONObject trade) {
-        boolean isBuy = "buy".equals(trade.optString("side"));
+        String side = trade.optString("side", "buy");
         double qty = trade.optDouble("quantity", 0);
         double price = trade.optDouble("price", 0);
         double total = trade.optDouble("total_value", 0);
         double pnl = trade.optDouble("pnl", Double.NaN);
         String time = trade.optString("created_at", "").replace("T", " ");
         if (time.length() > 16) time = time.substring(0, 16);
+
+        String sideLabel;
+        int sideColor;
+        int sideBg;
+        switch (side) {
+            case "buy":   sideLabel = "買"; sideColor = UIHelper.ACCENT_GREEN;  sideBg = 0xFF1A3A2A; break;
+            case "sell":  sideLabel = "賣"; sideColor = UIHelper.ACCENT_RED;    sideBg = 0xFF3A1A1A; break;
+            case "short": sideLabel = "空"; sideColor = UIHelper.ACCENT_ORANGE; sideBg = 0xFF3A2A1A; break;
+            case "cover": sideLabel = "平"; sideColor = UIHelper.ACCENT_BLUE;   sideBg = 0xFF1A2A3A; break;
+            default:      sideLabel = "?";  sideColor = UIHelper.TEXT_HINT;     sideBg = 0xFF2A2A2A; break;
+        }
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -848,14 +898,14 @@ public class CryptoActivity extends AppCompatActivity {
 
         // Side indicator
         TextView sideTv = new TextView(this);
-        sideTv.setText(isBuy ? "買" : "賣");
+        sideTv.setText(sideLabel);
         sideTv.setTextSize(13);
-        sideTv.setTextColor(isBuy ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED);
+        sideTv.setTextColor(sideColor);
         sideTv.setTypeface(Typeface.DEFAULT_BOLD);
         sideTv.setGravity(Gravity.CENTER);
         int sideSize = UIHelper.dp(this, 28);
         sideTv.setLayoutParams(new LinearLayout.LayoutParams(sideSize, sideSize));
-        sideTv.setBackground(UIHelper.roundRect(isBuy ? 0xFF1A3A2A : 0xFF3A1A1A, 6, this));
+        sideTv.setBackground(UIHelper.roundRect(sideBg, 6, this));
         row.addView(sideTv);
 
         // Details
