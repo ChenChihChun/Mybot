@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.40 (2026-04-08)
+- **Removal: Crypto / BTC paper trading module**
+  - Deleted `~/bridge/crypto/` entire directory (collector/db/indicators/reflector/routes/scheduler/strategies + `crypto.db` with all trade history and strategy versions).
+  - Deleted `~/bridge/logs/crypto.log`, `~/bridge/logs/crypto_reflector.log`.
+  - Modified `~/bridge/bridge.py` — removed `register_crypto_routes` import and call.
+  - Modified `~/bridge/cron_manager.py` — removed `crypto_scheduler` / `crypto_reflector` from `JOB_REGISTRY` and `JOB_INTERVALS`.
+  - Removed 2 crypto cron lines from crontab (scheduler every 4h, reflector daily 17:00).
+  - Modified `~/bridge/CLAUDE.md` — removed entire Crypto Module section.
+  - Modified `~/.claude/.../memory/MEMORY.md` — removed Crypto module description and "BTC Paper Trading" from Mybot module list.
+  - Deleted `app/src/main/java/com/mybot/app/CryptoActivity.java`.
+  - Modified `app/src/main/java/com/mybot/app/MainActivity.java` — removed BTC模擬 grid button in fRow6.
+  - Modified `app/src/main/java/com/mybot/app/BridgeClient.java` — removed entire Crypto section (CryptoCallback interface + 9 methods: getCryptoPrice, getCryptoSimulation, createCryptoSimulation, executeCryptoTrade, resetCryptoSimulation, getCryptoTrades, getCryptoStrategySignal, toggleCryptoStrategy, getCryptoStrategyVersions). `SecurePrefs.java`'s `androidx.security.crypto` import is untouched (that's Android's own encryption API).
+  - Modified `app/build.gradle` — versionCode 162→163, versionName 4.39→4.40.
+  - **Reason**: user focusing solely on stock module.
+
 ## v4.39 (2026-04-08)
 - **Feature: Cron Manager — running state visibility**
   - Modified `~/bridge/cron_manager.py` — Added `RUNNING_JOBS` in-memory tracker (job_id → pid/started_at/finished_at), `_pid_alive()` using `os.kill(pid, 0)`, and `_get_run_state()` that reports live status and auto-prunes entries 10 min after completion. `run_job()` now records the Popen pid into `RUNNING_JOBS`. `list_jobs()` overlays manual-run state: status becomes `"running"` while the process is alive, and each job payload now carries a `run_state` object (`running`, `started_at`, `elapsed_sec`, `finished_at`, `just_finished`).

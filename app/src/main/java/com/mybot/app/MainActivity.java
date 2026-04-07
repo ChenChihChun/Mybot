@@ -257,8 +257,6 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout fRow6 = gridRow3();
         addCompact(fRow6, "\uD83C\uDF0C", "\u5929\u6587\u65E5\u5716", UIHelper.ACCENT_PURPLE,
                 v -> startActivity(new Intent(this, ApodActivity.class)), 0);
-        addCompact(fRow6, "\u20BF", "BTC\u6A21\u64EC", UIHelper.ACCENT_ORANGE,
-                v -> startActivity(new Intent(this, CryptoActivity.class)), g);
         addCompact(fRow6, "\uD83C\uDFB5", "歌詞生成", UIHelper.ACCENT_PURPLE,
                 v -> startActivity(new Intent(this, LyricsActivity.class)), g);
         content.addView(fRow6);
