@@ -114,11 +114,18 @@ public class CronActivity extends AppCompatActivity {
             }
             summaryText.setText(total + " \u500B\u6392\u7A0B \u00B7 " + enabled + " \u555F\u7528 \u00B7 " + (total - enabled) + " \u505C\u7528");
 
+            boolean anyRunning = false;
             for (int i = 0; i < jobs.length(); i++) {
                 JSONObject job = jobs.optJSONObject(i);
                 if (job != null) {
                     listContainer.addView(buildJobCard(job));
+                    JSONObject rs = job.optJSONObject("run_state");
+                    if (rs != null && rs.optBoolean("running", false)) anyRunning = true;
                 }
+            }
+            // Auto-refresh while something is running so the "執行中" badge ticks
+            if (anyRunning) {
+                listContainer.postDelayed(this::loadJobs, 5000);
             }
         });
     }
@@ -133,6 +140,7 @@ public class CronActivity extends AppCompatActivity {
         String status = job.optString("status", "unknown");
         String lastRun = job.optString("last_run", null);
         String lastError = job.optString("last_error", null);
+        JSONObject runState = job.optJSONObject("run_state");
 
         LinearLayout card = UIHelper.card(this);
         if (!enabled) card.setAlpha(0.5f);
@@ -179,6 +187,25 @@ public class CronActivity extends AppCompatActivity {
         row1.addView(toggle);
         card.addView(row1);
 
+        // Run-state badge (manual execution tracking)
+        if (runState != null) {
+            TextView runBadge = new TextView(this);
+            int elapsed = runState.optInt("elapsed_sec", 0);
+            String elapsedStr = elapsed >= 60
+                    ? String.format("%d\u5206%02d\u79D2", elapsed / 60, elapsed % 60)
+                    : elapsed + "\u79D2";
+            if (runState.optBoolean("running", false)) {
+                runBadge.setText("\uD83D\uDD35 \u57F7\u884C\u4E2D\u2026 " + elapsedStr);
+                runBadge.setTextColor(0xFF29B6F6);
+            } else if (runState.optBoolean("just_finished", false)) {
+                runBadge.setText("\u2705 \u624B\u52D5\u57F7\u884C\u5B8C\u6210 (\u8017\u6642 " + elapsedStr + ")");
+                runBadge.setTextColor(0xFF66BB6A);
+            }
+            runBadge.setTextSize(12);
+            runBadge.setPadding(UIHelper.dp(this, 22), UIHelper.dp(this, 4), 0, 0);
+            card.addView(runBadge);
+        }
+
         // Description
         if (description != null && !description.isEmpty()) {
             TextView descView = new TextView(this);
@@ -202,12 +229,20 @@ public class CronActivity extends AppCompatActivity {
         schedView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         row2.addView(schedView);
 
+        boolean isRunning = runState != null && runState.optBoolean("running", false);
         TextView runBtn = new TextView(this);
-        runBtn.setText("\u25B6");
+        if (isRunning) {
+            runBtn.setText("\u23F3");  // hourglass
+            runBtn.setTextColor(0xFF29B6F6);
+            runBtn.setOnClickListener(v ->
+                    Toast.makeText(this, "\u6B63\u5728\u57F7\u884C\u4E2D\u2026", Toast.LENGTH_SHORT).show());
+        } else {
+            runBtn.setText("\u25B6");
+            runBtn.setTextColor(UIHelper.ACCENT_GREEN);
+            runBtn.setOnClickListener(v -> confirmRunJob(id, name));
+        }
         runBtn.setTextSize(18);
-        runBtn.setTextColor(UIHelper.ACCENT_GREEN);
         runBtn.setPadding(UIHelper.dp(this, 12), 0, 0, 0);
-        runBtn.setOnClickListener(v -> confirmRunJob(id, name));
         row2.addView(runBtn);
 
         TextView editBtn = new TextView(this);
@@ -252,6 +287,7 @@ public class CronActivity extends AppCompatActivity {
             case "error":    return 0xFFFF5252;  // red
             case "stale":    return 0xFFFFCA28;  // yellow
             case "disabled": return 0xFF616161;  // gray
+            case "running":  return 0xFF29B6F6;  // blue
             default:         return 0xFF9E9E9E;  // light gray
         }
     }
@@ -267,8 +303,8 @@ public class CronActivity extends AppCompatActivity {
                             Toast.makeText(this, "\u57F7\u884C\u5931\u6557: " + err, Toast.LENGTH_LONG).show();
                         } else {
                             Toast.makeText(this, "\u2705 " + jobName + " \u5DF2\u555F\u52D5", Toast.LENGTH_SHORT).show();
-                            // Refresh after a delay to update last-run status
-                            listContainer.postDelayed(this::loadJobs, 3000);
+                            // Refresh immediately to show the "執行中" badge; auto-poll will keep ticking
+                            listContainer.postDelayed(this::loadJobs, 500);
                         }
                     });
                 })

@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.39 (2026-04-08)
+- **Feature: Cron Manager — running state visibility**
+  - Modified `~/bridge/cron_manager.py` — Added `RUNNING_JOBS` in-memory tracker (job_id → pid/started_at/finished_at), `_pid_alive()` using `os.kill(pid, 0)`, and `_get_run_state()` that reports live status and auto-prunes entries 10 min after completion. `run_job()` now records the Popen pid into `RUNNING_JOBS`. `list_jobs()` overlays manual-run state: status becomes `"running"` while the process is alive, and each job payload now carries a `run_state` object (`running`, `started_at`, `elapsed_sec`, `finished_at`, `just_finished`).
+  - Modified `app/src/main/java/com/mybot/app/CronActivity.java` — Status light now has a blue `"running"` color. Each job card shows a run-state badge: 🔵 執行中… <elapsed> while live, ✅ 手動執行完成 (耗時 X) for ~10 min after it finishes. The ▶ run button becomes an ⏳ hourglass and is non-triggering while running. `loadJobs()` auto-polls every 5 s if any job has `run_state.running=true`, so the badge ticks in real time. `confirmRunJob()` now refreshes immediately (500 ms) after triggering, so the badge appears right away.
+  - Modified `app/build.gradle` — versionCode 161→162, versionName 4.38→4.39.
+
 ## v4.38 (2026-04-08)
 - **Feature: Cron Manager — manual run**
   - Modified `~/bridge/cron_manager.py` — Added `run_job(job_id)` which extracts the command portion from the matching crontab line and launches it via detached `sh -c` (fire-and-forget, `start_new_session=True`). Supports running disabled jobs too. New Flask endpoint `POST /cron/jobs/run` (body: `{"id": "..."}`).
