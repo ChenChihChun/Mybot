@@ -249,29 +249,9 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, TravelActivity.class)), 0);
         addCompact(fRow5, "\uD83E\uDDEC", "自我演化", UIHelper.ACCENT_GREEN,
                 v -> startActivity(new Intent(this, EvolutionActivity.class)), g);
-        addCompact(fRow5, "\uD83C\uDF0D", "地圖問答", UIHelper.ACCENT_BLUE,
-                v -> startActivity(new Intent(this, QuizActivity.class)), g);
-        content.addView(fRow5);
-
-        // Row 6: 天文日圖
-        LinearLayout fRow6 = gridRow3();
-        addCompact(fRow6, "\uD83C\uDF0C", "\u5929\u6587\u65E5\u5716", UIHelper.ACCENT_PURPLE,
-                v -> startActivity(new Intent(this, ApodActivity.class)), 0);
-        addCompact(fRow6, "\uD83C\uDFB5", "歌詞生成", UIHelper.ACCENT_PURPLE,
+        addCompact(fRow5, "\uD83C\uDFB5", "歌詞生成", UIHelper.ACCENT_PURPLE,
                 v -> startActivity(new Intent(this, LyricsActivity.class)), g);
-        content.addView(fRow6);
-
-        // Row 7: 夢境解析
-        LinearLayout fRow7 = gridRow3();
-        addCompact(fRow7, "\uD83C\uDF19", "夢境解析", UIHelper.ACCENT_PURPLE,
-                v -> startActivity(new Intent(this, DreamActivity.class)), 0);
-        View ph7b = new View(this);
-        ph7b.setVisibility(View.INVISIBLE);
-        fRow7.addView(ph7b, gridCellLp(g));
-        View ph7c = new View(this);
-        ph7c.setVisibility(View.INVISIBLE);
-        fRow7.addView(ph7c, gridCellLp(g));
-        content.addView(fRow7);
+        content.addView(fRow5);
 
         // ── Games (dynamic, hideable via long-press) ──
         content.addView(UIHelper.sectionHeader(this, "GAMES"));
@@ -447,6 +427,9 @@ public class MainActivity extends AppCompatActivity {
                 {"\uD83D\uDCA1", "Lights Out", UIHelper.ACCENT_ORANGE, LightsOutActivity.class},
                 {"\uD83C\uDFA8", "Color Flood", UIHelper.ACCENT_RED, ColorFloodActivity.class},
                 {"\uD83E\uDDE9", "2048", UIHelper.ACCENT_GREEN, Game2048Activity.class},
+                {"\uD83C\uDF0D", "\u5730\u5716\u554F\u7B54", UIHelper.ACCENT_BLUE, QuizActivity.class},
+                {"\uD83C\uDF0C", "\u5929\u6587\u65E5\u5716", UIHelper.ACCENT_PURPLE, ApodActivity.class},
+                {"\uD83C\uDF19", "\u5922\u5883\u89E3\u6790", UIHelper.ACCENT_PURPLE, DreamActivity.class},
         };
 
         for (Object[] game : games) {

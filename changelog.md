@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.41 (2026-04-08)
+- **Moved 地圖問答 / 天文日圖 / 夢境解析 into the GAMES section** of MainActivity so they can be long-press-hidden via the existing game registry.
+  - `MainActivity.java`: removed fRow6 and fRow7; collapsed 歌詞生成 into fRow5 alongside 旅遊規劃 and 自我演化; removed 地圖問答 from fRow5. Added QuizActivity, ApodActivity, DreamActivity to the `games` registry in `buildGameSection()`. They now use the same `compactCard` size as all other game cards and inherit the long-press hide/restore flow automatically.
+
 ## v4.40 (2026-04-08)
 - **Removal: Crypto / BTC paper trading module**
   - Deleted `~/bridge/crypto/` entire directory (collector/db/indicators/reflector/routes/scheduler/strategies + `crypto.db` with all trade history and strategy versions).
