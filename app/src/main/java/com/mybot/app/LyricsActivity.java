@@ -1,5 +1,6 @@
 package com.mybot.app;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -29,8 +30,8 @@ public class LyricsActivity extends AppCompatActivity {
 
     private Spinner emotionSpinner, themeSpinner, styleSpinner;
     private Button generateBtn, shareBtn;
-    private TextView resultText, statusText;
-    private LinearLayout resultCard;
+    private TextView statusText, titleView, verseView, chorusView, bridgeView;
+    private LinearLayout resultCard, bridgeSection;
     private String currentLyrics = "";
     private String currentTitle = "";
 
@@ -59,23 +60,34 @@ public class LyricsActivity extends AppCompatActivity {
 
         // Input card
         LinearLayout inputCard = UIHelper.card(this);
+        TextView cardTitle = new TextView(this);
+        cardTitle.setText("\u270D\uFE0F 創作設定");
+        cardTitle.setTextColor(UIHelper.TEXT_PRIMARY);
+        cardTitle.setTextSize(16);
+        cardTitle.setTypeface(null, Typeface.BOLD);
+        cardTitle.setPadding(0, 0, 0, UIHelper.dp(this, 8));
+        inputCard.addView(cardTitle);
+
         inputCard.addView(label("情緒"));
         emotionSpinner = newSpinner(EMOTIONS);
-        inputCard.addView(emotionSpinner);
+        inputCard.addView(wrapSpinner(emotionSpinner));
         inputCard.addView(label("主題"));
         themeSpinner = newSpinner(THEMES);
-        inputCard.addView(themeSpinner);
+        inputCard.addView(wrapSpinner(themeSpinner));
         inputCard.addView(label("曲風"));
         styleSpinner = newSpinner(STYLES);
-        inputCard.addView(styleSpinner);
+        inputCard.addView(wrapSpinner(styleSpinner));
 
         generateBtn = new Button(this);
         generateBtn.setText("\u2728 生成歌詞");
         generateBtn.setTextColor(Color.WHITE);
-        generateBtn.setBackgroundColor(UIHelper.ACCENT_PURPLE);
+        generateBtn.setTextSize(15);
+        generateBtn.setTypeface(null, Typeface.BOLD);
+        generateBtn.setAllCaps(false);
+        generateBtn.setBackground(UIHelper.roundRect(UIHelper.ACCENT_PURPLE, 14, this));
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        blp.topMargin = UIHelper.dp(this, 12);
+                ViewGroup.LayoutParams.MATCH_PARENT, UIHelper.dp(this, 48));
+        blp.topMargin = UIHelper.dp(this, 16);
         generateBtn.setLayoutParams(blp);
         generateBtn.setOnClickListener(v -> generate());
         inputCard.addView(generateBtn);
@@ -83,7 +95,9 @@ public class LyricsActivity extends AppCompatActivity {
         content.addView(inputCard);
 
         statusText = new TextView(this);
-        statusText.setTextColor(Color.LTGRAY);
+        statusText.setTextColor(UIHelper.TEXT_SECONDARY);
+        statusText.setTextSize(13);
+        statusText.setGravity(Gravity.CENTER);
         statusText.setPadding(0, UIHelper.dp(this, 12), 0, UIHelper.dp(this, 4));
         content.addView(statusText);
 
@@ -91,19 +105,48 @@ public class LyricsActivity extends AppCompatActivity {
         resultCard = UIHelper.card(this);
         resultCard.setVisibility(View.GONE);
 
-        resultText = new TextView(this);
-        resultText.setTextColor(Color.WHITE);
-        resultText.setTextSize(16);
-        resultText.setLineSpacing(0, 1.4f);
-        resultCard.addView(resultText);
+        titleView = new TextView(this);
+        titleView.setTextColor(UIHelper.ACCENT_PURPLE);
+        titleView.setTextSize(22);
+        titleView.setTypeface(null, Typeface.BOLD);
+        titleView.setGravity(Gravity.CENTER);
+        titleView.setPadding(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 4));
+        resultCard.addView(titleView);
+
+        View divider = new View(this);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
+                UIHelper.dp(this, 60), UIHelper.dp(this, 2));
+        dlp.gravity = Gravity.CENTER_HORIZONTAL;
+        dlp.bottomMargin = UIHelper.dp(this, 12);
+        divider.setLayoutParams(dlp);
+        divider.setBackgroundColor(UIHelper.ACCENT_PURPLE);
+        resultCard.addView(divider);
+
+        resultCard.addView(sectionHeader("主歌", UIHelper.ACCENT_BLUE));
+        verseView = lyricsText();
+        resultCard.addView(verseView);
+
+        resultCard.addView(sectionHeader("副歌", UIHelper.ACCENT_ORANGE));
+        chorusView = lyricsText();
+        resultCard.addView(chorusView);
+
+        bridgeSection = new LinearLayout(this);
+        bridgeSection.setOrientation(LinearLayout.VERTICAL);
+        bridgeSection.addView(sectionHeader("Bridge", UIHelper.ACCENT_GREEN));
+        bridgeView = lyricsText();
+        bridgeSection.addView(bridgeView);
+        resultCard.addView(bridgeSection);
 
         shareBtn = new Button(this);
-        shareBtn.setText("\uD83D\uDCE4 分享");
+        shareBtn.setText("\uD83D\uDCE4 分享歌詞");
         shareBtn.setTextColor(Color.WHITE);
-        shareBtn.setBackgroundColor(UIHelper.ACCENT_BLUE);
+        shareBtn.setTextSize(15);
+        shareBtn.setTypeface(null, Typeface.BOLD);
+        shareBtn.setAllCaps(false);
+        shareBtn.setBackground(UIHelper.roundRect(UIHelper.ACCENT_BLUE, 14, this));
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        slp.topMargin = UIHelper.dp(this, 12);
+                ViewGroup.LayoutParams.MATCH_PARENT, UIHelper.dp(this, 46));
+        slp.topMargin = UIHelper.dp(this, 16);
         shareBtn.setLayoutParams(slp);
         shareBtn.setOnClickListener(v -> share());
         resultCard.addView(shareBtn);
@@ -115,16 +158,76 @@ public class LyricsActivity extends AppCompatActivity {
     private TextView label(String text) {
         TextView tv = new TextView(this);
         tv.setText(text);
-        tv.setTextColor(Color.LTGRAY);
-        tv.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+        tv.setTextColor(UIHelper.TEXT_SECONDARY);
+        tv.setTextSize(13);
+        tv.setPadding(UIHelper.dp(this, 4), UIHelper.dp(this, 10), 0, UIHelper.dp(this, 4));
         return tv;
     }
 
+    private TextView sectionHeader(String text, int color) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(color);
+        tv.setTextSize(13);
+        tv.setTypeface(null, Typeface.BOLD);
+        tv.setAllCaps(true);
+        tv.setLetterSpacing(0.1f);
+        tv.setPadding(UIHelper.dp(this, 10), UIHelper.dp(this, 14), 0, UIHelper.dp(this, 4));
+        return tv;
+    }
+
+    private TextView lyricsText() {
+        TextView tv = new TextView(this);
+        tv.setTextColor(UIHelper.TEXT_PRIMARY);
+        tv.setTextSize(16);
+        tv.setLineSpacing(UIHelper.dp(this, 4), 1.25f);
+        int p = UIHelper.dp(this, 12);
+        tv.setPadding(p, p, p, p);
+        tv.setBackground(UIHelper.roundRect(UIHelper.BG_INPUT, 12, this));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tv.setLayoutParams(lp);
+        return tv;
+    }
+
+    private LinearLayout wrapSpinner(Spinner sp) {
+        LinearLayout wrap = new LinearLayout(this);
+        wrap.setOrientation(LinearLayout.VERTICAL);
+        wrap.setBackground(UIHelper.roundRect(UIHelper.BG_INPUT, 12, this));
+        int h = UIHelper.dp(this, 6);
+        wrap.setPadding(UIHelper.dp(this, 8), h, UIHelper.dp(this, 8), h);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        wrap.setLayoutParams(lp);
+        wrap.addView(sp);
+        return wrap;
+    }
+
     private Spinner newSpinner(String[] items) {
+        final Context ctx = this;
         Spinner sp = new Spinner(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, items);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_spinner_item, items) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                TextView v = (TextView) super.getView(position, convertView, parent);
+                v.setTextColor(UIHelper.TEXT_PRIMARY);
+                v.setTextSize(15);
+                return v;
+            }
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                TextView v = (TextView) super.getDropDownView(position, convertView, parent);
+                v.setTextColor(UIHelper.TEXT_PRIMARY);
+                v.setBackgroundColor(UIHelper.BG_CARD_ALT);
+                v.setPadding(UIHelper.dp(ctx, 16), UIHelper.dp(ctx, 12),
+                        UIHelper.dp(ctx, 16), UIHelper.dp(ctx, 12));
+                return v;
+            }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         sp.setAdapter(adapter);
+        sp.setPopupBackgroundDrawable(UIHelper.roundRect(UIHelper.BG_CARD_ALT, 10, this));
         return sp;
     }
 
@@ -148,6 +251,15 @@ public class LyricsActivity extends AppCompatActivity {
             String verse = lyrics.optString("verse", "");
             String chorus = lyrics.optString("chorus", "");
             String bridgeLine = lyrics.optString("bridge_line", "");
+            titleView.setText("《" + currentTitle + "》");
+            verseView.setText(verse);
+            chorusView.setText(chorus);
+            if (!bridgeLine.isEmpty()) {
+                bridgeView.setText(bridgeLine);
+                bridgeSection.setVisibility(View.VISIBLE);
+            } else {
+                bridgeSection.setVisibility(View.GONE);
+            }
             StringBuilder sb = new StringBuilder();
             sb.append("《").append(currentTitle).append("》\n\n");
             sb.append("[主歌]\n").append(verse).append("\n\n");
@@ -156,7 +268,6 @@ public class LyricsActivity extends AppCompatActivity {
                 sb.append("\n\n[Bridge]\n").append(bridgeLine);
             }
             currentLyrics = sb.toString();
-            resultText.setText(currentLyrics);
             resultCard.setVisibility(View.VISIBLE);
             statusText.setText("完成");
             AppLog.i(TAG, "生成成功: " + currentTitle);

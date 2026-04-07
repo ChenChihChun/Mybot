@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.36 (2026-04-08)
+- **UI: Lyrics Generator Redesign**
+  - Modified `app/src/main/java/com/mybot/app/LyricsActivity.java` — Redesigned UI for better readability and visual hierarchy: custom dark-themed Spinner adapter (white text on BG_CARD_ALT dropdown), rounded input wrappers, rounded gradient buttons, sectioned result card with prominent purple title + underline divider, color-coded section headers (主歌 blue / 副歌 orange / Bridge green), each lyrics section in its own rounded BG_INPUT panel with improved line spacing. Uses UIHelper theme tokens throughout instead of hard-coded white/gray.
+  - Modified `app/build.gradle` — versionCode 158→159, versionName 4.35→4.36.
+
 ## v4.32 (2026-04-07)
 - **Feature: BTC 做空交易 — Short Selling Support**
   - Modified `~/bridge/crypto/db.py` — 新增 `short_held`/`avg_short_price` 欄位 (ALTER TABLE migration), 新增 `execute_short()` 開空倉 + `execute_cover()` 平空倉, 0.1% 手續費模擬, PnL 計算含空倉 (sell+cover trades)
