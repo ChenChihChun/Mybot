@@ -1164,6 +1164,36 @@ public class BridgeClient {
     }
 
     /**
+     * POST /cron/jobs/run — manually trigger a cron job immediately.
+     */
+    public static void runCronJob(String jobId, CronCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "runCronJob: " + jobId);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("id", jobId);
+                String[] result = postJsonWithError(BASE_URL + "/cron/jobs/run", body.toString());
+                if (result[0] != null) {
+                    JSONObject json = new JSONObject(result[0]);
+                    if (json.optBoolean("success", false)) {
+                        AppLog.i("Bridge", "runCronJob成功: " + jobId);
+                        mainHandler.post(() -> callback.onResult(json.optJSONObject("data"), null));
+                        return;
+                    }
+                    String msg = json.optString("error", "執行失敗");
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(null, result[1]));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "runCronJob失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
+    /**
      * POST /cron/jobs/schedule — update cron job schedule.
      */
     public static void updateCronSchedule(String jobId, String schedule, CronCallback callback) {

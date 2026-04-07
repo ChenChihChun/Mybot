@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.38 (2026-04-08)
+- **Feature: Cron Manager — manual run**
+  - Modified `~/bridge/cron_manager.py` — Added `run_job(job_id)` which extracts the command portion from the matching crontab line and launches it via detached `sh -c` (fire-and-forget, `start_new_session=True`). Supports running disabled jobs too. New Flask endpoint `POST /cron/jobs/run` (body: `{"id": "..."}`).
+  - Modified `app/src/main/java/com/mybot/app/BridgeClient.java` — Added `runCronJob(jobId, callback)` calling the new endpoint.
+  - Modified `app/src/main/java/com/mybot/app/CronActivity.java` — Added a green ▶ run button in each job card's row2 (next to the ✏️ edit button). Clicking opens a confirmation dialog, triggers `BridgeClient.runCronJob`, toasts success/failure, and reloads the list after 3s to refresh last-run timestamps.
+  - Modified `app/build.gradle` — versionCode 160→161, versionName 4.37→4.38.
+
 ## v4.37 (2026-04-08)
 - **Feature: Evolution proposal detail — selectable text + copy all**
   - Modified `app/src/main/java/com/mybot/app/EvolutionActivity.java` — Title and all section content (why/how/impl_log) are now `setTextIsSelectable(true)` so users can long-press to select and copy snippets. Added "複製全部內容" button at bottom of detail dialog that copies a formatted summary (title + 為什麼 + 實作方式 + 實作記錄) to the system clipboard. Added `copyToClipboard()` helper using `ClipboardManager`. New imports: `ClipData`, `ClipboardManager`, `Context`.

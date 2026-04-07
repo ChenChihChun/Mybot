@@ -202,6 +202,14 @@ public class CronActivity extends AppCompatActivity {
         schedView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         row2.addView(schedView);
 
+        TextView runBtn = new TextView(this);
+        runBtn.setText("\u25B6");
+        runBtn.setTextSize(18);
+        runBtn.setTextColor(UIHelper.ACCENT_GREEN);
+        runBtn.setPadding(UIHelper.dp(this, 12), 0, 0, 0);
+        runBtn.setOnClickListener(v -> confirmRunJob(id, name));
+        row2.addView(runBtn);
+
         TextView editBtn = new TextView(this);
         editBtn.setText("\u270F\uFE0F");
         editBtn.setTextSize(18);
@@ -246,6 +254,26 @@ public class CronActivity extends AppCompatActivity {
             case "disabled": return 0xFF616161;  // gray
             default:         return 0xFF9E9E9E;  // light gray
         }
+    }
+
+    private void confirmRunJob(String jobId, String jobName) {
+        new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
+                .setTitle("\u624B\u52D5\u57F7\u884C")
+                .setMessage("\u7ACB\u5373\u57F7\u884C\u300C" + jobName + "\u300D\uFF1F\n\n\u5DE5\u4F5C\u5C07\u5728\u80CC\u666F\u57F7\u884C\uFF0C\u8ACB\u5230 logs \u8CC7\u6599\u593E\u67E5\u770B\u7D50\u679C\u3002")
+                .setPositiveButton("\u57F7\u884C", (d, w) -> {
+                    Toast.makeText(this, "\u5DF2\u89F8\u767C: " + jobName, Toast.LENGTH_SHORT).show();
+                    BridgeClient.runCronJob(jobId, (result, err) -> {
+                        if (err != null) {
+                            Toast.makeText(this, "\u57F7\u884C\u5931\u6557: " + err, Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(this, "\u2705 " + jobName + " \u5DF2\u555F\u52D5", Toast.LENGTH_SHORT).show();
+                            // Refresh after a delay to update last-run status
+                            listContainer.postDelayed(this::loadJobs, 3000);
+                        }
+                    });
+                })
+                .setNegativeButton("\u53D6\u6D88", null)
+                .show();
     }
 
     private void showScheduleDialog(String jobId, String jobName, String currentSchedule) {
