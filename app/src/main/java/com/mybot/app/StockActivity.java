@@ -616,6 +616,23 @@ public class StockActivity extends AppCompatActivity {
         priceRow.setTextColor(UIHelper.TEXT_HINT);
         leftCol.addView(priceRow);
 
+        // Re-recommendation history (shown beneath the original entry)
+        org.json.JSONArray reDates = entry.optJSONArray("re_rec_dates");
+        if (reDates != null && reDates.length() > 0) {
+            StringBuilder sb = new StringBuilder("再次推薦: ");
+            for (int i = 0; i < reDates.length(); i++) {
+                String d = reDates.optString(i, "");
+                if (d.length() >= 10) d = d.substring(5);
+                if (i > 0) sb.append(", ");
+                sb.append(d);
+            }
+            TextView reRow = new TextView(this);
+            reRow.setText(sb.toString());
+            reRow.setTextSize(10);
+            reRow.setTextColor(UIHelper.ACCENT_ORANGE);
+            leftCol.addView(reRow);
+        }
+
         row.addView(leftCol);
 
         // Right: return % + status
@@ -639,7 +656,7 @@ public class StockActivity extends AppCompatActivity {
             statusView.setText("完成");
             statusView.setTextColor(returnPct > 0 ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED);
         } else {
-            statusView.setText("追蹤中(" + daysTracked + "/14天)");
+            statusView.setText("追蹤中(" + daysTracked + "/3天)");
             statusView.setTextColor(UIHelper.ACCENT_ORANGE);
         }
         statusView.setTextSize(10);
