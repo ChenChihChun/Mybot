@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.37 (2026-04-08)
+- **Feature: Evolution proposal detail — selectable text + copy all**
+  - Modified `app/src/main/java/com/mybot/app/EvolutionActivity.java` — Title and all section content (why/how/impl_log) are now `setTextIsSelectable(true)` so users can long-press to select and copy snippets. Added "複製全部內容" button at bottom of detail dialog that copies a formatted summary (title + 為什麼 + 實作方式 + 實作記錄) to the system clipboard. Added `copyToClipboard()` helper using `ClipboardManager`. New imports: `ClipData`, `ClipboardManager`, `Context`.
+  - Modified `app/build.gradle` — versionCode 159→160, versionName 4.36→4.37.
+
 ## v4.36 (2026-04-08)
 - **UI: Lyrics Generator Redesign**
   - Modified `app/src/main/java/com/mybot/app/LyricsActivity.java` — Redesigned UI for better readability and visual hierarchy: custom dark-themed Spinner adapter (white text on BG_CARD_ALT dropdown), rounded input wrappers, rounded gradient buttons, sectioned result card with prominent purple title + underline divider, color-coded section headers (主歌 blue / 副歌 orange / Bridge green), each lyrics section in its own rounded BG_INPUT panel with improved line spacing. Uses UIHelper theme tokens throughout instead of hard-coded white/gray.

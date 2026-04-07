@@ -1,6 +1,9 @@
 package com.mybot.app;
 
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -931,6 +934,7 @@ public class EvolutionActivity extends AppCompatActivity {
         titleView.setTextSize(17);
         titleView.setTypeface(null, Typeface.BOLD);
         titleView.setPadding(0, dp(12), 0, dp(8));
+        titleView.setTextIsSelectable(true);
         layout.addView(titleView);
 
         // Why section
@@ -957,6 +961,28 @@ public class EvolutionActivity extends AppCompatActivity {
             dateView.setPadding(0, dp(12), 0, 0);
             layout.addView(dateView);
         }
+
+        // Copy-all button
+        Button copyBtn = new Button(this);
+        copyBtn.setText("\uD83D\uDCCB 複製全部內容");
+        copyBtn.setTextColor(Color.WHITE);
+        copyBtn.setAllCaps(false);
+        copyBtn.setBackground(UIHelper.roundRect(UIHelper.ACCENT_BLUE, 12, this));
+        LinearLayout.LayoutParams cblp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cblp.topMargin = dp(16);
+        copyBtn.setLayoutParams(cblp);
+        copyBtn.setOnClickListener(v -> {
+            StringBuilder sb = new StringBuilder();
+            sb.append(what).append("\n\n");
+            if (!why.isEmpty()) sb.append("【為什麼】\n").append(why).append("\n\n");
+            if (!how.isEmpty()) sb.append("【實作方式】\n").append(how).append("\n\n");
+            if (!implLog.isEmpty() && ("done".equals(status) || "failed".equals(status))) {
+                sb.append("【實作記錄】\n").append(implLog).append("\n");
+            }
+            copyToClipboard("提案 #" + p.optInt("id"), sb.toString().trim());
+        });
+        layout.addView(copyBtn);
 
         scroll.addView(layout);
 
@@ -997,7 +1023,16 @@ public class EvolutionActivity extends AppCompatActivity {
         contentView.setTextColor(UIHelper.TEXT_PRIMARY);
         contentView.setTextSize(14);
         contentView.setLineSpacing(dp(3), 1f);
+        contentView.setTextIsSelectable(true);
         parent.addView(contentView);
+    }
+
+    private void copyToClipboard(String label, String text) {
+        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (cm == null) return;
+        cm.setPrimaryClip(ClipData.newPlainText(label, text));
+        Toast.makeText(this, "已複製", Toast.LENGTH_SHORT).show();
+        AppLog.i("Evolution", "複製提案內容: " + label);
     }
 
     private void addBadgeSpacer(LinearLayout row) {
