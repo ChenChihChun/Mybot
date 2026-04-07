@@ -111,6 +111,45 @@ public class BridgeClient {
         });
     }
 
+    public interface LyricsCallback {
+        void onResult(JSONObject lyrics, String error);
+    }
+
+    public static void generateLyrics(String emotion, String theme, String style, LyricsCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "generateLyrics: " + emotion + "/" + theme + "/" + style);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "generate_lyrics");
+                body.put("emotion", emotion);
+                body.put("theme", theme);
+                body.put("style", style);
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 70000);
+                String response = result[0];
+                String error = result[1];
+                if (response != null) {
+                    JSONObject json = new JSONObject(response);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject r = json.getJSONObject("result");
+                        AppLog.i("Bridge", "generateLyrics成功: " + r.optString("title"));
+                        mainHandler.post(() -> callback.onResult(r, null));
+                        return;
+                    }
+                    AppLog.w("Bridge", "generateLyrics: success=false");
+                    mainHandler.post(() -> callback.onResult(null, "生成失敗"));
+                    return;
+                }
+                lastError = error;
+                AppLog.e("Bridge", "generateLyrics失敗: " + error);
+                mainHandler.post(() -> callback.onResult(null, error));
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "generateLyrics異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
     public interface WorkoutCallback {
         void onResult(String responseJson, boolean offline, String error);
     }
@@ -483,6 +522,63 @@ public class BridgeClient {
                 lastError = err;
                 AppLog.e("Bridge", "categorizeKnowledge異常: " + err);
                 mainHandler.post(() -> callback.onResult("其他", err));
+            }
+        });
+    }
+
+    public interface DreamCallback {
+        void onResult(String symbol, String interpretation, String mood, String error);
+    }
+
+    public static void analyzeDream(String dream, DreamCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Dream", "analyzeDream: " + (dream.length() > 50 ? dream.substring(0, 50) + "..." : dream));
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "analyze_dream");
+                body.put("dream", dream);
+
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 60000);
+                String response = result[0];
+                String error = result[1];
+
+                if (response != null) {
+                    JSONObject json = new JSONObject(response);
+                    if (json.optBoolean("success", false)) {
+                        Object resultObj = json.opt("result");
+                        JSONObject parsed = null;
+                        if (resultObj instanceof JSONObject) {
+                            parsed = (JSONObject) resultObj;
+                        } else if (resultObj instanceof String) {
+                            String text = (String) resultObj;
+                            int start = text.indexOf("{");
+                            int end = text.lastIndexOf("}");
+                            if (start >= 0 && end > start) {
+                                try {
+                                    parsed = new JSONObject(text.substring(start, end + 1));
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                        if (parsed != null) {
+                            String symbol = parsed.optString("symbol", "");
+                            String interpretation = parsed.optString("interpretation", "");
+                            String mood = parsed.optString("mood", "");
+                            AppLog.i("Dream", "解析成功: " + symbol);
+                            mainHandler.post(() -> callback.onResult(symbol, interpretation, mood, null));
+                            return;
+                        }
+                    }
+                    String errMsg = json.optString("error", "解析失敗");
+                    AppLog.w("Dream", "失敗: " + errMsg);
+                    mainHandler.post(() -> callback.onResult(null, null, null, errMsg));
+                    return;
+                }
+                AppLog.e("Dream", "連線失敗: " + error);
+                mainHandler.post(() -> callback.onResult(null, null, null, error));
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Dream", "異常: " + err);
+                mainHandler.post(() -> callback.onResult(null, null, null, err));
             }
         });
     }

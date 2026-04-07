@@ -104,6 +104,12 @@
         <!-- Quiz Activity -->
         <activity android:name=".QuizActivity" android:exported="false" />
 
+        <!-- Dream Activity -->
+        <activity android:name=".DreamActivity" android:exported="false" />
+
+        <!-- Lyrics Activity -->
+        <activity android:name=".LyricsActivity" android:exported="false" />
+
         <!-- Flight Activity -->
         <activity android:name=".FlightActivity" android:exported="false" />
 

@@ -259,10 +259,21 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, ApodActivity.class)), 0);
         addCompact(fRow6, "\u20BF", "BTC\u6A21\u64EC", UIHelper.ACCENT_ORANGE,
                 v -> startActivity(new Intent(this, CryptoActivity.class)), g);
-        View ph6c = new View(this);
-        ph6c.setVisibility(View.INVISIBLE);
-        fRow6.addView(ph6c, gridCellLp(g));
+        addCompact(fRow6, "\uD83C\uDFB5", "歌詞生成", UIHelper.ACCENT_PURPLE,
+                v -> startActivity(new Intent(this, LyricsActivity.class)), g);
         content.addView(fRow6);
+
+        // Row 7: 夢境解析
+        LinearLayout fRow7 = gridRow3();
+        addCompact(fRow7, "\uD83C\uDF19", "夢境解析", UIHelper.ACCENT_PURPLE,
+                v -> startActivity(new Intent(this, DreamActivity.class)), 0);
+        View ph7b = new View(this);
+        ph7b.setVisibility(View.INVISIBLE);
+        fRow7.addView(ph7b, gridCellLp(g));
+        View ph7c = new View(this);
+        ph7c.setVisibility(View.INVISIBLE);
+        fRow7.addView(ph7c, gridCellLp(g));
+        content.addView(fRow7);
 
         // ── Games (dynamic, hideable via long-press) ──
         content.addView(UIHelper.sectionHeader(this, "GAMES"));
