@@ -118,7 +118,7 @@ public class CronActivity extends AppCompatActivity {
             for (int i = 0; i < jobs.length(); i++) {
                 JSONObject job = jobs.optJSONObject(i);
                 if (job != null) {
-                    listContainer.addView(buildJobCard(job));
+                    listContainer.addView(buildJobCard(job, i + 1));
                     JSONObject rs = job.optJSONObject("run_state");
                     if (rs != null && rs.optBoolean("running", false)) anyRunning = true;
                 }
@@ -130,7 +130,7 @@ public class CronActivity extends AppCompatActivity {
         });
     }
 
-    private LinearLayout buildJobCard(JSONObject job) {
+    private LinearLayout buildJobCard(JSONObject job, int index) {
         String id = job.optString("id");
         String name = job.optString("name");
         String description = job.optString("description", "");
@@ -164,7 +164,7 @@ public class CronActivity extends AppCompatActivity {
 
         // Name
         TextView nameView = new TextView(this);
-        nameView.setText(name);
+        nameView.setText(index + ". " + name);
         nameView.setTextSize(15);
         nameView.setTextColor(UIHelper.TEXT_PRIMARY);
         nameView.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
