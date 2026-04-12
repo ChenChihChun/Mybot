@@ -384,6 +384,27 @@ public class StockActivity extends AppCompatActivity {
         }
         card.addView(header);
 
+        // Confidence score
+        double confidence = pick.optDouble("confidence_score", -1);
+        if (confidence >= 0) {
+            int confPct = (int) Math.round(confidence * 100);
+            int confColor = confidence >= 0.7 ? UIHelper.ACCENT_GREEN
+                    : confidence >= 0.5 ? UIHelper.ACCENT_ORANGE : UIHelper.ACCENT_RED;
+            TextView confView = new TextView(this);
+            confView.setText("信心度 " + confPct + "%");
+            confView.setTextSize(12);
+            confView.setTextColor(confColor);
+            confView.setTypeface(Typeface.DEFAULT_BOLD);
+            confView.setBackground(UIHelper.roundRect(0xFF262640, 6, this));
+            confView.setPadding(UIHelper.dp(this, 8), UIHelper.dp(this, 3),
+                    UIHelper.dp(this, 8), UIHelper.dp(this, 3));
+            LinearLayout.LayoutParams confLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            confLp.setMargins(0, UIHelper.dp(this, 4), 0, 0);
+            confView.setLayoutParams(confLp);
+            card.addView(confView);
+        }
+
         // Institutional + Financial summary
         String instSummary = pick.optString("institutional_summary", "");
         if (!instSummary.isEmpty()) {
