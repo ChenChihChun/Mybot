@@ -25,11 +25,11 @@ import java.util.List;
 
 public class StockActivity extends AppCompatActivity {
 
-    // Recommendation UI
+    // Recommendation UI (institutional)
     private LinearLayout recContent;
     private TextView recStatus;
     private boolean recLoading = false;
-    // Tracking UI
+    // Tracking UI (institutional)
     private LinearLayout trackingContent;
     private TextView trackingStatus;
     private boolean trackingLoading = false;
@@ -37,6 +37,20 @@ public class StockActivity extends AppCompatActivity {
     private LinearLayout watchlistContent;
     private static final String PREF_WATCHLIST = "stock_watchlist";
     private static final String PREF_WATCHLIST_CACHE = "stock_watchlist_cache";
+    // Chip recommendation UI
+    private LinearLayout chipRecContent;
+    private TextView chipRecStatus;
+    private boolean chipRecLoading = false;
+    // Chip tracking UI
+    private LinearLayout chipTrackingContent;
+    private TextView chipTrackingStatus;
+    private boolean chipTrackingLoading = false;
+    // Tab state
+    private LinearLayout instTab;
+    private LinearLayout chipTab;
+    private LinearLayout instPage;
+    private LinearLayout chipPage;
+    private boolean isChipTabActive = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +71,8 @@ public class StockActivity extends AppCompatActivity {
         loadRecommendation();
         refreshWatchlistUI();
         loadTracking();
+        loadChipRecommendation();
+        loadChipTracking();
     }
 
     private void buildUI() {
@@ -66,6 +82,9 @@ public class StockActivity extends AppCompatActivity {
         LinearLayout topBar = UIHelper.topBar(this, "台股 AI 推薦");
         root.addView(topBar);
 
+        // Tab bar
+        root.addView(buildTabBar());
+
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
 
@@ -74,20 +93,91 @@ public class StockActivity extends AppCompatActivity {
         int cp = UIHelper.dp(this, 12);
         content.setPadding(cp, UIHelper.dp(this, 8), cp, cp);
 
-        // Daily Recommendation card
-        content.addView(buildRecommendationCard());
+        // === Institutional page ===
+        instPage = new LinearLayout(this);
+        instPage.setOrientation(LinearLayout.VERTICAL);
+        instPage.addView(buildRecommendationCard());
+        instPage.addView(buildWatchlistCard());
+        instPage.addView(buildTrackingCard());
+        content.addView(instPage);
 
-        // Watchlist Analysis card
-        content.addView(buildWatchlistCard());
-
-        // Tracking & Accuracy card
-        content.addView(buildTrackingCard());
+        // === Chip page ===
+        chipPage = new LinearLayout(this);
+        chipPage.setOrientation(LinearLayout.VERTICAL);
+        chipPage.setVisibility(View.GONE);
+        chipPage.addView(buildChipRecommendationCard());
+        chipPage.addView(buildChipTrackingCard());
+        content.addView(chipPage);
 
         scroll.addView(content);
         root.addView(scroll, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         setContentView(root);
+    }
+
+    private LinearLayout buildTabBar() {
+        LinearLayout tabBar = new LinearLayout(this);
+        tabBar.setOrientation(LinearLayout.HORIZONTAL);
+        tabBar.setBackgroundColor(UIHelper.BG_CARD);
+        int pad = UIHelper.dp(this, 4);
+        tabBar.setPadding(UIHelper.dp(this, 12), pad, UIHelper.dp(this, 12), 0);
+
+        instTab = buildTab("法人推薦", true);
+        chipTab = buildTab("籌碼選股", false);
+
+        instTab.setOnClickListener(v -> switchTab(false));
+        chipTab.setOnClickListener(v -> switchTab(true));
+
+        tabBar.addView(instTab);
+        tabBar.addView(chipTab);
+        return tabBar;
+    }
+
+    private LinearLayout buildTab(String text, boolean active) {
+        LinearLayout tab = new LinearLayout(this);
+        tab.setOrientation(LinearLayout.VERTICAL);
+        tab.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        tab.setLayoutParams(lp);
+        int pad = UIHelper.dp(this, 10);
+        tab.setPadding(pad, pad, pad, UIHelper.dp(this, 6));
+
+        TextView label = new TextView(this);
+        label.setText(text);
+        label.setTextSize(14);
+        label.setTypeface(Typeface.DEFAULT_BOLD);
+        label.setGravity(Gravity.CENTER);
+        label.setTextColor(active ? UIHelper.ACCENT_ORANGE : UIHelper.TEXT_HINT);
+        tab.addView(label);
+
+        // Bottom indicator
+        View indicator = new View(this);
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, UIHelper.dp(this, 3));
+        ilp.setMargins(UIHelper.dp(this, 20), UIHelper.dp(this, 6), UIHelper.dp(this, 20), 0);
+        indicator.setLayoutParams(ilp);
+        indicator.setBackgroundColor(active ? UIHelper.ACCENT_ORANGE : Color.TRANSPARENT);
+        tab.addView(indicator);
+
+        return tab;
+    }
+
+    private void switchTab(boolean toChip) {
+        if (isChipTabActive == toChip) return;
+        isChipTabActive = toChip;
+
+        // Update tab visuals
+        ((TextView) instTab.getChildAt(0)).setTextColor(toChip ? UIHelper.TEXT_HINT : UIHelper.ACCENT_ORANGE);
+        instTab.getChildAt(1).setBackgroundColor(toChip ? Color.TRANSPARENT : UIHelper.ACCENT_ORANGE);
+        ((TextView) chipTab.getChildAt(0)).setTextColor(toChip ? UIHelper.ACCENT_ORANGE : UIHelper.TEXT_HINT);
+        chipTab.getChildAt(1).setBackgroundColor(toChip ? UIHelper.ACCENT_ORANGE : Color.TRANSPARENT);
+
+        // Switch pages
+        instPage.setVisibility(toChip ? View.GONE : View.VISIBLE);
+        chipPage.setVisibility(toChip ? View.VISIBLE : View.GONE);
+
+        AppLog.i("Stock", "switchTab: " + (toChip ? "籌碼選股" : "法人推薦"));
     }
 
     private String formatPrice(double price) {
@@ -666,6 +756,234 @@ public class StockActivity extends AppCompatActivity {
         row.addView(rightCol);
 
         return row;
+    }
+
+    // ==================== Chip Recommendation ====================
+
+    private LinearLayout buildChipRecommendationCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 16, this));
+        int pad = UIHelper.dp(this, 14);
+        card.setPadding(pad, pad, pad, pad);
+        card.setElevation(UIHelper.dp(this, 3));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+        card.setLayoutParams(lp);
+
+        // Title row
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView title = new TextView(this);
+        title.setText("籌碼集中度選股");
+        title.setTextSize(15);
+        title.setTextColor(UIHelper.ACCENT_ORANGE);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        titleRow.addView(title);
+
+        // Subtitle
+        TextView subtitle = new TextView(this);
+        subtitle.setText("大戶持股變化");
+        subtitle.setTextSize(11);
+        subtitle.setTextColor(UIHelper.TEXT_HINT);
+        subtitle.setPadding(UIHelper.dp(this, 8), 0, 0, 0);
+        titleRow.addView(subtitle);
+
+        card.addView(titleRow);
+
+        // Content container
+        chipRecContent = new LinearLayout(this);
+        chipRecContent.setOrientation(LinearLayout.VERTICAL);
+        chipRecContent.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        card.addView(chipRecContent);
+
+        // Status text
+        chipRecStatus = new TextView(this);
+        chipRecStatus.setTextSize(13);
+        chipRecStatus.setTextColor(UIHelper.TEXT_HINT);
+        chipRecStatus.setText("載入中...");
+        chipRecContent.addView(chipRecStatus);
+
+        return card;
+    }
+
+    private void loadChipRecommendation() {
+        if (chipRecLoading) return;
+        chipRecLoading = true;
+        chipRecStatus.setText("載入籌碼選股...");
+        chipRecStatus.setVisibility(View.VISIBLE);
+        AppLog.i("Stock", "loadChipRecommendation: 開始載入");
+
+        BridgeClient.getChipRecommendation((data, error) -> {
+            chipRecLoading = false;
+            if (error != null) {
+                chipRecStatus.setText("尚無籌碼推薦資料");
+                AppLog.w("Stock", "loadChipRecommendation: " + error);
+                return;
+            }
+            if (data == null) {
+                chipRecStatus.setText("尚無籌碼推薦資料");
+                return;
+            }
+            displayChipRecommendation(data);
+        });
+    }
+
+    private void displayChipRecommendation(org.json.JSONObject data) {
+        chipRecContent.removeAllViews();
+        try {
+            String date = data.optString("date", "");
+            org.json.JSONObject rec = data.optJSONObject("data");
+            if (rec == null) rec = data;
+
+            String mood = rec.optString("market_mood", "N/A");
+            String moodReason = rec.optString("mood_reason", "");
+
+            int moodColor = mood.contains("樂觀") ? UIHelper.ACCENT_GREEN
+                    : mood.contains("謹慎") ? UIHelper.ACCENT_RED : UIHelper.ACCENT_ORANGE;
+
+            TextView moodView = new TextView(this);
+            moodView.setText("市場氛圍: " + mood + (moodReason.isEmpty() ? "" : " — " + moodReason));
+            moodView.setTextSize(13);
+            moodView.setTextColor(moodColor);
+            moodView.setTypeface(Typeface.DEFAULT_BOLD);
+            moodView.setPadding(0, 0, 0, UIHelper.dp(this, 8));
+            chipRecContent.addView(moodView);
+
+            if (!date.isEmpty()) {
+                TextView dateView = new TextView(this);
+                dateView.setText("更新日期: " + date);
+                dateView.setTextSize(11);
+                dateView.setTextColor(UIHelper.TEXT_HINT);
+                dateView.setPadding(0, 0, 0, UIHelper.dp(this, 6));
+                chipRecContent.addView(dateView);
+            }
+
+            org.json.JSONArray picks = rec.optJSONArray("picks");
+            if (picks != null && picks.length() > 0) {
+                for (int i = 0; i < picks.length(); i++) {
+                    org.json.JSONObject pick = picks.getJSONObject(i);
+                    chipRecContent.addView(buildPickCard(pick, i + 1));
+                }
+            } else {
+                TextView noPicks = new TextView(this);
+                noPicks.setText("今日無籌碼推薦標的");
+                noPicks.setTextSize(13);
+                noPicks.setTextColor(UIHelper.TEXT_SECONDARY);
+                chipRecContent.addView(noPicks);
+            }
+
+            AppLog.i("Stock", "displayChipRecommendation: " + (picks != null ? picks.length() : 0) + " picks");
+        } catch (Exception e) {
+            TextView errView = new TextView(this);
+            errView.setText("解析籌碼推薦資料失敗: " + e.getMessage());
+            errView.setTextSize(12);
+            errView.setTextColor(UIHelper.ACCENT_RED);
+            chipRecContent.addView(errView);
+            AppLog.e("Stock", "displayChipRecommendation失敗: " + e.getMessage());
+        }
+    }
+
+    // ==================== Chip Tracking ====================
+
+    private LinearLayout buildChipTrackingCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 16, this));
+        int pad = UIHelper.dp(this, 14);
+        card.setPadding(pad, pad, pad, pad);
+        card.setElevation(UIHelper.dp(this, 3));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+        card.setLayoutParams(lp);
+
+        TextView title = new TextView(this);
+        title.setText("籌碼追蹤 & 準確度");
+        title.setTextSize(15);
+        title.setTextColor(UIHelper.ACCENT_PURPLE);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        card.addView(title);
+
+        chipTrackingContent = new LinearLayout(this);
+        chipTrackingContent.setOrientation(LinearLayout.VERTICAL);
+        chipTrackingContent.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        card.addView(chipTrackingContent);
+
+        chipTrackingStatus = new TextView(this);
+        chipTrackingStatus.setTextSize(13);
+        chipTrackingStatus.setTextColor(UIHelper.TEXT_HINT);
+        chipTrackingStatus.setText("載入中...");
+        chipTrackingContent.addView(chipTrackingStatus);
+
+        return card;
+    }
+
+    private void loadChipTracking() {
+        if (chipTrackingLoading) return;
+        chipTrackingLoading = true;
+        chipTrackingStatus.setText("載入籌碼追蹤數據...");
+        chipTrackingStatus.setVisibility(View.VISIBLE);
+        AppLog.i("Stock", "loadChipTracking: 開始載入");
+
+        BridgeClient.getChipTracking((data, error) -> {
+            chipTrackingLoading = false;
+            if (error != null) {
+                chipTrackingStatus.setText("尚無籌碼追蹤資料");
+                AppLog.w("Stock", "loadChipTracking: " + error);
+                return;
+            }
+            if (data == null) {
+                chipTrackingStatus.setText("尚無籌碼追蹤資料");
+                return;
+            }
+            displayChipTracking(data);
+        });
+    }
+
+    private void displayChipTracking(org.json.JSONObject data) {
+        chipTrackingContent.removeAllViews();
+        try {
+            org.json.JSONObject stats = data.optJSONObject("stats");
+            org.json.JSONArray entries = data.optJSONArray("entries");
+
+            if (stats != null) {
+                chipTrackingContent.addView(buildTrackingStatsRow(stats));
+            }
+
+            if (entries != null && entries.length() > 0) {
+                TextView listTitle = new TextView(this);
+                listTitle.setText("追蹤明細 (" + entries.length() + " 筆)");
+                listTitle.setTextSize(13);
+                listTitle.setTextColor(UIHelper.TEXT_HINT);
+                listTitle.setPadding(0, UIHelper.dp(this, 10), 0, UIHelper.dp(this, 4));
+                chipTrackingContent.addView(listTitle);
+
+                for (int i = 0; i < entries.length(); i++) {
+                    org.json.JSONObject entry = entries.getJSONObject(i);
+                    chipTrackingContent.addView(buildTrackingEntry(entry));
+                }
+                AppLog.i("Stock", "displayChipTracking: " + entries.length() + " entries");
+            } else {
+                TextView empty = new TextView(this);
+                empty.setText("尚無籌碼追蹤數據，資料累積後將自動顯示");
+                empty.setTextSize(13);
+                empty.setTextColor(UIHelper.TEXT_HINT);
+                empty.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+                chipTrackingContent.addView(empty);
+            }
+        } catch (Exception e) {
+            TextView errView = new TextView(this);
+            errView.setText("解析籌碼追蹤資料失敗: " + e.getMessage());
+            errView.setTextSize(12);
+            errView.setTextColor(UIHelper.ACCENT_RED);
+            chipTrackingContent.addView(errView);
+            AppLog.e("Stock", "displayChipTracking失敗: " + e.getMessage());
+        }
     }
 
     // ==================== Watchlist Analysis ====================

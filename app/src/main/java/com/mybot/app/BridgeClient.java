@@ -962,6 +962,100 @@ public class BridgeClient {
     }
 
     /**
+     * GET /stock/chip/recommend — fetch today's chip-based recommendation.
+     */
+    public static void getChipRecommendation(StockRecommendationCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getChipRecommendation: 取得籌碼選股");
+            try {
+                URL url = new URL(BASE_URL + "/stock/chip/recommend");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        if (data != null) {
+                            AppLog.i("Bridge", "chipRecommendation成功: date=" + data.optString("date"));
+                            mainHandler.post(() -> callback.onResult(data, null));
+                            return;
+                        }
+                    }
+                    String msg = json.optString("error", "無籌碼推薦資料");
+                    AppLog.w("Bridge", "chipRecommendation無資料: " + msg);
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    AppLog.e("Bridge", "chipRecommendation HTTP " + code);
+                    mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "chipRecommendation失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
+    /**
+     * GET /stock/chip/tracking — fetch chip recommendation tracking data.
+     */
+    public static void getChipTracking(StockRecommendationCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getChipTracking: 取得籌碼追蹤數據");
+            try {
+                URL url = new URL(BASE_URL + "/stock/chip/tracking");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        if (data != null) {
+                            AppLog.i("Bridge", "chipTracking成功: " + data.optJSONObject("stats"));
+                            mainHandler.post(() -> callback.onResult(data, null));
+                            return;
+                        }
+                    }
+                    String msg = json.optString("error", "無籌碼追蹤資料");
+                    AppLog.w("Bridge", "chipTracking無資料: " + msg);
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    AppLog.e("Bridge", "chipTracking HTTP " + code);
+                    mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "chipTracking失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
+    /**
      * GET /stock/tracking — fetch recommendation tracking & accuracy data.
      */
     public static void getStockTracking(StockRecommendationCallback callback) {
