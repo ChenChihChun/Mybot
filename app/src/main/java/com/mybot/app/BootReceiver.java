@@ -30,6 +30,7 @@ public class BootReceiver extends BroadcastReceiver {
         ReminderHelper.restoreWaterIfEnabled(context);
         ReminderHelper.restoreFlightIfEnabled(context);
         ReminderHelper.restoreKnowledgeSyncIfEnabled(context);
+        ReminderHelper.restoreApodWallpaperIfEnabled(context);
         ReminderHelper.restoreNotificationPoll(context);
     }
 }

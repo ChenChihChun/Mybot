@@ -1,5 +1,6 @@
 package com.mybot.app;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -57,6 +58,26 @@ public class ApodActivity extends AppCompatActivity {
         backBtn.setPadding(0, 0, UIHelper.dp(this, 16), 0);
         backBtn.setOnClickListener(v -> finish());
         topBar.addView(backBtn, 0);
+
+        // Auto-wallpaper toggle button
+        TextView wallpaperToggle = new TextView(this);
+        updateWallpaperToggle(wallpaperToggle);
+        wallpaperToggle.setTextSize(12);
+        wallpaperToggle.setPadding(UIHelper.dp(this, 12), UIHelper.dp(this, 6),
+                UIHelper.dp(this, 12), UIHelper.dp(this, 6));
+        wallpaperToggle.setOnClickListener(v -> {
+            boolean enabled = ReminderHelper.isApodWallpaperEnabled(this);
+            if (enabled) {
+                ReminderHelper.cancelApodWallpaper(this);
+                AppLog.i("APOD", "自動桌布已關閉");
+            } else {
+                ReminderHelper.scheduleApodWallpaper(this);
+                AppLog.i("APOD", "自動桌布已開啟，每日08:00更換");
+            }
+            updateWallpaperToggle(wallpaperToggle);
+        });
+        topBar.addView(wallpaperToggle);
+
         root.addView(topBar);
 
         ScrollView scrollView = new ScrollView(this);
@@ -241,6 +262,17 @@ public class ApodActivity extends AppCompatActivity {
         }
 
         return card;
+    }
+
+    private void updateWallpaperToggle(TextView toggle) {
+        boolean enabled = ReminderHelper.isApodWallpaperEnabled(this);
+        if (enabled) {
+            toggle.setText("\uD83C\uDF05 \u81EA\u52D5\u684C\u5E03 ON");
+            toggle.setTextColor(UIHelper.ACCENT_GREEN);
+        } else {
+            toggle.setText("\uD83C\uDF05 \u81EA\u52D5\u684C\u5E03 OFF");
+            toggle.setTextColor(UIHelper.TEXT_HINT);
+        }
     }
 
     private void openUrl(String url) {

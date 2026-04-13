@@ -407,6 +407,62 @@ public class ReminderHelper {
                 .getBoolean(KEY_ENABLED, false);
     }
 
+    // --- APOD Wallpaper (daily 08:00) ---
+    private static final String APOD_WALLPAPER_PREFS = "mybot_apod_wallpaper";
+    private static final int APOD_WALLPAPER_REQUEST_CODE = 9400;
+
+    public static void scheduleApodWallpaper(Context context) {
+        context.getSharedPreferences(APOD_WALLPAPER_PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, true).apply();
+        setApodWallpaperAlarm(context);
+    }
+
+    private static void setApodWallpaperAlarm(Context context) {
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 8);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
+            cal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+
+        Intent intent = new Intent(context, ApodWallpaperReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, APOD_WALLPAPER_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        safeSetExact(am, cal.getTimeInMillis(), pi);
+    }
+
+    public static void scheduleNextApodWallpaper(Context context) {
+        if (isApodWallpaperEnabled(context)) {
+            setApodWallpaperAlarm(context);
+        }
+    }
+
+    public static void cancelApodWallpaper(Context context) {
+        context.getSharedPreferences(APOD_WALLPAPER_PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_ENABLED, false).apply();
+        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, ApodWallpaperReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(context, APOD_WALLPAPER_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        if (am != null) am.cancel(pi);
+    }
+
+    public static void restoreApodWallpaperIfEnabled(Context context) {
+        if (isApodWallpaperEnabled(context)) {
+            setApodWallpaperAlarm(context);
+        }
+    }
+
+    public static boolean isApodWallpaperEnabled(Context context) {
+        return context.getSharedPreferences(APOD_WALLPAPER_PREFS, Context.MODE_PRIVATE)
+                .getBoolean(KEY_ENABLED, false);
+    }
+
     // --- Notification Poll (polls Bridge every 2 minutes) ---
     private static final int NOTIF_POLL_REQUEST_CODE = 9500;
     private static final long NOTIF_POLL_INTERVAL_MS = 2 * 60 * 1000L; // 2 minutes
