@@ -437,6 +437,27 @@ public class StockActivity extends AppCompatActivity {
             copy.append("財報: ").append(finSummary).append("\n");
         }
 
+        // Narrative (Gemini 市場敘事)
+        String narrative = pick.optString("narrative", "");
+        if (!narrative.isEmpty()) {
+            TextView narrativeTitle = new TextView(this);
+            narrativeTitle.setText("敘事");
+            narrativeTitle.setTextSize(12);
+            narrativeTitle.setTextColor(UIHelper.ACCENT_ORANGE);
+            narrativeTitle.setTypeface(Typeface.DEFAULT_BOLD);
+            narrativeTitle.setPadding(0, UIHelper.dp(this, 6), 0, UIHelper.dp(this, 2));
+            card.addView(narrativeTitle);
+
+            TextView narrativeView = new TextView(this);
+            narrativeView.setText(narrative);
+            narrativeView.setTextSize(13);
+            narrativeView.setTextColor(UIHelper.ACCENT_BLUE);
+            narrativeView.setLineSpacing(UIHelper.dp(this, 2), 1f);
+            narrativeView.setPadding(0, 0, 0, UIHelper.dp(this, 4));
+            card.addView(narrativeView);
+            copy.append("敘事: ").append(narrative).append("\n");
+        }
+
         // Reasons
         org.json.JSONArray reasons = pick.optJSONArray("reasons");
         if (reasons != null && reasons.length() > 0) {
