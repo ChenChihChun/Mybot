@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.46 (2026-04-14)
+- **Feature: 台股推薦卡長按可複製**
+  - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — In `buildPickCard()`, build a parallel `StringBuilder` mirroring the rendered content (rank/symbol/name/price, 信心度, 法人, 財報, reasons, 風險, 操作策略) and attach `setOnLongClickListener` that writes the assembled text to `ClipboardManager` and shows a Toast "已複製 <symbol> <name>". Both 法人推薦 and 籌碼推薦 cards share this helper so both tabs gain the feature. Added imports for `ClipData`, `ClipboardManager`, `Context`. Logs via `AppLog.i("Stock", ...)`.
+  - Modified `app/build.gradle` — versionCode 168→169, versionName 4.45→4.46.
+  - **Reason**: user wants to copy recommendation info (e.g. to paste into notes / brokerage app).
+
 ## v4.41 (2026-04-08)
 - **Moved 地圖問答 / 天文日圖 / 夢境解析 into the GAMES section** of MainActivity so they can be long-press-hidden via the existing game registry.
   - `MainActivity.java`: removed fRow6 and fRow7; collapsed 歌詞生成 into fRow5 alongside 旅遊規劃 and 自我演化; removed 地圖問答 from fRow5. Added QuizActivity, ApodActivity, DreamActivity to the `games` registry in `buildGameSection()`. They now use the same `compactCard` size as all other game cards and inherit the long-press hide/restore flow automatically.

@@ -1,6 +1,9 @@
 package com.mybot.app;
 
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -338,6 +341,11 @@ public class StockActivity extends AppCompatActivity {
         String name = pick.optString("name", "?");
         double price = pick.optDouble("price", 0);
 
+        StringBuilder copy = new StringBuilder();
+        copy.append("#").append(rank).append(" ").append(symbol).append(" ").append(name);
+        if (price > 0) copy.append("  ").append(formatPrice(price));
+        copy.append("\n");
+
         // Header: rank + symbol + name + price
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -403,6 +411,7 @@ public class StockActivity extends AppCompatActivity {
             confLp.setMargins(0, UIHelper.dp(this, 4), 0, 0);
             confView.setLayoutParams(confLp);
             card.addView(confView);
+            copy.append("信心度 ").append(confPct).append("%\n");
         }
 
         // Institutional + Financial summary
@@ -414,6 +423,7 @@ public class StockActivity extends AppCompatActivity {
             instView.setTextColor(UIHelper.ACCENT_BLUE);
             instView.setPadding(0, UIHelper.dp(this, 4), 0, 0);
             card.addView(instView);
+            copy.append("法人: ").append(instSummary).append("\n");
         }
 
         String finSummary = pick.optString("financial_summary", "");
@@ -424,6 +434,7 @@ public class StockActivity extends AppCompatActivity {
             finView.setTextColor(UIHelper.ACCENT_GREEN);
             finView.setPadding(0, UIHelper.dp(this, 2), 0, 0);
             card.addView(finView);
+            copy.append("財報: ").append(finSummary).append("\n");
         }
 
         // Reasons
@@ -439,6 +450,7 @@ public class StockActivity extends AppCompatActivity {
                     rv.setPadding(0, UIHelper.dp(this, 3), 0, 0);
                     rv.setLineSpacing(UIHelper.dp(this, 2), 1f);
                     card.addView(rv);
+                    copy.append("• ").append(reason).append("\n");
                 }
             }
         }
@@ -452,6 +464,7 @@ public class StockActivity extends AppCompatActivity {
             riskView.setTextColor(UIHelper.ACCENT_RED);
             riskView.setPadding(0, UIHelper.dp(this, 4), 0, 0);
             card.addView(riskView);
+            copy.append("風險: ").append(risk).append("\n");
         }
 
         // Trading strategy
@@ -499,10 +512,23 @@ public class StockActivity extends AppCompatActivity {
                 stratText.setLineSpacing(UIHelper.dp(this, 2), 1f);
                 stratText.setPadding(0, UIHelper.dp(this, 4), 0, 0);
                 stratBox.addView(stratText);
+                copy.append("\n操作策略\n").append(sb.toString().trim()).append("\n");
             }
 
             card.addView(stratBox);
         }
+
+        final String copyText = copy.toString().trim();
+        card.setOnLongClickListener(v -> {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm != null) {
+                cm.setPrimaryClip(ClipData.newPlainText("stock_pick", copyText));
+                android.widget.Toast.makeText(this, "已複製 " + symbol + " " + name,
+                        android.widget.Toast.LENGTH_SHORT).show();
+                AppLog.i("Stock", "複製推薦卡: " + symbol);
+            }
+            return true;
+        });
 
         return card;
     }
