@@ -26,16 +26,22 @@ public class ApodWallpaperReceiver extends BroadcastReceiver {
 
     private static final int MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15 MB
 
+    public interface ResultCallback {
+        void onResult(boolean success, String message);
+    }
+
     @Override
     public void onReceive(Context context, Intent intent) {
         // Schedule next alarm first (exact alarms are one-shot)
         ReminderHelper.scheduleNextApodWallpaper(context);
+        AppLog.i("APOD", "ApodWallpaperReceiver: 開始更換桌布 (排程)");
+        changeWallpaperAsync(context, "排程", null);
+    }
 
-        AppLog.i("APOD", "ApodWallpaperReceiver: 開始更換桌布");
-
+    public static void changeWallpaperAsync(Context context, String tag, ResultCallback cb) {
+        final String src = (tag == null || tag.isEmpty()) ? "" : " (" + tag + ")";
         new Thread(() -> {
             try {
-                // Step 1: Fetch latest APOD entry from Bridge
                 URL url = new URL("http://127.0.0.1:8765/apod/history");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
@@ -44,7 +50,9 @@ public class ApodWallpaperReceiver extends BroadcastReceiver {
 
                 int code = conn.getResponseCode();
                 if (code != 200) {
-                    AppLog.w("APOD", "ApodWallpaperReceiver: Bridge HTTP " + code);
+                    String msg = "Bridge HTTP " + code;
+                    AppLog.w("APOD", "ApodWallpaperReceiver" + src + ": " + msg);
+                    if (cb != null) cb.onResult(false, msg);
                     return;
                 }
 
@@ -58,60 +66,64 @@ public class ApodWallpaperReceiver extends BroadcastReceiver {
 
                 JSONObject json = new JSONObject(sb.toString());
                 if (!json.optBoolean("success", false)) {
-                    AppLog.w("APOD", "ApodWallpaperReceiver: 請求失敗");
+                    AppLog.w("APOD", "ApodWallpaperReceiver" + src + ": 請求失敗");
+                    if (cb != null) cb.onResult(false, "Bridge 請求失敗");
                     return;
                 }
 
                 JSONObject data = json.optJSONObject("data");
-                if (data == null) return;
-
-                JSONArray entries = data.optJSONArray("entries");
+                JSONArray entries = data == null ? null : data.optJSONArray("entries");
                 if (entries == null || entries.length() == 0) {
-                    AppLog.w("APOD", "ApodWallpaperReceiver: 無APOD資料");
+                    AppLog.w("APOD", "ApodWallpaperReceiver" + src + ": 無APOD資料");
+                    if (cb != null) cb.onResult(false, "無 APOD 資料");
                     return;
                 }
 
-                // Get the latest entry
                 JSONObject latest = entries.getJSONObject(0);
                 String imageUrl = latest.optString("image_url", "");
                 String title = latest.optString("title", "");
                 String date = latest.optString("date", "");
 
                 if (imageUrl.isEmpty()) {
-                    AppLog.w("APOD", "ApodWallpaperReceiver: 無圖片URL");
+                    AppLog.w("APOD", "ApodWallpaperReceiver" + src + ": 無圖片URL");
+                    if (cb != null) cb.onResult(false, "無圖片 URL");
                     return;
                 }
 
-                // Skip video entries (MP4)
                 if (imageUrl.endsWith(".mp4") || imageUrl.endsWith(".webm")) {
-                    AppLog.i("APOD", "ApodWallpaperReceiver: 今日為影片，跳過桌布更換 (" + date + ")");
+                    String msg = "今日為影片，跳過桌布更換 (" + date + ")";
+                    AppLog.i("APOD", "ApodWallpaperReceiver" + src + ": " + msg);
+                    if (cb != null) cb.onResult(false, msg);
                     return;
                 }
 
-                // Step 2: Download the image
-                AppLog.i("APOD", "ApodWallpaperReceiver: 下載圖片 " + date + " - " + title);
+                AppLog.i("APOD", "ApodWallpaperReceiver" + src + ": 下載圖片 " + date + " - " + title);
                 Bitmap bitmap = downloadImage(imageUrl);
                 if (bitmap == null) {
-                    AppLog.w("APOD", "ApodWallpaperReceiver: 圖片下載失敗");
+                    AppLog.w("APOD", "ApodWallpaperReceiver" + src + ": 圖片下載失敗");
+                    if (cb != null) cb.onResult(false, "圖片下載失敗");
                     return;
                 }
 
-                // Step 3: Set as wallpaper (home screen only)
                 WallpaperManager wm = WallpaperManager.getInstance(context);
                 wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM);
                 bitmap.recycle();
 
-                AppLog.i("APOD", "ApodWallpaperReceiver: 桌布已更換 — " + date + " " + title);
+                String okMsg = "桌布已更換 — " + date + " " + title;
+                AppLog.i("APOD", "ApodWallpaperReceiver" + src + ": " + okMsg);
+                if (cb != null) cb.onResult(true, okMsg);
 
             } catch (java.net.ConnectException e) {
-                AppLog.w("APOD", "ApodWallpaperReceiver: Bridge未運行");
+                AppLog.w("APOD", "ApodWallpaperReceiver" + src + ": Bridge未運行");
+                if (cb != null) cb.onResult(false, "Bridge 未運行");
             } catch (Exception e) {
-                AppLog.e("APOD", "ApodWallpaperReceiver失敗: " + e.getMessage());
+                AppLog.e("APOD", "ApodWallpaperReceiver" + src + "失敗: " + e.getMessage());
+                if (cb != null) cb.onResult(false, "失敗: " + e.getMessage());
             }
         }).start();
     }
 
-    private Bitmap downloadImage(String imageUrl) {
+    private static Bitmap downloadImage(String imageUrl) {
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(imageUrl).openConnection();
             conn.setConnectTimeout(15000);
@@ -146,7 +158,7 @@ public class ApodWallpaperReceiver extends BroadcastReceiver {
         }
     }
 
-    private byte[] readAllBytes(InputStream is) throws Exception {
+    private static byte[] readAllBytes(InputStream is) throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         byte[] buffer = new byte[8192];
         int total = 0;

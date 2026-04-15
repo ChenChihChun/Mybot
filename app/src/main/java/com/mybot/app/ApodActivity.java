@@ -18,6 +18,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -77,6 +78,24 @@ public class ApodActivity extends AppCompatActivity {
             updateWallpaperToggle(wallpaperToggle);
         });
         topBar.addView(wallpaperToggle);
+
+        // Manual "change wallpaper now" button
+        TextView wallpaperNow = new TextView(this);
+        wallpaperNow.setText("\uD83C\uDFA8 \u7ACB\u5373\u63DB"); // 🎨 立即換
+        wallpaperNow.setTextSize(12);
+        wallpaperNow.setTextColor(UIHelper.ACCENT_PURPLE);
+        wallpaperNow.setPadding(UIHelper.dp(this, 8), UIHelper.dp(this, 6),
+                UIHelper.dp(this, 12), UIHelper.dp(this, 6));
+        wallpaperNow.setOnClickListener(v -> {
+            Toast.makeText(this, "開始更換桌布\u2026", Toast.LENGTH_SHORT).show();
+            AppLog.i("APOD", "使用者手動觸發更換桌布");
+            ApodWallpaperReceiver.changeWallpaperAsync(getApplicationContext(), "手動",
+                    (success, msg) -> mainHandler.post(() ->
+                            Toast.makeText(ApodActivity.this,
+                                    (success ? "\u2705 " : "\u26A0\uFE0F ") + msg,
+                                    Toast.LENGTH_LONG).show()));
+        });
+        topBar.addView(wallpaperNow);
 
         root.addView(topBar);
 

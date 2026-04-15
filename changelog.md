@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.48 (2026-04-15)
+- **Feature: APOD 桌布可立即手動更換 + 錯誤訊息回報**
+  - Modified `app/src/main/java/com/mybot/app/ApodWallpaperReceiver.java` — extracted the fetch-and-set-wallpaper logic from `onReceive()` into a new `public static void changeWallpaperAsync(Context, String tag, ResultCallback cb)`. Added `ResultCallback` interface so callers can receive success/failure + message. Scheduled alarm path still works identically; manual invocations now get a callback. `downloadImage()` / `readAllBytes()` made static.
+  - Modified `app/src/main/java/com/mybot/app/ApodActivity.java` — added `🎨 立即換` button to the top bar next to the existing `🌅 自動桌布 ON/OFF` toggle. Tapping it calls `ApodWallpaperReceiver.changeWallpaperAsync(ctx, "手動", cb)` and surfaces the result via `Toast` (✅ success / ⚠️ failure), so users can verify the wallpaper flow without waiting for the 08:00 alarm.
+  - Modified `app/build.gradle` — versionCode 170→171, versionName 4.47→4.48.
+  - **Reason**: user reported that after enabling 自動桌布 the scheduled 08:00 alarm ran but the wallpaper did not change. Manual trigger + toast feedback lets users immediately verify WallpaperManager works and see the exact failure reason if not.
+
 ## v4.46 (2026-04-14)
 - **Feature: 台股推薦卡長按可複製**
   - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — In `buildPickCard()`, build a parallel `StringBuilder` mirroring the rendered content (rank/symbol/name/price, 信心度, 法人, 財報, reasons, 風險, 操作策略) and attach `setOnLongClickListener` that writes the assembled text to `ClipboardManager` and shows a Toast "已複製 <symbol> <name>". Both 法人推薦 and 籌碼推薦 cards share this helper so both tabs gain the feature. Added imports for `ClipData`, `ClipboardManager`, `Context`. Logs via `AppLog.i("Stock", ...)`.
