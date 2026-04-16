@@ -345,27 +345,28 @@ public class ETFTrackingActivity extends AppCompatActivity {
         lab.setPadding(0, dp(6), 0, dp(2));
         card.addView(lab);
 
-        StringBuilder sb = new StringBuilder();
-        int show = Math.min(arr.length(), 8);
-        for (int i = 0; i < show; i++) {
+        for (int i = 0; i < arr.length(); i++) {
             JSONObject x = arr.optJSONObject(i);
             if (x == null) continue;
-            if (i > 0) sb.append("、");
-            sb.append(x.optString("name"));
+            StringBuilder sb = new StringBuilder();
+            sb.append(x.optString("code")).append(" ").append(x.optString("name"));
             if (showDelta) {
                 double d = x.optDouble("delta_lots", 0);
-                sb.append(d >= 0 ? "+" : "");
-                sb.append(String.format("%,.0f", d));
+                sb.append("　").append(d >= 0 ? "+" : "");
+                sb.append(String.format("%,.0f", d)).append(" 張");
+            } else {
+                double w = x.optDouble("weight", 0);
+                double lots = x.optDouble("lots", 0);
+                if (lots > 0) sb.append("　").append(String.format("%,.0f", lots)).append(" 張");
+                if (w > 0) sb.append("　").append(String.format("%.2f%%", w));
             }
+            TextView row = new TextView(this);
+            row.setText("• " + sb.toString());
+            row.setTextColor(UIHelper.TEXT_PRIMARY);
+            row.setTextSize(12);
+            row.setPadding(dp(4), dp(2), 0, dp(2));
+            card.addView(row);
         }
-        if (arr.length() > show) sb.append(" 等 ").append(arr.length()).append(" 檔");
-
-        TextView body = new TextView(this);
-        body.setText(sb.toString());
-        body.setTextColor(UIHelper.TEXT_PRIMARY);
-        body.setTextSize(12);
-        body.setLineSpacing(dp(2), 1f);
-        card.addView(body);
     }
 
     private LinearLayout buildHoldingsTable(JSONArray holdings) {
