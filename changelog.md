@@ -1,5 +1,16 @@
 # Changelog
 
+## v4.49 (2026-04-17)
+- **Added**: `ETFTrackingActivity.java` — 全新「00981A 主動 ETF 經理人動向」圖卡。從 Bridge `/etf/00981a/tracking` 拉取 14 個交易日資料，顯示：
+  - 摘要列：資料日期、淨資產（億）、持股檔數、累積天數
+  - 14 天彙總四大區塊：🆕 新建倉、🗑 已出清、📈 累計加碼最多 (Top 15)、📉 累計減碼最多 (Top 10)
+  - ⏱ 每日動向時間軸：每日新建倉/出清/加碼/減碼 個股清單
+  - 📃 最新完整持股表（代號 名稱｜張數｜權重%）
+- **Added**: `AndroidManifest.xml` — 註冊 `.ETFTrackingActivity` (exported=false)。
+- **Modified**: `MainActivity.java` — 主畫面 Features 區新增 Row 6，加入「📊 00981A 動向」圖卡（ACCENT_BLUE），點擊跳轉 ETFTrackingActivity。
+- **Modified**: `app/build.gradle` — versionCode 171→172, versionName 4.48→4.49。
+- **Backend dependency**: 需 Bridge `etf_active` 模組（每日 19:00 自動更新）。
+
 ## v4.48 (2026-04-15)
 - **Feature: APOD 桌布可立即手動更換 + 錯誤訊息回報**
   - Modified `app/src/main/java/com/mybot/app/ApodWallpaperReceiver.java` — extracted the fetch-and-set-wallpaper logic from `onReceive()` into a new `public static void changeWallpaperAsync(Context, String tag, ResultCallback cb)`. Added `ResultCallback` interface so callers can receive success/failure + message. Scheduled alarm path still works identically; manual invocations now get a callback. `downloadImage()` / `readAllBytes()` made static.

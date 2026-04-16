@@ -253,6 +253,12 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, LyricsActivity.class)), g);
         content.addView(fRow5);
 
+        // Row 6: 00981A 主動 ETF 經理人動向
+        LinearLayout fRow6 = gridRow3();
+        addCompact(fRow6, "\uD83D\uDCCA", "00981A 動向", UIHelper.ACCENT_BLUE,
+                v -> startActivity(new Intent(this, ETFTrackingActivity.class)), 0);
+        content.addView(fRow6);
+
         // ── Games (dynamic, hideable via long-press) ──
         content.addView(UIHelper.sectionHeader(this, "GAMES"));
         gameContainer = new LinearLayout(this);

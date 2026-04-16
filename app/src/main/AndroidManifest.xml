@@ -105,6 +105,9 @@
         <!-- Quiz Activity -->
         <activity android:name=".QuizActivity" android:exported="false" />
 
+        <!-- 00981A Active ETF Tracking Activity -->
+        <activity android:name=".ETFTrackingActivity" android:exported="false" />
+
         <!-- Dream Activity -->
         <activity android:name=".DreamActivity" android:exported="false" />
 
