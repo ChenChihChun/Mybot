@@ -821,6 +821,21 @@ public class StockActivity extends AppCompatActivity {
         statusView.setGravity(Gravity.END);
         rightCol.addView(statusView);
 
+        // Long-term "to-date" return (only shown for completed picks with newer data)
+        if ("completed".equals(status) && !entry.isNull("latest_return_pct")) {
+            double latestPct = entry.optDouble("latest_return_pct", 0);
+            String latestDate = entry.optString("latest_date", "");
+            String shortLatest = latestDate.length() >= 10 ? latestDate.substring(5) : latestDate;
+            int latestColor = latestPct > 0 ? UIHelper.ACCENT_GREEN
+                    : latestPct < 0 ? UIHelper.ACCENT_RED : UIHelper.TEXT_HINT;
+            TextView latestView = new TextView(this);
+            latestView.setText(String.format("迄今 %+.2f%% (%s)", latestPct, shortLatest));
+            latestView.setTextSize(10);
+            latestView.setTextColor(latestColor);
+            latestView.setGravity(Gravity.END);
+            rightCol.addView(latestView);
+        }
+
         row.addView(rightCol);
 
         return row;
