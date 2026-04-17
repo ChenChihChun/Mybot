@@ -34,6 +34,10 @@ public class NotificationHelper {
     }
 
     public static void sendNotification(Context context, String title, String text, String url) {
+        sendNotification(context, title, text, url, notificationId++);
+    }
+
+    public static void sendNotification(Context context, String title, String text, String url, int id) {
         createNotificationChannel(context);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
@@ -48,14 +52,14 @@ public class NotificationHelper {
                 && (url.startsWith("https://") || url.startsWith("http://"))) {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            PendingIntent pi = PendingIntent.getActivity(context, notificationId, intent,
+            PendingIntent pi = PendingIntent.getActivity(context, id, intent,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             builder.setContentIntent(pi);
         }
 
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         if (manager != null) {
-            manager.notify(notificationId++, builder.build());
+            manager.notify(id, builder.build());
         }
     }
 

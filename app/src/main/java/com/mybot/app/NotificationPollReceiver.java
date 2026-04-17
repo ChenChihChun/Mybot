@@ -71,7 +71,7 @@ public class NotificationPollReceiver extends BroadcastReceiver {
 
                         if (id > 0 && !content.isEmpty()) {
                             NotificationHelper.sendNotification(context, title, content,
-                                    notifUrl.isEmpty() ? null : notifUrl);
+                                    notifUrl.isEmpty() ? null : notifUrl, id);
                             ackIds.add(id);
                             AppLog.i("NotificationPoll", "顯示通知: " + title);
                         }
