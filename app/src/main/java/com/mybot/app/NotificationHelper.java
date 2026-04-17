@@ -57,6 +57,16 @@ public class NotificationHelper {
             builder.setContentIntent(pi);
         }
 
+        // Share action button
+        String shareText = title + "\n" + text;
+        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+        shareIntent.setType("text/plain");
+        shareIntent.putExtra(Intent.EXTRA_TEXT, shareText);
+        PendingIntent sharePi = PendingIntent.getActivity(context, id + 100000,
+                Intent.createChooser(shareIntent, "分享"),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        builder.addAction(android.R.drawable.ic_menu_share, "分享", sharePi);
+
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         if (manager != null) {
             manager.notify(id, builder.build());
