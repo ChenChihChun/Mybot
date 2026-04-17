@@ -1464,6 +1464,17 @@ public class StockActivity extends AppCompatActivity {
             container.addView(instView);
         }
 
+        // Financial summary
+        String finSummary = data.optString("financial_summary", "");
+        if (!finSummary.isEmpty()) {
+            TextView finView = new TextView(this);
+            finView.setText("財報: " + finSummary);
+            finView.setTextSize(12);
+            finView.setTextColor(UIHelper.ACCENT_GREEN);
+            finView.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+            container.addView(finView);
+        }
+
         // Risks
         JSONArray risks = data.optJSONArray("risks");
         if (risks != null && risks.length() > 0) {
