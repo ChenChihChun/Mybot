@@ -1490,6 +1490,26 @@ public class StockActivity extends AppCompatActivity {
             container.addView(finView);
         }
 
+        // Conference summary (法說會自結 — 參考資料)
+        String confSummary = data.optString("conference_summary", "");
+        if (!confSummary.isEmpty()) {
+            TextView confTitle = new TextView(this);
+            confTitle.setText("法說會自結（參考資料）");
+            confTitle.setTextSize(11);
+            confTitle.setTextColor(UIHelper.ACCENT_ORANGE);
+            confTitle.setTypeface(Typeface.DEFAULT_BOLD);
+            confTitle.setPadding(0, UIHelper.dp(this, 6), 0, 0);
+            container.addView(confTitle);
+
+            TextView confView = new TextView(this);
+            confView.setText(confSummary);
+            confView.setTextSize(12);
+            confView.setTextColor(UIHelper.TEXT_SECONDARY);
+            confView.setLineSpacing(UIHelper.dp(this, 2), 1f);
+            confView.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+            container.addView(confView);
+        }
+
         // Risks
         JSONArray risks = data.optJSONArray("risks");
         if (risks != null && risks.length() > 0) {
