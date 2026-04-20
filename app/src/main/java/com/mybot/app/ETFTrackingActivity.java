@@ -45,6 +45,12 @@ public class ETFTrackingActivity extends AppCompatActivity {
         loadData();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadData();
+    }
+
     private void buildUI() {
         LinearLayout root = UIHelper.pageRoot(this);
         root.addView(UIHelper.topBar(this, "\uD83D\uDCCA 00981A 經理人動向"));
