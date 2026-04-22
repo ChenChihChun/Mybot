@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.57 (2026-04-22)
+- **Fixed**: 台股推薦卡 Yahoo 旁邊股價被截斷問題
+  - Modified `app/src/main/java/com/mybot/app/StockActivity.java` — 在 `buildPickCard()` 的 `nameView` 加上 `setSingleLine(true)` 和 `setEllipsize(TruncateAt.END)`，當股票名稱過長時會以 `...` 截斷，確保 Yahoo 連結和股價有足夠空間完整顯示。
+  - Modified `app/build.gradle` — versionCode 179→180, versionName 4.56→4.57。
+  - **Reason**: 股票名稱較長時會擠壓到 Yahoo→ 和股價區域，導致股價無法完整顯示。
+
 ## v4.49 (2026-04-17)
 - **Added**: `ETFTrackingActivity.java` — 全新「00981A 主動 ETF 經理人動向」圖卡。從 Bridge `/etf/00981a/tracking` 拉取 14 個交易日資料，顯示：
   - 摘要列：資料日期、淨資產（億）、持股檔數、累積天數

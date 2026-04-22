@@ -363,6 +363,8 @@ public class StockActivity extends AppCompatActivity {
         nameView.setTextSize(15);
         nameView.setTextColor(UIHelper.TEXT_PRIMARY);
         nameView.setTypeface(Typeface.DEFAULT_BOLD);
+        nameView.setSingleLine(true);
+        nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         nameView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
         // Yahoo Finance link (inline after name)
