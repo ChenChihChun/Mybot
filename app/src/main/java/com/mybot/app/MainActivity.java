@@ -270,12 +270,13 @@ public class MainActivity extends AppCompatActivity {
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));
 
         LinearLayout tRow1 = gridRow3();
-        addCompact(tRow1, "\uD83D\uDCF7", "截圖分析", UIHelper.ACCENT_RED,
-                v -> toggleFloatingCapture(), 0);
-        addCompact(tRow1, "\uD83E\uDDFE", "發票掃描", UIHelper.ACCENT_ORANGE,
-                v -> startActivity(new Intent(this, InvoiceActivity.class)), g);
+        addCompact(tRow1, "\uD83D\uDCB3", "LINE 記帳", UIHelper.ACCENT_GREEN,
+                v -> startActivity(new Intent(this, LinePermissionGuideActivity.class)), 0);
         addCompact(tRow1, "\uD83D\uDCBB", "遠端開發", UIHelper.ACCENT_BLUE,
                 v -> startActivity(new Intent(this, RemoteDevActivity.class)), g);
+        View tRow1Spacer = new View(this);
+        tRow1Spacer.setVisibility(View.INVISIBLE);
+        tRow1.addView(tRow1Spacer, gridCellLp(g));
         content.addView(tRow1);
 
         LinearLayout tRow2 = gridRow3();

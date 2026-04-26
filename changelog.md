@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.59 (2026-04-26)
+- **Added**: `LineExpenseListenerService.java` — NotificationListenerService 監聽 LINE 通知，自動解析消費訊息並記錄到「消費紀錄」。
+  - 支援 LINE Pay、玉山、國泰、台新、中信、富邦等主要銀行格式（多組 regex）
+  - 自動分類：餐飲/交通/購物/娛樂/醫療/生活/服飾（關鍵字比對）
+  - 60 秒去重防止重複記帳
+  - 記帳後推送通知，點擊可直接進入編輯頁
+- **Added**: `LinePermissionGuideActivity.java` — 引導用戶開啟通知存取權。
+  - 顯示目前授權狀態（已啟用/未啟用）
+  - Android 13+ 「受限設定」說明（sideload APK 需先在 App 資訊頁「允許受限設定」）
+  - 一鍵跳轉通知存取設定頁
+- **Modified**: `NotificationHelper.java` — 新增 `sendLineExpenseNotification()` 方法，通知標題為「LINE 消費已記錄」，點擊可跳轉編輯畫面。
+- **Modified**: `AndroidManifest.xml` — 註冊 `LineExpenseListenerService`（含 `BIND_NOTIFICATION_LISTENER_SERVICE` 權限）和 `LinePermissionGuideActivity`。
+- **Modified**: `MainActivity.java` — 移除「截圖分析」和「發票掃描」按鈕，以「💳 LINE 記帳」取代（點擊進入 LinePermissionGuideActivity）。
+- **Modified**: `app/build.gradle` — versionCode 181→182, versionName 4.58→4.59。
+
 ## v4.58 (2026-04-22)
 - **Fixed**: 台股推薦卡 Yahoo 旁邊股價被截斷問題
   - Modified `app/src/main/java/com/mybot/app/StockActivity.java` —
