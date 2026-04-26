@@ -1410,4 +1410,291 @@ public class BridgeClient {
         });
     }
 
+    // ==================== Paper Trade ====================
+
+    public interface PaperTradeCallback {
+        void onResult(boolean success, JSONObject data, String error);
+    }
+
+    public interface PaperTradeArrayCallback {
+        void onResult(boolean success, JSONArray data, String error);
+    }
+
+    public interface PaperTradeActionCallback {
+        void onResult(boolean success, String error);
+    }
+
+    /**
+     * GET /paper-trade/overview — get portfolio overview.
+     */
+    public static void getPaperTradeOverview(PaperTradeCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getPaperTradeOverview");
+            try {
+                URL url = new URL(BASE_URL + "/paper-trade/overview");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "getPaperTradeOverview成功");
+                        mainHandler.post(() -> callback.onResult(true, data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "無資料");
+                    mainHandler.post(() -> callback.onResult(false, null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(false, null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "getPaperTradeOverview失敗: " + err);
+                mainHandler.post(() -> callback.onResult(false, null, err));
+            }
+        });
+    }
+
+    /**
+     * GET /paper-trade/holdings — get current holdings.
+     */
+    public static void getPaperTradeHoldings(PaperTradeArrayCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getPaperTradeHoldings");
+            try {
+                URL url = new URL(BASE_URL + "/paper-trade/holdings");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONArray data = json.optJSONArray("data");
+                        AppLog.i("Bridge", "getPaperTradeHoldings成功: " + (data != null ? data.length() : 0));
+                        mainHandler.post(() -> callback.onResult(true, data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "無資料");
+                    mainHandler.post(() -> callback.onResult(false, null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(false, null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "getPaperTradeHoldings失敗: " + err);
+                mainHandler.post(() -> callback.onResult(false, null, err));
+            }
+        });
+    }
+
+    /**
+     * GET /paper-trade/trades — get recent trades.
+     */
+    public static void getPaperTradeTrades(int limit, PaperTradeArrayCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getPaperTradeTrades: limit=" + limit);
+            try {
+                URL url = new URL(BASE_URL + "/paper-trade/trades?limit=" + limit);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONArray data = json.optJSONArray("data");
+                        AppLog.i("Bridge", "getPaperTradeTrades成功: " + (data != null ? data.length() : 0));
+                        mainHandler.post(() -> callback.onResult(true, data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "無資料");
+                    mainHandler.post(() -> callback.onResult(false, null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(false, null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "getPaperTradeTrades失敗: " + err);
+                mainHandler.post(() -> callback.onResult(false, null, err));
+            }
+        });
+    }
+
+    /**
+     * GET /paper-trade/strategy — get current strategy and recent decisions.
+     */
+    public static void getPaperTradeStrategy(PaperTradeCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getPaperTradeStrategy");
+            try {
+                URL url = new URL(BASE_URL + "/paper-trade/strategy");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "getPaperTradeStrategy成功");
+                        mainHandler.post(() -> callback.onResult(true, data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "無資料");
+                    mainHandler.post(() -> callback.onResult(false, null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(false, null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "getPaperTradeStrategy失敗: " + err);
+                mainHandler.post(() -> callback.onResult(false, null, err));
+            }
+        });
+    }
+
+    /**
+     * GET /paper-trade/performance — get performance statistics.
+     */
+    public static void getPaperTradePerformance(PaperTradeCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getPaperTradePerformance");
+            try {
+                URL url = new URL(BASE_URL + "/paper-trade/performance");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "getPaperTradePerformance成功");
+                        mainHandler.post(() -> callback.onResult(true, data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "無資料");
+                    mainHandler.post(() -> callback.onResult(false, null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(false, null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "getPaperTradePerformance失敗: " + err);
+                mainHandler.post(() -> callback.onResult(false, null, err));
+            }
+        });
+    }
+
+    /**
+     * POST /paper-trade/toggle — pause or resume trading.
+     */
+    public static void togglePaperTrade(boolean pause, PaperTradeActionCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "togglePaperTrade: pause=" + pause);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("pause", pause);
+                String[] result = postJsonWithError(BASE_URL + "/paper-trade/toggle", body.toString());
+                if (result[0] != null) {
+                    JSONObject json = new JSONObject(result[0]);
+                    if (json.optBoolean("success", false)) {
+                        AppLog.i("Bridge", "togglePaperTrade成功");
+                        mainHandler.post(() -> callback.onResult(true, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "操作失敗");
+                    mainHandler.post(() -> callback.onResult(false, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(false, result[1]));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "togglePaperTrade失敗: " + err);
+                mainHandler.post(() -> callback.onResult(false, err));
+            }
+        });
+    }
+
+    /**
+     * POST /paper-trade/reset — reset simulation.
+     */
+    public static void resetPaperTrade(PaperTradeActionCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "resetPaperTrade");
+            try {
+                String[] result = postJsonWithError(BASE_URL + "/paper-trade/reset", "{}");
+                if (result[0] != null) {
+                    JSONObject json = new JSONObject(result[0]);
+                    if (json.optBoolean("success", false)) {
+                        AppLog.i("Bridge", "resetPaperTrade成功");
+                        mainHandler.post(() -> callback.onResult(true, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "操作失敗");
+                    mainHandler.post(() -> callback.onResult(false, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(false, result[1]));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "resetPaperTrade失敗: " + err);
+                mainHandler.post(() -> callback.onResult(false, err));
+            }
+        });
+    }
+
 }

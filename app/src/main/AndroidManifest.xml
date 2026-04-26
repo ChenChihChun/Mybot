@@ -108,6 +108,9 @@
         <!-- 00981A Active ETF Tracking Activity -->
         <activity android:name=".ETFTrackingActivity" android:exported="false" />
 
+        <!-- Paper Trade (AI Trader) Activity -->
+        <activity android:name=".PaperTradeActivity" android:exported="false" />
+
         <!-- Dream Activity -->
         <activity android:name=".DreamActivity" android:exported="false" />
 

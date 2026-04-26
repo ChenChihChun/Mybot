@@ -243,13 +243,12 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, EvolutionActivity.class)), g);
         content.addView(fRow4);
 
-        // Row 5: 00981A ETF 動向
+        // Row 5: 00981A ETF 動向, 模擬交易
         LinearLayout fRow5 = gridRow3();
         addCompact(fRow5, "\uD83D\uDCCA", "00981A 動向", UIHelper.ACCENT_BLUE,
                 v -> startActivity(new Intent(this, ETFTrackingActivity.class)), 0);
-        View fRow5Spacer1 = new View(this);
-        fRow5Spacer1.setVisibility(View.INVISIBLE);
-        fRow5.addView(fRow5Spacer1, gridCellLp(g));
+        addCompact(fRow5, "\uD83E\uDD16", "AI Trader", UIHelper.ACCENT_ORANGE,
+                v -> startActivity(new Intent(this, PaperTradeActivity.class)), g);
         View fRow5Spacer2 = new View(this);
         fRow5Spacer2.setVisibility(View.INVISIBLE);
         fRow5.addView(fRow5Spacer2, gridCellLp(g));
