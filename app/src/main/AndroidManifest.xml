@@ -138,6 +138,8 @@
         <activity android:name=".LogActivity" android:exported="false" />
         <!-- Cron Manager Activity -->
         <activity android:name=".CronActivity" android:exported="false" />
+        <!-- Stock Status Activity -->
+        <activity android:name=".StockStatusActivity" android:exported="false" />
         <activity android:name=".ApodActivity" android:exported="false" />
         <activity android:name=".CryptoActivity" android:exported="false" />
 

@@ -274,6 +274,17 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, CronActivity.class)), g);
         content.addView(tRow1);
 
+        LinearLayout tRow2 = gridRow3();
+        addCompact(tRow2, "\uD83D\uDCCA", "股票資料", UIHelper.ACCENT_ORANGE,
+                v -> startActivity(new Intent(this, StockStatusActivity.class)), 0);
+        View tRow2Spacer1 = new View(this);
+        tRow2Spacer1.setVisibility(View.INVISIBLE);
+        tRow2.addView(tRow2Spacer1, gridCellLp(g));
+        View tRow2Spacer2 = new View(this);
+        tRow2Spacer2.setVisibility(View.INVISIBLE);
+        tRow2.addView(tRow2Spacer2, gridCellLp(g));
+        content.addView(tRow2);
+
         // ── Version footer ──
         LinearLayout versionRow = new LinearLayout(this);
         versionRow.setOrientation(LinearLayout.HORIZONTAL);

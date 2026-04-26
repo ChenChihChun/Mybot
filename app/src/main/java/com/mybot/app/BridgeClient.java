@@ -1367,4 +1367,47 @@ public class BridgeClient {
         });
     }
 
+    /**
+     * GET /stock/status — get stock data status for monitoring.
+     */
+    public static void getStockStatus(CronCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getStockStatus: 取得股票資料狀態");
+            try {
+                URL url = new URL(BASE_URL + "/stock/status");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "getStockStatus成功");
+                        mainHandler.post(() -> callback.onResult(data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "無資料");
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "getStockStatus失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
 }
