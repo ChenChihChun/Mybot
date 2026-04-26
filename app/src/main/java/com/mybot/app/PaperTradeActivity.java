@@ -766,7 +766,7 @@ public class PaperTradeActivity extends AppCompatActivity {
                     new String[]{"Resume Trading", "Reset Simulation"} :
                     new String[]{"Pause Trading", "Reset Simulation"};
 
-            new AlertDialog.Builder(this, R.style.DarkDialogTheme)
+            new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
                     .setTitle("AI Trader Control")
                     .setItems(options, (dialog, which) -> {
                         if (which == 0) {
@@ -794,7 +794,7 @@ public class PaperTradeActivity extends AppCompatActivity {
     }
 
     private void confirmReset() {
-        new AlertDialog.Builder(this, R.style.DarkDialogTheme)
+        new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
                 .setTitle("Reset Simulation")
                 .setMessage("This will clear all holdings, trades, and reset to initial capital. Continue?")
                 .setPositiveButton("Reset", (dialog, which) -> resetSimulation())
