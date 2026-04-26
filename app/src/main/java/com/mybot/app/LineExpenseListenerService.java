@@ -5,9 +5,10 @@ import android.content.Context;
 import android.provider.Settings;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
-import android.text.TextUtils;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Listens to LINE notifications and uses AI (Bridge/Haiku) to detect expense/transfer records.
@@ -17,6 +18,10 @@ public class LineExpenseListenerService extends NotificationListenerService {
 
     private static final String LINE_PACKAGE = "jp.naver.line.android";
     private static final float CONFIDENCE_THRESHOLD = 0.6f;
+    private static final long DEDUP_WINDOW_MS = 60_000;
+
+    // Dedup: content hash → timestamp, prevent double-fire from notification updates
+    private final Map<Integer, Long> recentHashes = new HashMap<>();
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
@@ -37,6 +42,17 @@ public class LineExpenseListenerService extends NotificationListenerService {
 
         // Coarse pre-filter: skip if no numeric content at all (e.g. plain chat messages)
         if (!mightBeFinancial(title, content)) return;
+
+        // Dedup: skip if same content seen within 60 seconds (notification update re-fires)
+        int hash = (title + content).hashCode();
+        long now = System.currentTimeMillis();
+        Long lastSeen = recentHashes.get(hash);
+        if (lastSeen != null && (now - lastSeen) < DEDUP_WINDOW_MS) {
+            AppLog.i("LineExpense", "略過重複通知 (dedup)");
+            return;
+        }
+        recentHashes.put(hash, now);
+        recentHashes.entrySet().removeIf(e -> (now - e.getValue()) > DEDUP_WINDOW_MS * 10);
 
         // Fetch existing categories for better classification
         ExpenseDbHelper db = new ExpenseDbHelper(this);
