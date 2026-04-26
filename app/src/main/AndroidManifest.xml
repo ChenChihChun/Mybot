@@ -129,16 +129,6 @@
             android:screenOrientation="portrait"
             android:exported="false" />
 
-        <!-- Lights Out Puzzle -->
-        <activity android:name=".LightsOutActivity"
-            android:screenOrientation="portrait"
-            android:exported="false" />
-
-        <!-- Color Flood Game -->
-        <activity android:name=".ColorFloodActivity"
-            android:screenOrientation="portrait"
-            android:exported="false" />
-
         <!-- 2048 Game -->
         <activity android:name=".Game2048Activity"
             android:screenOrientation="portrait"

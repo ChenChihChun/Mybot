@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.62 (2026-04-26)
+- **Deleted**: `ColorFloodActivity.java`, `LightsOutActivity.java` — 移除 Color Flood 和 Lights Out 遊戲。
+- **Modified**: `MainActivity.java` — 從 games 陣列移除這兩個遊戲。
+- **Modified**: `AndroidManifest.xml` — 移除這兩個 Activity 的註冊。
+- **Modified**: `app/build.gradle` — versionCode 184→185, versionName 4.61→4.62。
+
 ## v4.61 (2026-04-26)
 - **Removed**: `MainActivity.java` — 移除遊戲隱藏/恢復功能（長按隱藏、恢復已隱藏遊戲按鈕、`hideGame()` 方法、`hidden_games` SharedPreferences）。遊戲本身保留。
 - **Modified**: `app/build.gradle` — versionCode 183→184, versionName 4.60→4.61。

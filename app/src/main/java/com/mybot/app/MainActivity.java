@@ -428,8 +428,6 @@ public class MainActivity extends AppCompatActivity {
         // Game registry
         Object[][] games = {
                 {"\uD83C\uDFAE", "\u4FC4\u7F85\u65AF\u65B9\u584A", UIHelper.ACCENT_BLUE, TetrisActivity.class},
-                {"\uD83D\uDCA1", "Lights Out", UIHelper.ACCENT_ORANGE, LightsOutActivity.class},
-                {"\uD83C\uDFA8", "Color Flood", UIHelper.ACCENT_RED, ColorFloodActivity.class},
                 {"\uD83E\uDDE9", "2048", UIHelper.ACCENT_GREEN, Game2048Activity.class},
                 {"\uD83C\uDF0D", "\u5730\u5716\u554F\u7B54", UIHelper.ACCENT_BLUE, QuizActivity.class},
                 {"\uD83C\uDF0C", "\u5929\u6587\u65E5\u5716", UIHelper.ACCENT_PURPLE, ApodActivity.class},
