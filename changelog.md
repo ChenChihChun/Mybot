@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.61 (2026-04-26)
+- **Removed**: `MainActivity.java` — 移除遊戲隱藏/恢復功能（長按隱藏、恢復已隱藏遊戲按鈕、`hideGame()` 方法、`hidden_games` SharedPreferences）。遊戲本身保留。
+- **Modified**: `app/build.gradle` — versionCode 183→184, versionName 4.60→4.61。
+
 ## v4.60 (2026-04-26)
 - **Fixed**: `LinePermissionGuideActivity.java` — 修正 `onResume()` 呼叫 `recreate()` 導致無限循環、畫面狂閃的問題。改用成員變數直接更新 UI。
 - **Modified**: `app/build.gradle` — versionCode 182→183, versionName 4.59→4.60。

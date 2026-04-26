@@ -422,13 +422,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void buildGameSection() {
         gameContainer.removeAllViews();
-        Set<String> hidden = getSharedPreferences("app_prefs", MODE_PRIVATE)
-                .getStringSet("hidden_games", new HashSet<>());
-
         int g = UIHelper.dp(this, 8);
         List<LinearLayout> cards = new ArrayList<>();
 
-        // Game registry — add new games here
+        // Game registry
         Object[][] games = {
                 {"\uD83C\uDFAE", "\u4FC4\u7F85\u65AF\u65B9\u584A", UIHelper.ACCENT_BLUE, TetrisActivity.class},
                 {"\uD83D\uDCA1", "Lights Out", UIHelper.ACCENT_ORANGE, LightsOutActivity.class},
@@ -441,21 +438,11 @@ public class MainActivity extends AppCompatActivity {
 
         for (Object[] game : games) {
             String label = (String) game[1];
-            if (hidden.contains(label)) continue;
             String icon = (String) game[0];
             int color = (Integer) game[2];
             Class<?> actCls = (Class<?>) game[3];
             LinearLayout card = UIHelper.compactCard(this, icon, label, color);
             card.setOnClickListener(v -> startActivity(new Intent(this, actCls)));
-            card.setOnLongClickListener(v -> {
-                new AlertDialog.Builder(this)
-                        .setTitle("\u96B1\u85CF\u904A\u6232")
-                        .setMessage("\u78BA\u5B9A\u8981\u96B1\u85CF\u300C" + label + "\u300D\uFF1F\n\u53EF\u5F9E GAMES \u5340\u57DF\u5E95\u90E8\u6062\u5FA9")
-                        .setPositiveButton("\u96B1\u85CF", (d, w) -> hideGame(label))
-                        .setNegativeButton("\u53D6\u6D88", null)
-                        .show();
-                return true;
-            });
             cards.add(card);
         }
 
@@ -472,46 +459,6 @@ public class MainActivity extends AppCompatActivity {
             }
             gameContainer.addView(row);
         }
-
-        // Restore button if any games are hidden
-        if (!hidden.isEmpty()) {
-            TextView restore = new TextView(this);
-            restore.setText("\u2728 \u6062\u5FA9\u5DF2\u96B1\u85CF\u904A\u6232\uFF08" + hidden.size() + "\uFF09");
-            restore.setTextSize(12);
-            restore.setTextColor(UIHelper.TEXT_HINT);
-            restore.setGravity(Gravity.CENTER);
-            restore.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
-            restore.setOnClickListener(v -> {
-                String[] names = hidden.toArray(new String[0]);
-                boolean[] checked = new boolean[names.length];
-                for (int i = 0; i < checked.length; i++) checked[i] = true;
-                new AlertDialog.Builder(this)
-                        .setTitle("\u6062\u5FA9\u904A\u6232")
-                        .setMultiChoiceItems(names, checked, (d, which, isChecked) -> checked[which] = isChecked)
-                        .setPositiveButton("\u6062\u5FA9", (d, w) -> {
-                            Set<String> newHidden = new HashSet<>(hidden);
-                            for (int i = 0; i < names.length; i++) {
-                                if (checked[i]) newHidden.remove(names[i]);
-                            }
-                            getSharedPreferences("app_prefs", MODE_PRIVATE).edit()
-                                    .putStringSet("hidden_games", newHidden).apply();
-                            AppLog.i("Games", "\u6062\u5FA9\u904A\u6232");
-                            buildGameSection();
-                        })
-                        .setNegativeButton("\u53D6\u6D88", null)
-                        .show();
-            });
-            gameContainer.addView(restore);
-        }
-    }
-
-    private void hideGame(String label) {
-        SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
-        Set<String> hidden = new HashSet<>(prefs.getStringSet("hidden_games", new HashSet<>()));
-        hidden.add(label);
-        prefs.edit().putStringSet("hidden_games", hidden).apply();
-        AppLog.i("Games", "\u96B1\u85CF\u904A\u6232: " + label);
-        buildGameSection();
     }
 
     private LinearLayout.LayoutParams gridCellLp(int leftMargin) {
