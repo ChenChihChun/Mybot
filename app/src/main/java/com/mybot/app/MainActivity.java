@@ -233,31 +233,27 @@ public class MainActivity extends AppCompatActivity {
                 v -> startActivity(new Intent(this, MusicActivity.class)), g);
         content.addView(fRow3);
 
-        // Row 4: 影片摘要, 知識庫
+        // Row 4: 影片摘要, 知識庫, 自我演化
         LinearLayout fRow4 = gridRow3();
         addCompact(fRow4, "\uD83C\uDFAC", "影片摘要", UIHelper.ACCENT_RED,
                 v -> startActivity(new Intent(this, YouTubeActivity.class)), 0);
         addCompact(fRow4, "\uD83D\uDCDA", "知識庫", UIHelper.ACCENT_BLUE,
                 v -> startActivity(new Intent(this, KnowledgeActivity.class)), g);
-        addCompact(fRow4, "\u2708", "\u822A\u73ED\u76E3\u63A7", UIHelper.ACCENT_ORANGE,
-                v -> startActivity(new Intent(this, FlightActivity.class)), g);
+        addCompact(fRow4, "\uD83E\uDDEC", "自我演化", UIHelper.ACCENT_GREEN,
+                v -> startActivity(new Intent(this, EvolutionActivity.class)), g);
         content.addView(fRow4);
 
-        // Row 5: 旅遊規劃, 自我演化
+        // Row 5: 00981A ETF 動向
         LinearLayout fRow5 = gridRow3();
-        addCompact(fRow5, "\uD83D\uDDFA\uFE0F", "\u65C5\u904A\u898F\u5283", UIHelper.ACCENT_GREEN,
-                v -> startActivity(new Intent(this, TravelActivity.class)), 0);
-        addCompact(fRow5, "\uD83E\uDDEC", "自我演化", UIHelper.ACCENT_GREEN,
-                v -> startActivity(new Intent(this, EvolutionActivity.class)), g);
-        addCompact(fRow5, "\uD83C\uDFB5", "歌詞生成", UIHelper.ACCENT_PURPLE,
-                v -> startActivity(new Intent(this, LyricsActivity.class)), g);
-        content.addView(fRow5);
-
-        // Row 6: 00981A 主動 ETF 經理人動向
-        LinearLayout fRow6 = gridRow3();
-        addCompact(fRow6, "\uD83D\uDCCA", "00981A 動向", UIHelper.ACCENT_BLUE,
+        addCompact(fRow5, "\uD83D\uDCCA", "00981A 動向", UIHelper.ACCENT_BLUE,
                 v -> startActivity(new Intent(this, ETFTrackingActivity.class)), 0);
-        content.addView(fRow6);
+        View fRow5Spacer1 = new View(this);
+        fRow5Spacer1.setVisibility(View.INVISIBLE);
+        fRow5.addView(fRow5Spacer1, gridCellLp(g));
+        View fRow5Spacer2 = new View(this);
+        fRow5Spacer2.setVisibility(View.INVISIBLE);
+        fRow5.addView(fRow5Spacer2, gridCellLp(g));
+        content.addView(fRow5);
 
         // ── Games (dynamic, hideable via long-press) ──
         content.addView(UIHelper.sectionHeader(this, "GAMES"));
@@ -272,22 +268,11 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout tRow1 = gridRow3();
         addCompact(tRow1, "\uD83D\uDCB3", "LINE 記帳", UIHelper.ACCENT_GREEN,
                 v -> startActivity(new Intent(this, LinePermissionGuideActivity.class)), 0);
-        addCompact(tRow1, "\uD83D\uDCBB", "遠端開發", UIHelper.ACCENT_BLUE,
-                v -> startActivity(new Intent(this, RemoteDevActivity.class)), g);
-        View tRow1Spacer = new View(this);
-        tRow1Spacer.setVisibility(View.INVISIBLE);
-        tRow1.addView(tRow1Spacer, gridCellLp(g));
-        content.addView(tRow1);
-
-        LinearLayout tRow2 = gridRow3();
-        addCompact(tRow2, "\uD83D\uDCCB", "系統日誌", UIHelper.TEXT_SECONDARY,
-                v -> startActivity(new Intent(this, LogActivity.class)), 0);
-        addCompact(tRow2, "\u23F0", "排程管理", UIHelper.TEXT_SECONDARY,
+        addCompact(tRow1, "\uD83D\uDCCB", "系統日誌", UIHelper.TEXT_SECONDARY,
+                v -> startActivity(new Intent(this, LogActivity.class)), g);
+        addCompact(tRow1, "\u23F0", "排程管理", UIHelper.TEXT_SECONDARY,
                 v -> startActivity(new Intent(this, CronActivity.class)), g);
-        View ph3 = new View(this);
-        ph3.setVisibility(View.INVISIBLE);
-        tRow2.addView(ph3, gridCellLp(g));
-        content.addView(tRow2);
+        content.addView(tRow1);
 
         // ── Version footer ──
         LinearLayout versionRow = new LinearLayout(this);
@@ -428,10 +413,7 @@ public class MainActivity extends AppCompatActivity {
         // Game registry
         Object[][] games = {
                 {"\uD83C\uDFAE", "\u4FC4\u7F85\u65AF\u65B9\u584A", UIHelper.ACCENT_BLUE, TetrisActivity.class},
-                {"\uD83E\uDDE9", "2048", UIHelper.ACCENT_GREEN, Game2048Activity.class},
-                {"\uD83C\uDF0D", "\u5730\u5716\u554F\u7B54", UIHelper.ACCENT_BLUE, QuizActivity.class},
                 {"\uD83C\uDF0C", "\u5929\u6587\u65E5\u5716", UIHelper.ACCENT_PURPLE, ApodActivity.class},
-                {"\uD83C\uDF19", "\u5922\u5883\u89E3\u6790", UIHelper.ACCENT_PURPLE, DreamActivity.class},
         };
 
         for (Object[] game : games) {

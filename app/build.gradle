@@ -10,8 +10,8 @@ android {
         applicationId "com.mybot.app"
         minSdk 26
         targetSdk 33
-        versionCode 187
-        versionName "4.64"
+        versionCode 188
+        versionName "4.65"
     }
 
     lintOptions {
