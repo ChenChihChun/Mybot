@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.60 (2026-04-26)
+- **Fixed**: `LinePermissionGuideActivity.java` — 修正 `onResume()` 呼叫 `recreate()` 導致無限循環、畫面狂閃的問題。改用成員變數直接更新 UI。
+- **Modified**: `app/build.gradle` — versionCode 182→183, versionName 4.59→4.60。
+
 ## v4.59 (2026-04-26)
 - **Added**: `LineExpenseListenerService.java` — NotificationListenerService 監聽 LINE 通知，自動解析消費訊息並記錄到「消費紀錄」。
   - 支援 LINE Pay、玉山、國泰、台新、中信、富邦等主要銀行格式（多組 regex）

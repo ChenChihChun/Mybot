@@ -44,12 +44,12 @@ public class LinePermissionGuideActivity extends AppCompatActivity {
 
         // Status card
         LinearLayout statusCard = UIHelper.card(this);
-        TextView statusTitle = new TextView(this);
+        statusTitle = new TextView(this);
         statusTitle.setTextSize(16);
         statusTitle.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         statusTitle.setPadding(0, 0, 0, UIHelper.dp(this, 8));
 
-        TextView statusDesc = new TextView(this);
+        statusDesc = new TextView(this);
         statusDesc.setTextSize(14);
         statusDesc.setTextColor(UIHelper.TEXT_SECONDARY);
         statusDesc.setLineSpacing(UIHelper.dp(this, 4), 1f);
@@ -161,9 +161,23 @@ public class LinePermissionGuideActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Rebuild UI to reflect updated permission status
-        recreate();
+        // Update status UI without recreate (avoid infinite loop)
+        boolean enabled = LineExpenseListenerService.isEnabled(this);
+        if (statusTitle != null) {
+            if (enabled) {
+                statusTitle.setText("✓ 已啟用 LINE 消費監聽");
+                statusTitle.setTextColor(UIHelper.ACCENT_GREEN);
+                statusDesc.setText("Mybot 正在監聽 LINE 消費訊息，收到消費通知時會自動記錄到「消費紀錄」。\n\n點擊下方按鈕可管理通知存取權限。");
+            } else {
+                statusTitle.setText("✗ 尚未啟用");
+                statusTitle.setTextColor(UIHelper.ACCENT_RED);
+                statusDesc.setText("需要開啟「通知存取權」才能讓 Mybot 監聽 LINE 消費訊息。\n\n請依照下方步驟操作：");
+            }
+        }
     }
+
+    private TextView statusTitle;
+    private TextView statusDesc;
 
     private LinearLayout makeStepRow(String number, String text) {
         LinearLayout row = new LinearLayout(this);
