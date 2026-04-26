@@ -1287,6 +1287,55 @@ public class BridgeClient {
         });
     }
 
+    public interface AnalyzeNotificationCallback {
+        void onResult(boolean isExpense, double amount, String currency,
+                      String category, String merchant, String description, float confidence);
+    }
+
+    /**
+     * POST /analyze (task=analyze_notification) — AI parses a LINE/notification for expense data.
+     */
+    public static void analyzeNotification(String source, String title, String content,
+                                           List<String> existingCategories,
+                                           AnalyzeNotificationCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "analyzeNotification: [" + source + "] " + title);
+            try {
+                JSONObject body = new JSONObject();
+                body.put("task", "analyze_notification");
+                body.put("source", source);
+                body.put("title", title);
+                body.put("content", content);
+                if (existingCategories != null && !existingCategories.isEmpty()) {
+                    body.put("existing_categories", new JSONArray(existingCategories));
+                }
+                String[] result = postJsonWithError(BASE_URL + "/analyze", body.toString(), 30000);
+                if (result[0] != null) {
+                    JSONObject json = new JSONObject(result[0]);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject r = json.getJSONObject("result");
+                        boolean isExpense = r.optBoolean("is_expense", false);
+                        double amount = r.optDouble("amount", 0);
+                        String currency = r.optString("currency", "TWD");
+                        String category = r.optString("category", "未分類");
+                        String merchant = r.optString("merchant", "");
+                        String description = r.optString("description", "");
+                        float confidence = (float) r.optDouble("confidence", 0.0);
+                        AppLog.i("Bridge", String.format("analyzeNotification結果: is_expense=%b amount=%.0f conf=%.2f", isExpense, amount, confidence));
+                        mainHandler.post(() -> callback.onResult(isExpense, amount, currency, category, merchant, description, confidence));
+                        return;
+                    }
+                }
+                AppLog.w("Bridge", "analyzeNotification無結果或失敗");
+                mainHandler.post(() -> callback.onResult(false, 0, "TWD", "", "", "", 0));
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "analyzeNotification失敗: " + err);
+                mainHandler.post(() -> callback.onResult(false, 0, "TWD", "", "", "", 0));
+            }
+        });
+    }
+
     /**
      * POST /cron/jobs/schedule — update cron job schedule.
      */

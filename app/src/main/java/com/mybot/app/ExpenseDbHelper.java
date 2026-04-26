@@ -107,6 +107,19 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         return e;
     }
 
+    public List<String> getDistinctCategories() {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.query(true, TABLE, new String[]{COL_CATEGORY},
+                null, null, COL_CATEGORY, null, COL_CATEGORY + " ASC", null);
+        List<String> categories = new ArrayList<>();
+        while (cursor.moveToNext()) {
+            String cat = cursor.getString(0);
+            if (cat != null && !cat.isEmpty()) categories.add(cat);
+        }
+        cursor.close();
+        return categories;
+    }
+
     public List<Expense> queryAll(String categoryFilter) {
         SQLiteDatabase db = getReadableDatabase();
         String selection = null;
