@@ -417,8 +417,9 @@ public class ETFTrackingActivity extends AppCompatActivity {
             row.setOrientation(LinearLayout.HORIZONTAL);
             String name = h.optString("code") + " " + h.optString("name");
             double lots = h.optDouble("shares", 0) / 1000;
+            String lotsStr = lots > 0 ? String.format("%,.0f", lots) : "-";
             row.addView(makeCell(name, 3, UIHelper.TEXT_PRIMARY, false));
-            row.addView(makeCell(String.format("%,.0f", lots), 2, UIHelper.TEXT_PRIMARY, false));
+            row.addView(makeCell(lotsStr, 2, UIHelper.TEXT_PRIMARY, false));
             row.addView(makeCell(String.format("%.2f", h.optDouble("weight", 0)),
                     2, UIHelper.TEXT_PRIMARY, false));
             box.addView(row);
