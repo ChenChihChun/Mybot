@@ -98,7 +98,7 @@ public class ETFTrackingActivity extends AppCompatActivity {
     private void loadData() {
         new Thread(() -> {
             try {
-                String trackingUrl = "http://127.0.0.1:8765/etf_active/tracking?etf_code=" + etfCode;
+                String trackingUrl = "http://127.0.0.1:8765/etf/" + etfCode + "/tracking";
                 URL url = new URL(trackingUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
