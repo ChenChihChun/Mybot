@@ -21,17 +21,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 00981A 主動 ETF 追蹤圖卡。
+ * 主動 ETF 追蹤圖卡（支援 00981A、00993A 等）。
  * 顯示經理人 14 個交易日內的買賣動向：
- *   - 最新 51 大持股
+ *   - 最新持股
  *   - 14 天彙總：新增 / 出清 / 累計加碼最多 / 累計減碼最多
  *   - 每日 diff 時間軸
- * 資料來源：Bridge /etf/00981a/tracking (每日 19:00 自動抓統一投信官網)
+ * 通過 Intent extra "etf_code" 指定 ETF（預設 00981A）
  */
 public class ETFTrackingActivity extends AppCompatActivity {
 
-    private static final String TRACKING_URL = "http://127.0.0.1:8765/etf/00981a/tracking";
-    private static final String REFRESH_URL = "http://127.0.0.1:8765/etf/00981A/refresh";
+    public static final String EXTRA_ETF_CODE = "etf_code";
+
+    private String etfCode = "00981A";
+    private String etfName = "統一台股增長";
 
     private LinearLayout content;
     private TextView statusBar;
@@ -40,7 +42,25 @@ public class ETFTrackingActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().setStatusBarColor(UIHelper.BG_TOP_BAR);
-        AppLog.i("ETFTracking", "開啟主動 ETF 追蹤");
+
+        // Get ETF code from intent
+        String code = getIntent().getStringExtra(EXTRA_ETF_CODE);
+        if (code != null && !code.isEmpty()) {
+            etfCode = code.toUpperCase();
+        }
+
+        // Set ETF name based on code
+        switch (etfCode) {
+            case "00993A":
+                etfName = "安聯台灣";
+                break;
+            case "00981A":
+            default:
+                etfName = "統一台股增長";
+                break;
+        }
+
+        AppLog.i("ETFTracking", "開啟主動 ETF 追蹤: " + etfCode);
         buildUI();
         loadData();
     }
@@ -53,7 +73,7 @@ public class ETFTrackingActivity extends AppCompatActivity {
 
     private void buildUI() {
         LinearLayout root = UIHelper.pageRoot(this);
-        root.addView(UIHelper.topBar(this, "\uD83D\uDCCA 00981A 經理人動向"));
+        root.addView(UIHelper.topBar(this, "\uD83D\uDCCA " + etfCode + " 經理人動向"));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -78,7 +98,8 @@ public class ETFTrackingActivity extends AppCompatActivity {
     private void loadData() {
         new Thread(() -> {
             try {
-                URL url = new URL(TRACKING_URL);
+                String trackingUrl = "http://127.0.0.1:8765/etf_active/tracking?etf_code=" + etfCode;
+                URL url = new URL(trackingUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setConnectTimeout(5000);
