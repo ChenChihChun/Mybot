@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
@@ -157,6 +158,11 @@
             android:name=".FloatingCaptureService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+
+        <!-- Floating Timer Bubble Service -->
+        <service
+            android:name=".TimerBubbleService"
+            android:exported="false" />
 
         <!-- LINE Expense Notification Listener -->
         <service

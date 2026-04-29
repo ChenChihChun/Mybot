@@ -279,12 +279,11 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout tRow2 = gridRow3();
         addCompact(tRow2, "\uD83D\uDCCA", "股票資料", UIHelper.ACCENT_ORANGE,
                 v -> startActivity(new Intent(this, StockStatusActivity.class)), 0);
-        View tRow2Spacer1 = new View(this);
-        tRow2Spacer1.setVisibility(View.INVISIBLE);
-        tRow2.addView(tRow2Spacer1, gridCellLp(g));
-        View tRow2Spacer2 = new View(this);
-        tRow2Spacer2.setVisibility(View.INVISIBLE);
-        tRow2.addView(tRow2Spacer2, gridCellLp(g));
+        addCompact(tRow2, "\u23F1", "快速計時", UIHelper.ACCENT_BLUE,
+                v -> showTimerDialog(), g);
+        View tRow2Spacer = new View(this);
+        tRow2Spacer.setVisibility(View.INVISIBLE);
+        tRow2.addView(tRow2Spacer, gridCellLp(g));
         content.addView(tRow2);
 
         // ── Version footer ──
@@ -529,6 +528,94 @@ public class MainActivity extends AppCompatActivity {
                 ((TextView) card.getChildAt(1)).setText(value);
             }
         }
+    }
+
+    private void showTimerDialog() {
+        if (!Settings.canDrawOverlays(this)) {
+            android.widget.Toast.makeText(this,
+                    "請先開啟「顯示在其他應用程式上層」權限", android.widget.Toast.LENGTH_LONG).show();
+            startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName())));
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("\u23F1 快速計時");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        int pad = UIHelper.dp(this, 16);
+        layout.setPadding(pad, pad / 2, pad, 0);
+
+        // Quick-pick buttons row
+        String[] labels = {"30秒", "1分鐘", "3分鐘", "5分鐘"};
+        long[] seconds = {30, 60, 180, 300};
+
+        LinearLayout btnRow = new LinearLayout(this);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        btnRow.setGravity(android.view.Gravity.CENTER);
+
+        android.widget.Button[] quickBtns = new android.widget.Button[labels.length];
+        final long[] selectedSeconds = {60};
+        final android.widget.EditText[] customInput = {null};
+
+        for (int i = 0; i < labels.length; i++) {
+            android.widget.Button btn = new android.widget.Button(this);
+            btn.setText(labels[i]);
+            btn.setTextSize(13);
+            final long sec = seconds[i];
+            final int idx = i;
+            btn.setOnClickListener(v -> {
+                selectedSeconds[0] = sec;
+                if (customInput[0] != null) customInput[0].setText("");
+                for (android.widget.Button b : quickBtns) b.setAlpha(0.5f);
+                quickBtns[idx].setAlpha(1.0f);
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+            if (i > 0) lp.setMargins(UIHelper.dp(this, 4), 0, 0, 0);
+            btn.setLayoutParams(lp);
+            btn.setAlpha(i == 1 ? 1.0f : 0.5f); // default 1min selected
+            quickBtns[i] = btn;
+            btnRow.addView(btn);
+        }
+        layout.addView(btnRow);
+
+        // Custom input
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setHint("自訂秒數（如: 90）");
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        LinearLayout.LayoutParams inputLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        inputLp.setMargins(0, UIHelper.dp(this, 8), 0, 0);
+        input.setLayoutParams(inputLp);
+        customInput[0] = input;
+        input.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {
+                if (s.length() > 0) {
+                    for (android.widget.Button btn : quickBtns) btn.setAlpha(0.5f);
+                }
+            }
+            @Override public void afterTextChanged(android.text.Editable s) {}
+        });
+        layout.addView(input);
+
+        builder.setView(layout);
+        builder.setPositiveButton("開始計時", (dialog, which) -> {
+            long sec = selectedSeconds[0];
+            String custom = input.getText().toString().trim();
+            if (!custom.isEmpty()) {
+                try { sec = Long.parseLong(custom); } catch (NumberFormatException ignored) {}
+            }
+            if (sec <= 0) sec = 60;
+            AppLog.i("Timer", "啟動浮動計時器: " + sec + " 秒");
+            Intent intent = new Intent(this, TimerBubbleService.class);
+            intent.putExtra(TimerBubbleService.EXTRA_DURATION_SECONDS, sec);
+            startForegroundService(intent);
+        });
+        builder.setNegativeButton("取消", null);
+        builder.show();
     }
 
     private void requestPermissions() {
