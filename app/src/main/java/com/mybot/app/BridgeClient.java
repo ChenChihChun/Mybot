@@ -1712,8 +1712,14 @@ public class BridgeClient {
 
                 int code = conn.getResponseCode();
                 if (code == 200) {
-                    String resp = streamToString(conn.getInputStream());
-                    JSONObject json = new JSONObject(resp);
+                    BufferedReader br = new BufferedReader(
+                            new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) sb.append(line);
+                    br.close();
+
+                    JSONObject json = new JSONObject(sb.toString());
                     if (json.optBoolean("success", false)) {
                         JSONObject data = json.optJSONObject("data");
                         AppLog.i("Bridge", "getPaperTradeDailyPicks成功");
