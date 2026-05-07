@@ -1697,4 +1697,40 @@ public class BridgeClient {
         });
     }
 
+    /**
+     * GET /paper-trade/daily-picks — get daily stock recommendations.
+     */
+    public static void getPaperTradeDailyPicks(PaperTradeCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getPaperTradeDailyPicks");
+            try {
+                URL url = new URL(BASE_URL + "/paper-trade/daily-picks");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
+
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    String resp = streamToString(conn.getInputStream());
+                    JSONObject json = new JSONObject(resp);
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        AppLog.i("Bridge", "getPaperTradeDailyPicks成功");
+                        mainHandler.post(() -> callback.onResult(true, data, null));
+                        return;
+                    }
+                    String msg = json.optString("error", "取得推薦失敗");
+                    mainHandler.post(() -> callback.onResult(false, null, msg));
+                } else {
+                    mainHandler.post(() -> callback.onResult(false, null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "getPaperTradeDailyPicks失敗: " + err);
+                mainHandler.post(() -> callback.onResult(false, null, err));
+            }
+        });
+    }
+
 }

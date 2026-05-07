@@ -48,6 +48,12 @@ public class PaperTradeActivity extends AppCompatActivity {
     private TextView performanceStatus;
     private boolean performanceLoading = false;
 
+    // Daily picks card
+    private LinearLayout dailyPicksContent;
+    private TextView dailyPicksStatus;
+    private TextView dailyPicksDate;
+    private boolean dailyPicksLoading = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -60,6 +66,7 @@ public class PaperTradeActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         loadOverview();
+        loadDailyPicks();
         loadHoldings();
         loadTrades();
         loadStrategy();
@@ -83,6 +90,7 @@ public class PaperTradeActivity extends AppCompatActivity {
 
         // Cards
         content.addView(buildOverviewCard());
+        content.addView(buildDailyPicksCard());
         content.addView(buildHoldingsCard());
         content.addView(buildTradesCard());
         content.addView(buildStrategyCard());
@@ -286,6 +294,176 @@ public class PaperTradeActivity extends AppCompatActivity {
                 statusText.setTextColor(UIHelper.TEXT_HINT);
             }
         });
+    }
+
+    // ==================== Daily Picks Card ====================
+
+    private LinearLayout buildDailyPicksCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 16, this));
+        int pad = UIHelper.dp(this, 14);
+        card.setPadding(pad, pad, pad, pad);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 6), 0, UIHelper.dp(this, 6));
+        card.setLayoutParams(lp);
+
+        // Header row
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView icon = new TextView(this);
+        icon.setText("\uD83C\uDFAF");
+        icon.setTextSize(16);
+        icon.setPadding(0, 0, UIHelper.dp(this, 6), 0);
+        header.addView(icon);
+
+        TextView titleView = new TextView(this);
+        titleView.setText("Daily Picks");
+        titleView.setTextSize(15);
+        titleView.setTextColor(UIHelper.TEXT_PRIMARY);
+        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        titleView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        header.addView(titleView);
+
+        dailyPicksDate = new TextView(this);
+        dailyPicksDate.setTextSize(11);
+        dailyPicksDate.setTextColor(UIHelper.TEXT_HINT);
+        header.addView(dailyPicksDate);
+
+        card.addView(header);
+
+        dailyPicksStatus = new TextView(this);
+        dailyPicksStatus.setText("Loading...");
+        dailyPicksStatus.setTextSize(12);
+        dailyPicksStatus.setTextColor(UIHelper.TEXT_HINT);
+        dailyPicksStatus.setPadding(0, UIHelper.dp(this, 6), 0, 0);
+        card.addView(dailyPicksStatus);
+
+        dailyPicksContent = new LinearLayout(this);
+        dailyPicksContent.setOrientation(LinearLayout.VERTICAL);
+        card.addView(dailyPicksContent);
+
+        return card;
+    }
+
+    private void loadDailyPicks() {
+        if (dailyPicksLoading) return;
+        dailyPicksLoading = true;
+
+        BridgeClient.getPaperTradeDailyPicks((success, data, error) -> {
+            dailyPicksLoading = false;
+            dailyPicksContent.removeAllViews();
+
+            if (success && data != null) {
+                try {
+                    String date = data.optString("date", null);
+                    JSONArray picks = data.optJSONArray("picks");
+
+                    if (date == null || picks == null || picks.length() == 0) {
+                        dailyPicksStatus.setText("尚無今日推薦");
+                        dailyPicksStatus.setVisibility(View.VISIBLE);
+                        dailyPicksDate.setText("");
+                        return;
+                    }
+
+                    dailyPicksStatus.setVisibility(View.GONE);
+                    dailyPicksDate.setText(date);
+
+                    for (int i = 0; i < picks.length(); i++) {
+                        JSONObject p = picks.getJSONObject(i);
+                        dailyPicksContent.addView(buildPickRow(p));
+                    }
+
+                    AppLog.i("PaperTrade", "Daily picks loaded: " + picks.length());
+                } catch (Exception e) {
+                    dailyPicksStatus.setText("Parse error");
+                    dailyPicksStatus.setVisibility(View.VISIBLE);
+                    AppLog.e("PaperTrade", "Daily picks parse error: " + e.getMessage());
+                }
+            } else {
+                dailyPicksStatus.setText(error != null ? error : "Failed to load");
+                dailyPicksStatus.setVisibility(View.VISIBLE);
+            }
+        });
+    }
+
+    private LinearLayout buildPickRow(JSONObject p) throws Exception {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 8));
+
+        // First line: rank + symbol + name + momentum
+        LinearLayout line1 = new LinearLayout(this);
+        line1.setOrientation(LinearLayout.HORIZONTAL);
+        line1.setGravity(Gravity.CENTER_VERTICAL);
+
+        int rank = p.optInt("rank", 0);
+        TextView rankText = new TextView(this);
+        rankText.setText(rank + ".");
+        rankText.setTextSize(14);
+        rankText.setTextColor(UIHelper.ACCENT_ORANGE);
+        rankText.setTypeface(Typeface.DEFAULT_BOLD);
+        rankText.setPadding(0, 0, UIHelper.dp(this, 6), 0);
+        line1.addView(rankText);
+
+        TextView symbolText = new TextView(this);
+        symbolText.setText(p.getString("symbol") + " " + p.optString("name", ""));
+        symbolText.setTextSize(14);
+        symbolText.setTextColor(UIHelper.TEXT_PRIMARY);
+        symbolText.setTypeface(Typeface.DEFAULT_BOLD);
+        symbolText.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        line1.addView(symbolText);
+
+        double m3d = p.optDouble("momentum_3d", 0);
+        TextView momentumText = new TextView(this);
+        momentumText.setText(String.format("+%.1f%%", m3d));
+        momentumText.setTextSize(13);
+        momentumText.setTextColor(UIHelper.ACCENT_GREEN);
+        line1.addView(momentumText);
+
+        row.addView(line1);
+
+        // Second line: price + volume ratio + today change
+        LinearLayout line2 = new LinearLayout(this);
+        line2.setOrientation(LinearLayout.HORIZONTAL);
+        line2.setPadding(UIHelper.dp(this, 16), UIHelper.dp(this, 2), 0, 0);
+
+        double price = p.optDouble("price", 0);
+        double volRatio = p.optDouble("volume_ratio", 0);
+        Double changePct = p.isNull("change_pct") ? null : p.optDouble("change_pct");
+
+        StringBuilder details = new StringBuilder();
+        details.append(String.format("$%.2f", price));
+        if (volRatio > 0) {
+            details.append(String.format(" | Vol: %.1fx", volRatio));
+        }
+        if (changePct != null) {
+            details.append(String.format(" | Today: %s%.1f%%", changePct >= 0 ? "+" : "", changePct));
+        }
+
+        TextView detailText = new TextView(this);
+        detailText.setText(details.toString());
+        detailText.setTextSize(11);
+        detailText.setTextColor(UIHelper.TEXT_HINT);
+        line2.addView(detailText);
+
+        row.addView(line2);
+
+        // Third line: reason
+        String reason = p.optString("reason", "");
+        if (!reason.isEmpty()) {
+            TextView reasonText = new TextView(this);
+            reasonText.setText(reason);
+            reasonText.setTextSize(12);
+            reasonText.setTextColor(UIHelper.TEXT_SECONDARY);
+            reasonText.setPadding(UIHelper.dp(this, 16), UIHelper.dp(this, 4), 0, 0);
+            row.addView(reasonText);
+        }
+
+        return row;
     }
 
     // ==================== Holdings Card ====================
