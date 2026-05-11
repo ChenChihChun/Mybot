@@ -91,6 +91,19 @@
             </intent-filter>
         </activity>
 
+        <!-- Expense Share Receiver (handles image share for AI expense extraction) -->
+        <activity
+            android:name=".ExpenseShareReceiver"
+            android:exported="true"
+            android:label="Mybot 記帳"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
         <!-- Remote Dev Activity -->
         <activity android:name=".RemoteDevActivity" android:exported="false" />
 
