@@ -224,7 +224,8 @@ public class BridgeClient {
                 }
                 body.put("prompt", "請分析這張螢幕截圖，判斷是否包含消費/付款/交易資訊。"
                         + "如果有，回傳: {\"is_expense\": true, \"amount\": 數字, \"currency\": \"TWD\", "
-                        + "\"merchant\": \"商家名稱\", \"category\": \"類別\", \"description\": \"描述\"}。"
+                        + "\"merchant\": \"商家名稱\", \"category\": \"類別\", \"description\": \"描述\", "
+                        + "\"date\": \"YYYY-MM-DD\"}。date 請從截圖中的交易時間/日期提取，若無法辨識則省略此欄位。"
                         + "如果沒有消費資訊，回傳: {\"is_expense\": false}。"
                         + catInstruction);
 

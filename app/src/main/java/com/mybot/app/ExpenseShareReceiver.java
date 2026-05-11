@@ -158,17 +158,21 @@ public class ExpenseShareReceiver extends AppCompatActivity {
                         String merchant = result.optString("merchant", "");
                         String category = result.optString("category", "");
                         String description = result.optString("description", "");
+                        String dateStr = result.optString("date", "");
 
                         if (amount <= 0) {
                             showNoExpense();
                             return;
                         }
 
-                        AppLog.i("ExpenseShare", String.format("AI分析結果: %s $%.0f [%s]",
-                                merchant, amount, category));
+                        // Parse date to timestamp
+                        long timestamp = parseDate(dateStr);
+
+                        AppLog.i("ExpenseShare", String.format("AI分析結果: %s $%.0f [%s] date=%s",
+                                merchant, amount, category, dateStr));
 
                         // Show confirmation dialog
-                        showConfirmDialog(amount, currency, merchant, category, description);
+                        showConfirmDialog(amount, currency, merchant, category, description, dateStr, timestamp);
 
                     } catch (Exception e) {
                         AppLog.e("ExpenseShare", "解析回應失敗: " + e.getMessage());
@@ -194,15 +198,40 @@ public class ExpenseShareReceiver extends AppCompatActivity {
         return Bitmap.createScaledBitmap(original, newW, newH, true);
     }
 
+    private long parseDate(String dateStr) {
+        if (dateStr == null || dateStr.isEmpty()) {
+            return System.currentTimeMillis();
+        }
+        try {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault());
+            java.util.Date date = sdf.parse(dateStr);
+            if (date != null) {
+                // Set time to noon to avoid timezone issues
+                java.util.Calendar cal = java.util.Calendar.getInstance();
+                cal.setTime(date);
+                cal.set(java.util.Calendar.HOUR_OF_DAY, 12);
+                cal.set(java.util.Calendar.MINUTE, 0);
+                cal.set(java.util.Calendar.SECOND, 0);
+                return cal.getTimeInMillis();
+            }
+        } catch (Exception e) {
+            AppLog.w("ExpenseShare", "日期解析失敗: " + dateStr);
+        }
+        return System.currentTimeMillis();
+    }
+
     private void showConfirmDialog(double amount, String currency, String merchant,
-                                   String category, String description) {
+                                   String category, String description,
+                                   String dateStr, long timestamp) {
         progressBar.setVisibility(android.view.View.GONE);
         statusText.setText("分析完成");
 
-        String info = String.format("商家: %s\n金額: $%.0f %s\n類別: %s\n描述: %s",
+        String dateDisplay = dateStr.isEmpty() ? "今天" : dateStr;
+        String info = String.format("商家: %s\n金額: $%.0f %s\n類別: %s\n日期: %s\n描述: %s",
                 merchant.isEmpty() ? "(未知)" : merchant,
                 amount, currency,
                 category.isEmpty() ? "(未分類)" : category,
+                dateDisplay,
                 description.isEmpty() ? "(無)" : description);
 
         new AlertDialog.Builder(this, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
@@ -210,8 +239,8 @@ public class ExpenseShareReceiver extends AppCompatActivity {
                 .setMessage(info)
                 .setPositiveButton("記帳", (d, w) -> {
                     long id = db.insert(amount, currency, category, merchant,
-                            description, "截圖分享", null);
-                    AppLog.i("ExpenseShare", "記帳完成: id=" + id + " " + merchant + " $" + amount);
+                            description, "截圖分享", null, timestamp);
+                    AppLog.i("ExpenseShare", "記帳完成: id=" + id + " " + merchant + " $" + amount + " date=" + dateStr);
 
                     // Try to delete the screenshot after recording
                     deleteScreenshot();
