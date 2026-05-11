@@ -268,22 +268,23 @@ public class MainActivity extends AppCompatActivity {
         content.addView(UIHelper.sectionHeader(this, "TOOLS"));
 
         LinearLayout tRow1 = gridRow3();
-        addCompact(tRow1, "\uD83D\uDCB3", "LINE 記帳", UIHelper.ACCENT_GREEN,
-                v -> startActivity(new Intent(this, LinePermissionGuideActivity.class)), 0);
         addCompact(tRow1, "\uD83D\uDCCB", "系統日誌", UIHelper.TEXT_SECONDARY,
-                v -> startActivity(new Intent(this, LogActivity.class)), g);
+                v -> startActivity(new Intent(this, LogActivity.class)), 0);
         addCompact(tRow1, "\u23F0", "排程管理", UIHelper.TEXT_SECONDARY,
                 v -> startActivity(new Intent(this, CronActivity.class)), g);
+        addCompact(tRow1, "\uD83D\uDCCA", "股票資料", UIHelper.ACCENT_ORANGE,
+                v -> startActivity(new Intent(this, StockStatusActivity.class)), g);
         content.addView(tRow1);
 
         LinearLayout tRow2 = gridRow3();
-        addCompact(tRow2, "\uD83D\uDCCA", "股票資料", UIHelper.ACCENT_ORANGE,
-                v -> startActivity(new Intent(this, StockStatusActivity.class)), 0);
         addCompact(tRow2, "\u23F1", "快速計時", UIHelper.ACCENT_BLUE,
-                v -> showTimerDialog(), g);
-        View tRow2Spacer = new View(this);
-        tRow2Spacer.setVisibility(View.INVISIBLE);
-        tRow2.addView(tRow2Spacer, gridCellLp(g));
+                v -> showTimerDialog(), 0);
+        View tRow2Spacer1 = new View(this);
+        tRow2Spacer1.setVisibility(View.INVISIBLE);
+        tRow2.addView(tRow2Spacer1, gridCellLp(g));
+        View tRow2Spacer2 = new View(this);
+        tRow2Spacer2.setVisibility(View.INVISIBLE);
+        tRow2.addView(tRow2Spacer2, gridCellLp(g));
         content.addView(tRow2);
 
         // ── Version footer ──

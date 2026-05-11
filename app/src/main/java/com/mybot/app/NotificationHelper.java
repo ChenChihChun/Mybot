@@ -73,33 +73,6 @@ public class NotificationHelper {
         }
     }
 
-    public static void sendLineExpenseNotification(Context context, String merchant, double amount, String category, long expenseId) {
-        String title = "LINE 消費已記錄";
-        String text = String.format(java.util.Locale.getDefault(),
-                "%s  $%.0f", merchant.isEmpty() ? "消費" : merchant, amount);
-        if (category != null && !category.isEmpty() && !category.equals("未分類")) {
-            text += "  [" + category + "]";
-        }
-        createNotificationChannel(context);
-        Intent intent = new Intent(context, AddExpenseActivity.class);
-        intent.putExtra("expense_id", expenseId);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pi = PendingIntent.getActivity(context, (int) expenseId + 200000, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setContentTitle(title)
-                .setContentText(text + "  (點擊編輯)")
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(text + "\n點擊可編輯此筆消費"))
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setContentIntent(pi)
-                .setAutoCancel(true);
-        NotificationManager manager = context.getSystemService(NotificationManager.class);
-        if (manager != null) {
-            manager.notify(notificationId++, builder.build());
-        }
-    }
-
     public static void sendExpenseNotification(Context context, String merchant, double amount, String category) {
         sendExpenseNotification(context, merchant, amount, category, -1);
     }
