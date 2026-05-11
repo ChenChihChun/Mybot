@@ -33,6 +33,7 @@ public class ExpenseShareReceiver extends AppCompatActivity {
     private ProgressBar progressBar;
     private TextView statusText;
     private ImageView previewImage;
+    private Uri sharedImageUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,6 +89,7 @@ public class ExpenseShareReceiver extends AppCompatActivity {
             return;
         }
 
+        sharedImageUri = imageUri;
         AppLog.i("ExpenseShare", "收到圖片分享: " + imageUri);
         processImage(imageUri);
     }
@@ -210,6 +212,10 @@ public class ExpenseShareReceiver extends AppCompatActivity {
                     long id = db.insert(amount, currency, category, merchant,
                             description, "截圖分享", null);
                     AppLog.i("ExpenseShare", "記帳完成: id=" + id + " " + merchant + " $" + amount);
+
+                    // Try to delete the screenshot after recording
+                    deleteScreenshot();
+
                     Toast.makeText(this, "已記帳: " + merchant + " $" + (int) amount,
                             Toast.LENGTH_SHORT).show();
                     finish();
@@ -241,5 +247,22 @@ public class ExpenseShareReceiver extends AppCompatActivity {
                 .setPositiveButton("確定", (d, w) -> finish())
                 .setOnCancelListener(d -> finish())
                 .show();
+    }
+
+    private void deleteScreenshot() {
+        if (sharedImageUri == null) return;
+
+        try {
+            int deleted = getContentResolver().delete(sharedImageUri, null, null);
+            if (deleted > 0) {
+                AppLog.i("ExpenseShare", "截圖已刪除: " + sharedImageUri);
+            } else {
+                AppLog.w("ExpenseShare", "無法刪除截圖 (權限不足或非媒體URI): " + sharedImageUri);
+            }
+        } catch (SecurityException e) {
+            AppLog.w("ExpenseShare", "刪除截圖權限不足: " + e.getMessage());
+        } catch (Exception e) {
+            AppLog.w("ExpenseShare", "刪除截圖失敗: " + e.getMessage());
+        }
     }
 }
