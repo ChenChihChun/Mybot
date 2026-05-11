@@ -161,21 +161,21 @@ public class ExpenseShareReceiver extends AppCompatActivity {
                         String merchant = result.optString("merchant", "");
                         String category = result.optString("category", "");
                         String description = result.optString("description", "");
-                        String dateStr = result.optString("date", "");
+                        String datetimeStr = result.optString("datetime", "");
 
                         if (amount <= 0) {
                             showNoExpense();
                             return;
                         }
 
-                        // Parse date to timestamp
-                        long timestamp = parseDate(dateStr);
+                        // Parse datetime to timestamp
+                        long timestamp = parseDatetime(datetimeStr);
 
-                        AppLog.i("ExpenseShare", String.format("AI分析結果: %s $%.0f [%s] date=%s",
-                                merchant, amount, category, dateStr));
+                        AppLog.i("ExpenseShare", String.format("AI分析結果: %s $%.0f [%s] datetime=%s",
+                                merchant, amount, category, datetimeStr));
 
                         // Show confirmation dialog
-                        showConfirmDialog(amount, currency, merchant, category, description, dateStr, timestamp);
+                        showConfirmDialog(amount, currency, merchant, category, description, datetimeStr, timestamp);
 
                     } catch (Exception e) {
                         AppLog.e("ExpenseShare", "解析回應失敗: " + e.getMessage());
@@ -201,25 +201,22 @@ public class ExpenseShareReceiver extends AppCompatActivity {
         return Bitmap.createScaledBitmap(original, newW, newH, true);
     }
 
-    private long parseDate(String dateStr) {
-        if (dateStr == null || dateStr.isEmpty()) {
+    private long parseDatetime(String datetimeStr) {
+        if (datetimeStr == null || datetimeStr.isEmpty()) {
             return System.currentTimeMillis();
         }
-        try {
-            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault());
-            java.util.Date date = sdf.parse(dateStr);
-            if (date != null) {
-                // Set time to noon to avoid timezone issues
-                java.util.Calendar cal = java.util.Calendar.getInstance();
-                cal.setTime(date);
-                cal.set(java.util.Calendar.HOUR_OF_DAY, 12);
-                cal.set(java.util.Calendar.MINUTE, 0);
-                cal.set(java.util.Calendar.SECOND, 0);
-                return cal.getTimeInMillis();
-            }
-        } catch (Exception e) {
-            AppLog.w("ExpenseShare", "日期解析失敗: " + dateStr);
+        // Try datetime format first (YYYY-MM-DD HH:mm)
+        String[] formats = {"yyyy-MM-dd HH:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd"};
+        for (String format : formats) {
+            try {
+                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(format, java.util.Locale.getDefault());
+                java.util.Date date = sdf.parse(datetimeStr);
+                if (date != null) {
+                    return date.getTime();
+                }
+            } catch (Exception ignored) {}
         }
+        AppLog.w("ExpenseShare", "日期時間解析失敗: " + datetimeStr);
         return System.currentTimeMillis();
     }
 
@@ -229,7 +226,7 @@ public class ExpenseShareReceiver extends AppCompatActivity {
         progressBar.setVisibility(android.view.View.GONE);
         statusText.setText("分析完成");
 
-        String dateDisplay = dateStr.isEmpty() ? "今天" : dateStr;
+        String dateDisplay = dateStr.isEmpty() ? "現在" : dateStr;
         String info = String.format("商家: %s\n金額: $%.0f %s\n類別: %s\n日期: %s\n描述: %s",
                 merchant.isEmpty() ? "(未知)" : merchant,
                 amount, currency,
