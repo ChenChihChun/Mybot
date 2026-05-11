@@ -111,14 +111,17 @@ public class ExpenseShareReceiver extends AppCompatActivity {
                 Bitmap preview = scaleBitmap(bitmap, 400);
                 runOnUiThread(() -> previewImage.setImageBitmap(preview));
 
-                // Compress to JPEG for API (max 1MB target)
-                Bitmap scaled = scaleBitmap(bitmap, 1024);
+                // Compress to JPEG for API - higher resolution for better text recognition
+                Bitmap scaled = scaleBitmap(bitmap, 1920);
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                scaled.compress(Bitmap.CompressFormat.JPEG, 85, baos);
+                scaled.compress(Bitmap.CompressFormat.JPEG, 92, baos);
                 byte[] imageBytes = baos.toByteArray();
                 String base64 = Base64.encodeToString(imageBytes, Base64.NO_WRAP);
 
-                AppLog.i("ExpenseShare", "圖片壓縮完成: " + imageBytes.length + " bytes");
+                AppLog.i("ExpenseShare", String.format("圖片處理: 原始 %dx%d → 縮放 %dx%d, %d bytes",
+                        bitmap.getWidth(), bitmap.getHeight(),
+                        scaled.getWidth(), scaled.getHeight(),
+                        imageBytes.length));
 
                 // Get existing categories
                 List<String> categories = db.getDistinctCategories();
