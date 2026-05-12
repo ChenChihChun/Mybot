@@ -683,13 +683,20 @@ public class PaperTradeActivity extends AppCompatActivity {
         sideText.setPadding(0, 0, UIHelper.dp(this, 8), 0);
         row.addView(sideText);
 
-        // Symbol + details
+        // Symbol + name + details
         LinearLayout detailCol = new LinearLayout(this);
         detailCol.setOrientation(LinearLayout.VERTICAL);
         detailCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
+        String symbolName = t.getString("symbol");
+        String name = t.optString("name", "");
+        if (!name.isEmpty()) {
+            symbolName += " " + name;
+        }
+        symbolName += " x" + t.getInt("shares");
+
         TextView symbolText = new TextView(this);
-        symbolText.setText(t.getString("symbol") + " x" + t.getInt("shares"));
+        symbolText.setText(symbolName);
         symbolText.setTextSize(13);
         symbolText.setTextColor(UIHelper.TEXT_PRIMARY);
         detailCol.addView(symbolText);
