@@ -105,8 +105,10 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
             30 * 60 * 1000,   // 30 min
             60 * 60 * 1000,   // 1 hr
             120 * 60 * 1000,  // 2 hr
+            -1,               // custom
     };
-    private final String[] DURATION_LABELS = {"10 分鐘", "30 分鐘", "1 小時", "2 小時"};
+    private final String[] DURATION_LABELS = {"10 分鐘", "30 分鐘", "1 小時", "2 小時", "自訂..."};
+    private long customDurationMs = 60 * 60 * 1000; // default 1 hour
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -299,6 +301,16 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         durationSpinner.setAdapter(adapter);
         durationSpinner.setBackground(UIHelper.roundRectStroke(UIHelper.BG_INPUT, Color.parseColor("#2E4050"), 14, 1, this));
+        durationSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                if (DURATION_VALUES[position] == -1) {
+                    showCustomDurationDialog();
+                }
+            }
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
         durRow.addView(durationSpinner, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         destCard.addView(durRow);
 
@@ -652,7 +664,8 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
             return;
         }
 
-        long duration = DURATION_VALUES[durationSpinner.getSelectedItemPosition()];
+        int durationIdx = durationSpinner.getSelectedItemPosition();
+        long duration = DURATION_VALUES[durationIdx] == -1 ? customDurationMs : DURATION_VALUES[durationIdx];
         double distance = haversineDistance(actualStartLat, actualStartLng, destLat, destLng);
 
         String startDesc = hasStartPoint ? startName : "目前位置";
@@ -816,6 +829,35 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
                     loadPresets();
                 })
                 .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showCustomDurationDialog() {
+        EditText input = new EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        input.setHint("分鐘數");
+        input.setText(String.valueOf(customDurationMs / 60000));
+        input.setSelectAllOnFocus(true);
+
+        new AlertDialog.Builder(this)
+                .setTitle("自訂移動時間")
+                .setMessage("請輸入移動時間（分鐘）")
+                .setView(input)
+                .setPositiveButton("確定", (d, w) -> {
+                    try {
+                        int minutes = Integer.parseInt(input.getText().toString().trim());
+                        if (minutes < 1) minutes = 1;
+                        if (minutes > 1440) minutes = 1440; // max 24 hours
+                        customDurationMs = minutes * 60 * 1000L;
+                        Toast.makeText(this, "已設定 " + minutes + " 分鐘", Toast.LENGTH_SHORT).show();
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(this, "請輸入有效數字", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("取消", (d, w) -> {
+                    // Reset to default option
+                    durationSpinner.setSelection(0);
+                })
                 .show();
     }
 }
