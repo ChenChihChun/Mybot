@@ -77,7 +77,11 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
                 double lat = GpsMockService.getCurrentLat();
                 double lng = GpsMockService.getCurrentLng();
                 int progress = (int) (GpsMockService.getProgress() * 100);
-                mockStatusText.setText(String.format("模擬位置: %.4f, %.4f (%d%%)", lat, lng, progress));
+                if (GpsMockService.hasArrived()) {
+                    mockStatusText.setText(String.format("已到達: %.4f, %.4f", lat, lng));
+                } else {
+                    mockStatusText.setText(String.format("模擬位置: %.4f, %.4f (%d%%)", lat, lng, progress));
+                }
                 mockStatusText.setTextColor(UIHelper.ACCENT_GREEN);
                 uiHandler.postDelayed(this, 1000);
             } else {

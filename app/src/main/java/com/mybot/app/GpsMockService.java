@@ -36,6 +36,7 @@ public class GpsMockService extends Service {
 
     // Static state tracking (reliable across Android versions)
     private static volatile boolean sIsRunning = false;
+    private static volatile boolean sHasArrived = false;
     private static volatile double sCurrentLat = 0;
     private static volatile double sCurrentLng = 0;
     private static volatile double sProgress = 0;
@@ -43,6 +44,7 @@ public class GpsMockService extends Service {
 
     private LocationManager locationManager;
     private Handler handler;
+    private boolean hasArrived = false;
 
     private double startLat, startLng;
     private double endLat, endLng;
@@ -68,12 +70,13 @@ public class GpsMockService extends Service {
             setMockLocation(pos[0], pos[1], bearing);
             updateNotification(fraction, pos[0], pos[1]);
 
-            if (fraction >= 1.0) {
+            if (fraction >= 1.0 && !hasArrived) {
+                hasArrived = true;
+                sHasArrived = true;
                 AppLog.i("GpsMock", "到達目的地: " + String.format("%.4f, %.4f", endLat, endLng));
-                stopSelf();
-            } else {
-                handler.postDelayed(this, UPDATE_INTERVAL_MS);
             }
+            // Keep updating location even after arrival
+            handler.postDelayed(this, UPDATE_INTERVAL_MS);
         }
     };
 
@@ -118,6 +121,8 @@ public class GpsMockService extends Service {
 
         // Update static state
         sIsRunning = true;
+        sHasArrived = false;
+        hasArrived = false;
         sCurrentLat = startLat;
         sCurrentLng = startLng;
         sProgress = 0;
@@ -281,12 +286,17 @@ public class GpsMockService extends Service {
                 this, 0, openIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         int percent = (int) (progress * 100);
-        long remainingMs = (long) ((1.0 - progress) * durationMs);
-        String remainingText = formatDuration(remainingMs);
+        String statusText;
+        if (hasArrived) {
+            statusText = String.format("位置: %.4f, %.4f | 已到達目的地", lat, lng);
+        } else {
+            long remainingMs = (long) ((1.0 - progress) * durationMs);
+            statusText = String.format("位置: %.4f, %.4f | 剩餘 %s", lat, lng, formatDuration(remainingMs));
+        }
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle(String.format("GPS 模擬中 %d%%", percent))
-                .setContentText(String.format("位置: %.4f, %.4f | 剩餘 %s", lat, lng, remainingText))
+                .setContentTitle(hasArrived ? "GPS 模擬 - 已到達" : String.format("GPS 模擬中 %d%%", percent))
+                .setContentText(statusText)
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .setOngoing(true)
                 .setProgress(100, percent, false)
@@ -325,6 +335,10 @@ public class GpsMockService extends Service {
 
     public static double getProgress() {
         return sProgress;
+    }
+
+    public static boolean hasArrived() {
+        return sHasArrived;
     }
 
     public static String getLastError() {
