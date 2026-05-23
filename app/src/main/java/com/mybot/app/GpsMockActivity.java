@@ -24,6 +24,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.CheckBox;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -50,6 +51,7 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
     private EditText destInput;
     private TextView destResultText;
     private Spinner durationSpinner;
+    private CheckBox followRoadsCheck;
     private Button startStopBtn;
     private LinearLayout presetsContainer;
     private TextView statusText;
@@ -299,6 +301,19 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         durationSpinner.setBackground(UIHelper.roundRectStroke(UIHelper.BG_INPUT, Color.parseColor("#2E4050"), 14, 1, this));
         durRow.addView(durationSpinner, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         destCard.addView(durRow);
+
+        // Follow roads checkbox
+        followRoadsCheck = new CheckBox(this);
+        followRoadsCheck.setText("沿道路移動（使用 OSRM 路線）");
+        followRoadsCheck.setTextColor(UIHelper.TEXT_PRIMARY);
+        followRoadsCheck.setTextSize(14);
+        followRoadsCheck.setChecked(true);
+        followRoadsCheck.setButtonTintList(android.content.res.ColorStateList.valueOf(UIHelper.ACCENT_BLUE));
+        LinearLayout.LayoutParams followLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        followLp.setMargins(0, UIHelper.dp(this, 8), 0, 0);
+        followRoadsCheck.setLayoutParams(followLp);
+        destCard.addView(followRoadsCheck);
 
         // Save preset button
         Button savePresetBtn = UIHelper.smallButton(this, "儲存為預設", UIHelper.ACCENT_GREEN);
@@ -650,6 +665,7 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         intent.putExtra(GpsMockService.EXTRA_END_LAT, destLat);
         intent.putExtra(GpsMockService.EXTRA_END_LNG, destLng);
         intent.putExtra(GpsMockService.EXTRA_DURATION_MS, duration);
+        intent.putExtra(GpsMockService.EXTRA_FOLLOW_ROADS, followRoadsCheck.isChecked());
 
         startForegroundService(intent);
         Toast.makeText(this, "開始模擬位置", Toast.LENGTH_SHORT).show();

@@ -19,6 +19,16 @@ import android.os.SystemClock;
 
 import androidx.core.app.NotificationCompat;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+
 public class GpsMockService extends Service {
 
     public static final String EXTRA_START_LAT = "start_lat";
@@ -26,6 +36,7 @@ public class GpsMockService extends Service {
     public static final String EXTRA_END_LAT = "end_lat";
     public static final String EXTRA_END_LNG = "end_lng";
     public static final String EXTRA_DURATION_MS = "duration_ms";
+    public static final String EXTRA_FOLLOW_ROADS = "follow_roads";
 
     public static final String ACTION_STOP = "com.mybot.app.GPS_MOCK_STOP";
 
@@ -50,6 +61,12 @@ public class GpsMockService extends Service {
     private double endLat, endLng;
     private long durationMs;
     private long startTimeMs;
+    private boolean followRoads;
+
+    // Route waypoints for road following
+    private List<double[]> routePoints = new ArrayList<>();
+    private double[] cumulativeDistances; // Distance from start to each point
+    private double totalRouteDistance;
 
     private final Runnable updateRunnable = new Runnable() {
         @Override
@@ -59,8 +76,19 @@ public class GpsMockService extends Service {
             long elapsed = System.currentTimeMillis() - startTimeMs;
             double fraction = Math.min(1.0, (double) elapsed / durationMs);
 
-            double[] pos = interpolate(startLat, startLng, endLat, endLng, fraction);
-            double bearing = calculateBearing(startLat, startLng, endLat, endLng);
+            double[] pos;
+            double bearing;
+
+            if (followRoads && routePoints.size() >= 2) {
+                // Follow road waypoints
+                double targetDistance = fraction * totalRouteDistance;
+                pos = getPositionAlongRoute(targetDistance);
+                bearing = getBearingAlongRoute(targetDistance);
+            } else {
+                // Direct line interpolation
+                pos = interpolate(startLat, startLng, endLat, endLng, fraction);
+                bearing = calculateBearing(startLat, startLng, endLat, endLng);
+            }
 
             // Update static state
             sCurrentLat = pos[0];
@@ -106,10 +134,16 @@ public class GpsMockService extends Service {
         endLat = intent.getDoubleExtra(EXTRA_END_LAT, 0);
         endLng = intent.getDoubleExtra(EXTRA_END_LNG, 0);
         durationMs = intent.getLongExtra(EXTRA_DURATION_MS, 600_000);
+        followRoads = intent.getBooleanExtra(EXTRA_FOLLOW_ROADS, false);
 
         double distance = haversineDistance(startLat, startLng, endLat, endLng);
-        AppLog.i("GpsMock", String.format("開始模擬: (%.4f, %.4f) -> (%.4f, %.4f), 距離: %.1fkm, 時長: %d分鐘",
-                startLat, startLng, endLat, endLng, distance / 1000, durationMs / 60000));
+        AppLog.i("GpsMock", String.format("開始模擬: (%.4f, %.4f) -> (%.4f, %.4f), 距離: %.1fkm, 時長: %d分鐘, 沿道路: %s",
+                startLat, startLng, endLat, endLng, distance / 1000, durationMs / 60000, followRoads ? "是" : "否"));
+
+        // Fetch route if following roads (async, will use direct line until loaded)
+        if (followRoads) {
+            fetchRouteAsync();
+        }
 
         if (!setupMockProvider()) {
             sLastError = "請在「設定 > 開發者選項 > 選取模擬位置應用程式」中選擇 Mybot";
@@ -265,6 +299,141 @@ public class GpsMockService extends Service {
                 * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
+    }
+
+    // OSRM route fetching
+    private void fetchRouteAsync() {
+        new Thread(() -> {
+            try {
+                String urlStr = String.format(
+                        "https://router.project-osrm.org/route/v1/driving/%.6f,%.6f;%.6f,%.6f?overview=full&geometries=geojson",
+                        startLng, startLat, endLng, endLat);
+
+                URL url = new URL(urlStr);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode != 200) {
+                    AppLog.w("GpsMock", "OSRM API 回傳 " + responseCode + ", 使用直線路徑");
+                    return;
+                }
+
+                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                }
+                reader.close();
+
+                JSONObject json = new JSONObject(sb.toString());
+                if (!"Ok".equals(json.optString("code"))) {
+                    AppLog.w("GpsMock", "OSRM 回傳錯誤: " + json.optString("code"));
+                    return;
+                }
+
+                JSONArray routes = json.getJSONArray("routes");
+                if (routes.length() == 0) {
+                    AppLog.w("GpsMock", "OSRM 無路線資料");
+                    return;
+                }
+
+                JSONObject route = routes.getJSONObject(0);
+                JSONObject geometry = route.getJSONObject("geometry");
+                JSONArray coordinates = geometry.getJSONArray("coordinates");
+
+                List<double[]> points = new ArrayList<>();
+                for (int i = 0; i < coordinates.length(); i++) {
+                    JSONArray coord = coordinates.getJSONArray(i);
+                    double lng = coord.getDouble(0);
+                    double lat = coord.getDouble(1);
+                    points.add(new double[]{lat, lng});
+                }
+
+                if (points.size() < 2) {
+                    AppLog.w("GpsMock", "OSRM 路徑點不足");
+                    return;
+                }
+
+                // Calculate cumulative distances
+                double[] cumDist = new double[points.size()];
+                cumDist[0] = 0;
+                for (int i = 1; i < points.size(); i++) {
+                    double[] prev = points.get(i - 1);
+                    double[] curr = points.get(i);
+                    cumDist[i] = cumDist[i - 1] + haversineDistance(prev[0], prev[1], curr[0], curr[1]);
+                }
+
+                // Update on main thread
+                handler.post(() -> {
+                    routePoints = points;
+                    cumulativeDistances = cumDist;
+                    totalRouteDistance = cumDist[cumDist.length - 1];
+                    AppLog.i("GpsMock", String.format("OSRM 路線載入成功: %d 個路徑點, 總距離 %.1fkm",
+                            points.size(), totalRouteDistance / 1000));
+                });
+
+            } catch (Exception e) {
+                AppLog.e("GpsMock", "OSRM 路線取得失敗: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    // Get position at given distance along route
+    private double[] getPositionAlongRoute(double targetDistance) {
+        if (routePoints.isEmpty() || cumulativeDistances == null) {
+            return new double[]{startLat, startLng};
+        }
+
+        // Find segment containing target distance
+        for (int i = 1; i < cumulativeDistances.length; i++) {
+            if (cumulativeDistances[i] >= targetDistance) {
+                double segmentStart = cumulativeDistances[i - 1];
+                double segmentEnd = cumulativeDistances[i];
+                double segmentLength = segmentEnd - segmentStart;
+
+                if (segmentLength < 0.1) {
+                    return routePoints.get(i);
+                }
+
+                double fraction = (targetDistance - segmentStart) / segmentLength;
+                double[] p1 = routePoints.get(i - 1);
+                double[] p2 = routePoints.get(i);
+
+                // Linear interpolation within segment
+                double lat = p1[0] + fraction * (p2[0] - p1[0]);
+                double lng = p1[1] + fraction * (p2[1] - p1[1]);
+                return new double[]{lat, lng};
+            }
+        }
+
+        // Past end, return last point
+        return routePoints.get(routePoints.size() - 1);
+    }
+
+    // Get bearing at given distance along route
+    private double getBearingAlongRoute(double targetDistance) {
+        if (routePoints.size() < 2 || cumulativeDistances == null) {
+            return calculateBearing(startLat, startLng, endLat, endLng);
+        }
+
+        // Find current segment
+        for (int i = 1; i < cumulativeDistances.length; i++) {
+            if (cumulativeDistances[i] >= targetDistance) {
+                double[] p1 = routePoints.get(i - 1);
+                double[] p2 = routePoints.get(i);
+                return calculateBearing(p1[0], p1[1], p2[0], p2[1]);
+            }
+        }
+
+        // Past end, use last segment bearing
+        int n = routePoints.size();
+        double[] p1 = routePoints.get(n - 2);
+        double[] p2 = routePoints.get(n - 1);
+        return calculateBearing(p1[0], p1[1], p2[0], p2[1]);
     }
 
     private void createNotificationChannel() {
