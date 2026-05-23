@@ -279,12 +279,11 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout tRow2 = gridRow3();
         addCompact(tRow2, "\u23F1", "快速計時", UIHelper.ACCENT_BLUE,
                 v -> showTimerDialog(), 0);
-        View tRow2Spacer1 = new View(this);
-        tRow2Spacer1.setVisibility(View.INVISIBLE);
-        tRow2.addView(tRow2Spacer1, gridCellLp(g));
-        View tRow2Spacer2 = new View(this);
-        tRow2Spacer2.setVisibility(View.INVISIBLE);
-        tRow2.addView(tRow2Spacer2, gridCellLp(g));
+        addCompact(tRow2, "\uD83D\uDCCD", "GPS 模擬器", UIHelper.ACCENT_GREEN,
+                v -> startActivity(new Intent(this, GpsMockActivity.class)), g);
+        View tRow2Spacer = new View(this);
+        tRow2Spacer.setVisibility(View.INVISIBLE);
+        tRow2.addView(tRow2Spacer, gridCellLp(g));
         content.addView(tRow2);
 
         // ── Version footer ──
