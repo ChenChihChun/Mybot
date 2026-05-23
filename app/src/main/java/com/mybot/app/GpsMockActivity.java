@@ -45,6 +45,8 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
     private Geocoder geocoder;
 
     private TextView currentLocText;
+    private EditText startInput;
+    private TextView startResultText;
     private EditText destInput;
     private TextView destResultText;
     private Spinner durationSpinner;
@@ -54,6 +56,11 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
 
     private double currentLat = 0, currentLng = 0;
     private boolean hasLocation = false;
+
+    private double startLat = 0, startLng = 0;
+    private String startName = "";
+    private boolean hasStartPoint = false;
+    private boolean useCurrentAsStart = true;
 
     private double destLat = 0, destLng = 0;
     private String destName = "";
@@ -131,24 +138,102 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         int p = UIHelper.dp(this, 16);
         content.setPadding(p, p, p, p);
 
-        // Current location card
-        content.addView(UIHelper.sectionHeader(this, "CURRENT LOCATION"));
-        LinearLayout locCard = UIHelper.card(this);
+        // Start point card
+        content.addView(UIHelper.sectionHeader(this, "START POINT"));
+        LinearLayout startCard = UIHelper.card(this);
+
+        // Current GPS location row
+        TextView gpsLabel = new TextView(this);
+        gpsLabel.setText("目前 GPS 位置:");
+        gpsLabel.setTextSize(14);
+        gpsLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        startCard.addView(gpsLabel);
+
+        LinearLayout gpsRow = new LinearLayout(this);
+        gpsRow.setOrientation(LinearLayout.HORIZONTAL);
+        gpsRow.setGravity(Gravity.CENTER_VERTICAL);
+
         currentLocText = new TextView(this);
         currentLocText.setText("取得中...");
         currentLocText.setTextSize(14);
         currentLocText.setTextColor(UIHelper.TEXT_PRIMARY);
-        locCard.addView(currentLocText);
+        currentLocText.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        gpsRow.addView(currentLocText);
+
+        Button useGpsBtn = UIHelper.smallButton(this, "使用", UIHelper.ACCENT_GREEN);
+        useGpsBtn.setOnClickListener(v -> {
+            if (hasLocation) {
+                useCurrentAsStart = true;
+                hasStartPoint = true;
+                startLat = currentLat;
+                startLng = currentLng;
+                startName = "目前位置";
+                startResultText.setText(String.format("使用目前位置 (%.4f, %.4f)", currentLat, currentLng));
+                startResultText.setTextColor(UIHelper.ACCENT_GREEN);
+                startInput.setText("");
+            } else {
+                Toast.makeText(this, "尚未取得 GPS 位置", Toast.LENGTH_SHORT).show();
+            }
+        });
+        gpsRow.addView(useGpsBtn);
 
         Button refreshLocBtn = UIHelper.smallButton(this, "重新定位", UIHelper.ACCENT_BLUE);
         refreshLocBtn.setOnClickListener(v -> requestLocation());
-        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, UIHelper.dp(this, 36));
-        btnLp.setMargins(0, UIHelper.dp(this, 8), 0, 0);
-        refreshLocBtn.setLayoutParams(btnLp);
-        locCard.addView(refreshLocBtn);
+        LinearLayout.LayoutParams refreshLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        refreshLp.setMargins(UIHelper.dp(this, 4), 0, 0, 0);
+        refreshLocBtn.setLayoutParams(refreshLp);
+        gpsRow.addView(refreshLocBtn);
 
-        content.addView(locCard);
+        startCard.addView(gpsRow);
+
+        // Divider
+        View divider = new View(this);
+        divider.setBackgroundColor(UIHelper.DIVIDER);
+        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, UIHelper.dp(this, 1));
+        divLp.setMargins(0, UIHelper.dp(this, 12), 0, UIHelper.dp(this, 12));
+        divider.setLayoutParams(divLp);
+        startCard.addView(divider);
+
+        // Custom start point search
+        TextView customLabel = new TextView(this);
+        customLabel.setText("或搜尋自訂起點:");
+        customLabel.setTextSize(14);
+        customLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        startCard.addView(customLabel);
+
+        LinearLayout startSearchRow = new LinearLayout(this);
+        startSearchRow.setOrientation(LinearLayout.HORIZONTAL);
+        startSearchRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams startSearchLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        startSearchLp.setMargins(0, UIHelper.dp(this, 4), 0, 0);
+        startSearchRow.setLayoutParams(startSearchLp);
+
+        startInput = UIHelper.styledInput(this, "例: 台北車站");
+        startInput.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        startSearchRow.addView(startInput);
+
+        Button startSearchBtn = UIHelper.smallButton(this, "搜尋", UIHelper.ACCENT_BLUE);
+        LinearLayout.LayoutParams startSearchBtnLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, UIHelper.dp(this, 44));
+        startSearchBtnLp.setMargins(UIHelper.dp(this, 8), 0, 0, 0);
+        startSearchBtn.setLayoutParams(startSearchBtnLp);
+        startSearchBtn.setOnClickListener(v -> searchStartPoint());
+        startSearchRow.addView(startSearchBtn);
+
+        startCard.addView(startSearchRow);
+
+        // Start point result
+        startResultText = new TextView(this);
+        startResultText.setText("預設使用目前 GPS 位置");
+        startResultText.setTextSize(13);
+        startResultText.setTextColor(UIHelper.TEXT_HINT);
+        startResultText.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        startCard.addView(startResultText);
+
+        content.addView(startCard);
 
         // Destination card
         content.addView(UIHelper.sectionHeader(this, "DESTINATION"));
@@ -353,6 +438,67 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         } catch (Exception ignored) {}
     }
 
+    private void searchStartPoint() {
+        String query = startInput.getText().toString().trim();
+        if (query.isEmpty()) {
+            Toast.makeText(this, "請輸入起點名稱", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        startResultText.setText("搜尋中...");
+        startResultText.setTextColor(UIHelper.TEXT_SECONDARY);
+
+        new Thread(() -> {
+            try {
+                List<Address> results = geocoder.getFromLocationName(query, 5);
+                runOnUiThread(() -> {
+                    if (results == null || results.isEmpty()) {
+                        startResultText.setText("找不到「" + query + "」");
+                        startResultText.setTextColor(UIHelper.ACCENT_RED);
+                        hasStartPoint = false;
+                    } else if (results.size() == 1) {
+                        selectStartAddress(results.get(0));
+                    } else {
+                        showStartAddressPicker(results);
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    startResultText.setText("搜尋失敗: " + e.getMessage());
+                    startResultText.setTextColor(UIHelper.ACCENT_RED);
+                    hasStartPoint = false;
+                    AppLog.e("GpsMock", "起點搜尋失敗: " + e.getMessage());
+                });
+            }
+        }).start();
+    }
+
+    private void showStartAddressPicker(List<Address> addresses) {
+        String[] items = new String[addresses.size()];
+        for (int i = 0; i < addresses.size(); i++) {
+            items[i] = formatAddress(addresses.get(i));
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("選擇起點")
+                .setItems(items, (dialog, which) -> selectStartAddress(addresses.get(which)))
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void selectStartAddress(Address address) {
+        startLat = address.getLatitude();
+        startLng = address.getLongitude();
+        startName = formatAddress(address);
+        hasStartPoint = true;
+        useCurrentAsStart = false;
+
+        startResultText.setText(String.format("%s\n(%.6f, %.6f)", startName, startLat, startLng));
+        startResultText.setTextColor(UIHelper.ACCENT_GREEN);
+
+        AppLog.i("GpsMock", "選擇起點: " + startName);
+    }
+
     private void searchPlace() {
         String query = destInput.getText().toString().trim();
         if (query.isEmpty()) {
@@ -472,8 +618,17 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
             return;
         }
 
-        if (!hasLocation) {
-            Toast.makeText(this, "請先取得目前位置", Toast.LENGTH_SHORT).show();
+        // Determine start point
+        double actualStartLat, actualStartLng;
+        if (hasStartPoint) {
+            actualStartLat = startLat;
+            actualStartLng = startLng;
+        } else if (hasLocation) {
+            // Default to current GPS
+            actualStartLat = currentLat;
+            actualStartLng = currentLng;
+        } else {
+            Toast.makeText(this, "請先設定起點（使用 GPS 或搜尋地點）", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -483,14 +638,15 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         }
 
         long duration = DURATION_VALUES[durationSpinner.getSelectedItemPosition()];
-        double distance = haversineDistance(currentLat, currentLng, destLat, destLng);
+        double distance = haversineDistance(actualStartLat, actualStartLng, destLat, destLng);
 
-        AppLog.i("GpsMock", String.format("準備模擬: %s, 距離 %.1fkm, 時間 %d分鐘",
-                destName, distance / 1000, duration / 60000));
+        String startDesc = hasStartPoint ? startName : "目前位置";
+        AppLog.i("GpsMock", String.format("準備模擬: %s -> %s, 距離 %.1fkm, 時間 %d分鐘",
+                startDesc, destName, distance / 1000, duration / 60000));
 
         Intent intent = new Intent(this, GpsMockService.class);
-        intent.putExtra(GpsMockService.EXTRA_START_LAT, currentLat);
-        intent.putExtra(GpsMockService.EXTRA_START_LNG, currentLng);
+        intent.putExtra(GpsMockService.EXTRA_START_LAT, actualStartLat);
+        intent.putExtra(GpsMockService.EXTRA_START_LNG, actualStartLng);
         intent.putExtra(GpsMockService.EXTRA_END_LAT, destLat);
         intent.putExtra(GpsMockService.EXTRA_END_LNG, destLng);
         intent.putExtra(GpsMockService.EXTRA_DURATION_MS, duration);
