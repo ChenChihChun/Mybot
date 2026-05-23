@@ -7,12 +7,13 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,6 +32,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import java.util.List;
+import java.util.Locale;
 
 public class GpsMockActivity extends AppCompatActivity implements LocationListener {
 
@@ -38,9 +40,11 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
 
     private GpsMockDbHelper dbHelper;
     private LocationManager locationManager;
+    private Geocoder geocoder;
 
     private TextView currentLocText;
-    private EditText destLatInput, destLngInput;
+    private EditText destInput;
+    private TextView destResultText;
     private Spinner durationSpinner;
     private Button startStopBtn;
     private LinearLayout presetsContainer;
@@ -48,6 +52,10 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
 
     private double currentLat = 0, currentLng = 0;
     private boolean hasLocation = false;
+
+    private double destLat = 0, destLng = 0;
+    private String destName = "";
+    private boolean hasDestination = false;
 
     private final long[] DURATION_VALUES = {
             10 * 60 * 1000,   // 10 min
@@ -64,6 +72,7 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
 
         dbHelper = new GpsMockDbHelper(this);
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        geocoder = new Geocoder(this, Locale.getDefault());
 
         LinearLayout root = UIHelper.pageRoot(this);
 
@@ -110,20 +119,59 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         content.addView(UIHelper.sectionHeader(this, "DESTINATION"));
         LinearLayout destCard = UIHelper.card(this);
 
-        LinearLayout latRow = inputRow("緯度 (Lat):");
-        destLatInput = UIHelper.styledInput(this, "例: 35.6762");
-        destLatInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED);
-        latRow.addView(destLatInput, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        destCard.addView(latRow);
+        // Place search input
+        TextView destLabel = new TextView(this);
+        destLabel.setText("輸入地點名稱:");
+        destLabel.setTextSize(14);
+        destLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        destCard.addView(destLabel);
 
-        LinearLayout lngRow = inputRow("經度 (Lng):");
-        destLngInput = UIHelper.styledInput(this, "例: 139.6503");
-        destLngInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED);
-        lngRow.addView(destLngInput, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        destCard.addView(lngRow);
+        LinearLayout searchRow = new LinearLayout(this);
+        searchRow.setOrientation(LinearLayout.HORIZONTAL);
+        searchRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams searchRowLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        searchRowLp.setMargins(0, UIHelper.dp(this, 4), 0, 0);
+        searchRow.setLayoutParams(searchRowLp);
+
+        destInput = UIHelper.styledInput(this, "例: 台北101、東京鐵塔");
+        destInput.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        searchRow.addView(destInput);
+
+        Button searchBtn = UIHelper.smallButton(this, "搜尋", UIHelper.ACCENT_BLUE);
+        LinearLayout.LayoutParams searchBtnLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, UIHelper.dp(this, 44));
+        searchBtnLp.setMargins(UIHelper.dp(this, 8), 0, 0, 0);
+        searchBtn.setLayoutParams(searchBtnLp);
+        searchBtn.setOnClickListener(v -> searchPlace());
+        searchRow.addView(searchBtn);
+
+        destCard.addView(searchRow);
+
+        // Search result display
+        destResultText = new TextView(this);
+        destResultText.setText("尚未選擇目的地");
+        destResultText.setTextSize(13);
+        destResultText.setTextColor(UIHelper.TEXT_HINT);
+        destResultText.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 8));
+        destCard.addView(destResultText);
 
         // Duration spinner
-        LinearLayout durRow = inputRow("移動時間:");
+        LinearLayout durRow = new LinearLayout(this);
+        durRow.setOrientation(LinearLayout.HORIZONTAL);
+        durRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams durRowLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        durRowLp.setMargins(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 4));
+        durRow.setLayoutParams(durRowLp);
+
+        TextView durLabel = new TextView(this);
+        durLabel.setText("移動時間:");
+        durLabel.setTextSize(14);
+        durLabel.setTextColor(UIHelper.TEXT_SECONDARY);
+        durLabel.setMinWidth(UIHelper.dp(this, 80));
+        durRow.addView(durLabel);
+
         durationSpinner = new Spinner(this);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, DURATION_LABELS);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -187,25 +235,6 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         } catch (Exception ignored) {}
     }
 
-    private LinearLayout inputRow(String label) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 4));
-        row.setLayoutParams(lp);
-
-        TextView tv = new TextView(this);
-        tv.setText(label);
-        tv.setTextSize(14);
-        tv.setTextColor(UIHelper.TEXT_SECONDARY);
-        tv.setMinWidth(UIHelper.dp(this, 90));
-        row.addView(tv);
-
-        return row;
-    }
-
     private void checkAndRequestPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -239,7 +268,6 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         currentLocText.setTextColor(UIHelper.TEXT_PRIMARY);
 
         try {
-            // Try to get last known location first
             Location lastKnown = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             if (lastKnown == null) {
                 lastKnown = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
@@ -248,7 +276,6 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
                 updateCurrentLocation(lastKnown);
             }
 
-            // Request updates
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, this);
             } else if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
@@ -274,15 +301,120 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
     @Override
     public void onLocationChanged(@NonNull Location location) {
         updateCurrentLocation(location);
-        // Stop updates after getting location
         try {
             locationManager.removeUpdates(this);
         } catch (Exception ignored) {}
     }
 
+    private void searchPlace() {
+        String query = destInput.getText().toString().trim();
+        if (query.isEmpty()) {
+            Toast.makeText(this, "請輸入地點名稱", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        destResultText.setText("搜尋中...");
+        destResultText.setTextColor(UIHelper.TEXT_SECONDARY);
+
+        new Thread(() -> {
+            try {
+                List<Address> results = geocoder.getFromLocationName(query, 5);
+                runOnUiThread(() -> {
+                    if (results == null || results.isEmpty()) {
+                        destResultText.setText("找不到「" + query + "」");
+                        destResultText.setTextColor(UIHelper.ACCENT_RED);
+                        hasDestination = false;
+                    } else if (results.size() == 1) {
+                        // Single result, use directly
+                        selectAddress(results.get(0));
+                    } else {
+                        // Multiple results, show picker
+                        showAddressPicker(results);
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    destResultText.setText("搜尋失敗: " + e.getMessage());
+                    destResultText.setTextColor(UIHelper.ACCENT_RED);
+                    hasDestination = false;
+                    AppLog.e("GpsMock", "地點搜尋失敗: " + e.getMessage());
+                });
+            }
+        }).start();
+    }
+
+    private void showAddressPicker(List<Address> addresses) {
+        String[] items = new String[addresses.size()];
+        for (int i = 0; i < addresses.size(); i++) {
+            Address addr = addresses.get(i);
+            items[i] = formatAddress(addr);
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("選擇地點")
+                .setItems(items, (dialog, which) -> selectAddress(addresses.get(which)))
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void selectAddress(Address address) {
+        destLat = address.getLatitude();
+        destLng = address.getLongitude();
+        destName = formatAddress(address);
+        hasDestination = true;
+
+        destResultText.setText(String.format("%s\n(%.6f, %.6f)", destName, destLat, destLng));
+        destResultText.setTextColor(UIHelper.ACCENT_GREEN);
+
+        AppLog.i("GpsMock", "選擇目的地: " + destName);
+    }
+
+    private String formatAddress(Address address) {
+        StringBuilder sb = new StringBuilder();
+
+        // Try to get a meaningful name
+        if (address.getFeatureName() != null && !address.getFeatureName().matches("\\d+")) {
+            sb.append(address.getFeatureName());
+        }
+
+        if (address.getLocality() != null) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(address.getLocality());
+        }
+
+        if (address.getAdminArea() != null) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(address.getAdminArea());
+        }
+
+        if (address.getCountryName() != null) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(address.getCountryName());
+        }
+
+        if (sb.length() == 0) {
+            // Fallback to address lines
+            for (int i = 0; i <= address.getMaxAddressLineIndex(); i++) {
+                if (i > 0) sb.append(", ");
+                sb.append(address.getAddressLine(i));
+            }
+        }
+
+        return sb.length() > 0 ? sb.toString() : String.format("%.4f, %.4f", address.getLatitude(), address.getLongitude());
+    }
+
+    private void setDestination(double lat, double lng, String name) {
+        destLat = lat;
+        destLng = lng;
+        destName = name;
+        hasDestination = true;
+        destInput.setText(name);
+        destResultText.setText(String.format("%s\n(%.6f, %.6f)", name, lat, lng));
+        destResultText.setTextColor(UIHelper.ACCENT_GREEN);
+    }
+
     private void toggleMock() {
         if (GpsMockService.isRunning(this)) {
-            // Stop the service
             Intent stopIntent = new Intent(this, GpsMockService.class);
             stopIntent.setAction(GpsMockService.ACTION_STOP);
             startService(stopIntent);
@@ -290,46 +422,18 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
             return;
         }
 
-        // Validate inputs
         if (!hasLocation) {
             Toast.makeText(this, "請先取得目前位置", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String latStr = destLatInput.getText().toString().trim();
-        String lngStr = destLngInput.getText().toString().trim();
-
-        if (latStr.isEmpty() || lngStr.isEmpty()) {
-            Toast.makeText(this, "請輸入目的地座標", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        double destLat, destLng;
-        try {
-            destLat = Double.parseDouble(latStr);
-            destLng = Double.parseDouble(lngStr);
-        } catch (NumberFormatException e) {
-            Toast.makeText(this, "座標格式錯誤", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (destLat < -90 || destLat > 90 || destLng < -180 || destLng > 180) {
-            Toast.makeText(this, "座標超出範圍", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Check if app is set as mock location provider
-        try {
-            android.provider.Settings.Secure.getString(
-                    getContentResolver(), "mock_location");
-        } catch (Exception e) {
-            showMockLocationSetupDialog();
+        if (!hasDestination) {
+            Toast.makeText(this, "請先搜尋並選擇目的地", Toast.LENGTH_SHORT).show();
             return;
         }
 
         long duration = DURATION_VALUES[durationSpinner.getSelectedItemPosition()];
 
-        // Start service
         Intent intent = new Intent(this, GpsMockService.class);
         intent.putExtra(GpsMockService.EXTRA_START_LAT, currentLat);
         intent.putExtra(GpsMockService.EXTRA_START_LNG, currentLng);
@@ -337,17 +441,13 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         intent.putExtra(GpsMockService.EXTRA_END_LNG, destLng);
         intent.putExtra(GpsMockService.EXTRA_DURATION_MS, duration);
 
-        startForegroundService(intent);
-
-        // Save last used settings
-        dbHelper.setSetting("last_lat", latStr);
-        dbHelper.setSetting("last_lng", lngStr);
-        dbHelper.setSetting("last_duration", String.valueOf(durationSpinner.getSelectedItemPosition()));
-
-        Toast.makeText(this, "開始模擬位置", Toast.LENGTH_SHORT).show();
-
-        // Update UI after a short delay
-        startStopBtn.postDelayed(this::updateButtonState, 500);
+        try {
+            startForegroundService(intent);
+            Toast.makeText(this, "開始模擬位置", Toast.LENGTH_SHORT).show();
+            startStopBtn.postDelayed(this::updateButtonState, 500);
+        } catch (SecurityException e) {
+            showMockLocationSetupDialog();
+        }
     }
 
     private void updateButtonState() {
@@ -425,10 +525,7 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
             info.addView(coords);
 
             Button useBtn = UIHelper.smallButton(this, "使用", UIHelper.ACCENT_BLUE);
-            useBtn.setOnClickListener(v -> {
-                destLatInput.setText(String.valueOf(preset.lat));
-                destLngInput.setText(String.valueOf(preset.lng));
-            });
+            useBtn.setOnClickListener(v -> setDestination(preset.lat, preset.lng, preset.name));
 
             Button delBtn = UIHelper.smallButton(this, "刪除", UIHelper.ACCENT_RED);
             delBtn.setOnClickListener(v -> {
@@ -453,25 +550,14 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
     }
 
     private void showSavePresetDialog() {
-        String latStr = destLatInput.getText().toString().trim();
-        String lngStr = destLngInput.getText().toString().trim();
-
-        if (latStr.isEmpty() || lngStr.isEmpty()) {
-            Toast.makeText(this, "請先輸入目的地座標", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        double lat, lng;
-        try {
-            lat = Double.parseDouble(latStr);
-            lng = Double.parseDouble(lngStr);
-        } catch (NumberFormatException e) {
-            Toast.makeText(this, "座標格式錯誤", Toast.LENGTH_SHORT).show();
+        if (!hasDestination) {
+            Toast.makeText(this, "請先搜尋並選擇目的地", Toast.LENGTH_SHORT).show();
             return;
         }
 
         EditText nameInput = new EditText(this);
         nameInput.setHint("預設名稱");
+        nameInput.setText(destName);
 
         new AlertDialog.Builder(this)
                 .setTitle("儲存預設")
@@ -479,9 +565,9 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
                 .setPositiveButton("儲存", (d, w) -> {
                     String name = nameInput.getText().toString().trim();
                     if (name.isEmpty()) {
-                        name = String.format("%.2f, %.2f", lat, lng);
+                        name = String.format("%.2f, %.2f", destLat, destLng);
                     }
-                    dbHelper.insertPreset(name, lat, lng);
+                    dbHelper.insertPreset(name, destLat, destLng);
                     AppLog.i("GpsMock", "儲存預設: " + name);
                     loadPresets();
                 })
