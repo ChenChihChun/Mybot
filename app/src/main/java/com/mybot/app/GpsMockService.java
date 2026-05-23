@@ -319,6 +319,7 @@ public class GpsMockService extends Service {
                 URL url = new URL(urlStr);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
+                conn.setRequestProperty("User-Agent", "Mybot/1.0 Android");
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(10000);
 
