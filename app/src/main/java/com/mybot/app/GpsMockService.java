@@ -140,11 +140,6 @@ public class GpsMockService extends Service {
         AppLog.i("GpsMock", String.format("開始模擬: (%.4f, %.4f) -> (%.4f, %.4f), 距離: %.1fkm, 時長: %d分鐘, 沿道路: %s",
                 startLat, startLng, endLat, endLng, distance / 1000, durationMs / 60000, followRoads ? "是" : "否"));
 
-        // Fetch route if following roads (async, will use direct line until loaded)
-        if (followRoads) {
-            fetchRouteAsync();
-        }
-
         if (!setupMockProvider()) {
             sLastError = "請在「設定 > 開發者選項 > 選取模擬位置應用程式」中選擇 Mybot";
             AppLog.e("GpsMock", "無法設定 Mock Provider: " + sLastError);
@@ -163,8 +158,12 @@ public class GpsMockService extends Service {
 
         startForeground(NOTIFICATION_ID, buildNotification(0, startLat, startLng));
 
-        startTimeMs = System.currentTimeMillis();
-        handler.post(updateRunnable);
+        // Fetch route if following roads, then start simulation
+        if (followRoads) {
+            fetchRouteAndStart();
+        } else {
+            startSimulation();
+        }
 
         return START_NOT_STICKY;
     }
@@ -301,9 +300,17 @@ public class GpsMockService extends Service {
         return R * c;
     }
 
-    // OSRM route fetching
-    private void fetchRouteAsync() {
+    private void startSimulation() {
+        startTimeMs = System.currentTimeMillis();
+        handler.post(updateRunnable);
+        AppLog.i("GpsMock", "模擬開始");
+    }
+
+    // OSRM route fetching - fetch route then start simulation
+    private void fetchRouteAndStart() {
+        AppLog.i("GpsMock", "正在取得 OSRM 路線...");
         new Thread(() -> {
+            boolean success = false;
             try {
                 String urlStr = String.format(
                         "https://router.project-osrm.org/route/v1/driving/%.6f,%.6f;%.6f,%.6f?overview=full&geometries=geojson",
@@ -318,67 +325,69 @@ public class GpsMockService extends Service {
                 int responseCode = conn.getResponseCode();
                 if (responseCode != 200) {
                     AppLog.w("GpsMock", "OSRM API 回傳 " + responseCode + ", 使用直線路徑");
-                    return;
+                } else {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    reader.close();
+
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (!"Ok".equals(json.optString("code"))) {
+                        AppLog.w("GpsMock", "OSRM 回傳錯誤: " + json.optString("code"));
+                    } else {
+                        JSONArray routes = json.getJSONArray("routes");
+                        if (routes.length() == 0) {
+                            AppLog.w("GpsMock", "OSRM 無路線資料");
+                        } else {
+                            JSONObject route = routes.getJSONObject(0);
+                            JSONObject geometry = route.getJSONObject("geometry");
+                            JSONArray coordinates = geometry.getJSONArray("coordinates");
+
+                            List<double[]> points = new ArrayList<>();
+                            for (int i = 0; i < coordinates.length(); i++) {
+                                JSONArray coord = coordinates.getJSONArray(i);
+                                double lng = coord.getDouble(0);
+                                double lat = coord.getDouble(1);
+                                points.add(new double[]{lat, lng});
+                            }
+
+                            if (points.size() >= 2) {
+                                // Calculate cumulative distances
+                                double[] cumDist = new double[points.size()];
+                                cumDist[0] = 0;
+                                for (int i = 1; i < points.size(); i++) {
+                                    double[] prev = points.get(i - 1);
+                                    double[] curr = points.get(i);
+                                    cumDist[i] = cumDist[i - 1] + haversineDistance(prev[0], prev[1], curr[0], curr[1]);
+                                }
+
+                                routePoints = points;
+                                cumulativeDistances = cumDist;
+                                totalRouteDistance = cumDist[cumDist.length - 1];
+                                success = true;
+                                AppLog.i("GpsMock", String.format("OSRM 路線載入成功: %d 個路徑點, 總距離 %.1fkm",
+                                        points.size(), totalRouteDistance / 1000));
+                            } else {
+                                AppLog.w("GpsMock", "OSRM 路徑點不足");
+                            }
+                        }
+                    }
                 }
-
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line);
-                }
-                reader.close();
-
-                JSONObject json = new JSONObject(sb.toString());
-                if (!"Ok".equals(json.optString("code"))) {
-                    AppLog.w("GpsMock", "OSRM 回傳錯誤: " + json.optString("code"));
-                    return;
-                }
-
-                JSONArray routes = json.getJSONArray("routes");
-                if (routes.length() == 0) {
-                    AppLog.w("GpsMock", "OSRM 無路線資料");
-                    return;
-                }
-
-                JSONObject route = routes.getJSONObject(0);
-                JSONObject geometry = route.getJSONObject("geometry");
-                JSONArray coordinates = geometry.getJSONArray("coordinates");
-
-                List<double[]> points = new ArrayList<>();
-                for (int i = 0; i < coordinates.length(); i++) {
-                    JSONArray coord = coordinates.getJSONArray(i);
-                    double lng = coord.getDouble(0);
-                    double lat = coord.getDouble(1);
-                    points.add(new double[]{lat, lng});
-                }
-
-                if (points.size() < 2) {
-                    AppLog.w("GpsMock", "OSRM 路徑點不足");
-                    return;
-                }
-
-                // Calculate cumulative distances
-                double[] cumDist = new double[points.size()];
-                cumDist[0] = 0;
-                for (int i = 1; i < points.size(); i++) {
-                    double[] prev = points.get(i - 1);
-                    double[] curr = points.get(i);
-                    cumDist[i] = cumDist[i - 1] + haversineDistance(prev[0], prev[1], curr[0], curr[1]);
-                }
-
-                // Update on main thread
-                handler.post(() -> {
-                    routePoints = points;
-                    cumulativeDistances = cumDist;
-                    totalRouteDistance = cumDist[cumDist.length - 1];
-                    AppLog.i("GpsMock", String.format("OSRM 路線載入成功: %d 個路徑點, 總距離 %.1fkm",
-                            points.size(), totalRouteDistance / 1000));
-                });
-
             } catch (Exception e) {
                 AppLog.e("GpsMock", "OSRM 路線取得失敗: " + e.getMessage());
             }
+
+            // Start simulation on main thread (with or without route)
+            final boolean routeLoaded = success;
+            handler.post(() -> {
+                if (!routeLoaded) {
+                    AppLog.w("GpsMock", "使用直線路徑");
+                }
+                startSimulation();
+            });
         }).start();
     }
 
