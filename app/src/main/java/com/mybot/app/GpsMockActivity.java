@@ -13,6 +13,8 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
@@ -57,6 +59,34 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
     private String destName = "";
     private boolean hasDestination = false;
 
+    private Handler uiHandler;
+    private TextView mockStatusText;
+
+    private final Runnable statusUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            // Check for errors
+            String error = GpsMockService.getLastError();
+            if (error != null) {
+                GpsMockService.clearLastError();
+                Toast.makeText(GpsMockActivity.this, error, Toast.LENGTH_LONG).show();
+                showMockLocationSetupDialog();
+            }
+
+            if (GpsMockService.isRunning()) {
+                double lat = GpsMockService.getCurrentLat();
+                double lng = GpsMockService.getCurrentLng();
+                int progress = (int) (GpsMockService.getProgress() * 100);
+                mockStatusText.setText(String.format("模擬位置: %.4f, %.4f (%d%%)", lat, lng, progress));
+                mockStatusText.setTextColor(UIHelper.ACCENT_GREEN);
+                uiHandler.postDelayed(this, 1000);
+            } else {
+                mockStatusText.setText("");
+            }
+            updateButtonState();
+        }
+    };
+
     private final long[] DURATION_VALUES = {
             10 * 60 * 1000,   // 10 min
             30 * 60 * 1000,   // 30 min
@@ -73,6 +103,7 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         dbHelper = new GpsMockDbHelper(this);
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         geocoder = new Geocoder(this, Locale.getDefault());
+        uiHandler = new Handler(Looper.getMainLooper());
 
         LinearLayout root = UIHelper.pageRoot(this);
 
@@ -204,6 +235,15 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         statusText.setPadding(0, UIHelper.dp(this, 8), 0, 0);
         content.addView(statusText);
 
+        // Real-time mock status
+        mockStatusText = new TextView(this);
+        mockStatusText.setTextSize(13);
+        mockStatusText.setTextColor(UIHelper.ACCENT_GREEN);
+        mockStatusText.setGravity(Gravity.CENTER);
+        mockStatusText.setTypeface(Typeface.MONOSPACE);
+        mockStatusText.setPadding(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 8));
+        content.addView(mockStatusText);
+
         // Presets section
         content.addView(UIHelper.sectionHeader(this, "PRESETS"));
         presetsContainer = new LinearLayout(this);
@@ -225,11 +265,14 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         super.onResume();
         updateButtonState();
         requestLocation();
+        // Start status polling
+        uiHandler.post(statusUpdateRunnable);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        uiHandler.removeCallbacks(statusUpdateRunnable);
         try {
             locationManager.removeUpdates(this);
         } catch (Exception ignored) {}
@@ -414,11 +457,14 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
     }
 
     private void toggleMock() {
-        if (GpsMockService.isRunning(this)) {
+        if (GpsMockService.isRunning()) {
             Intent stopIntent = new Intent(this, GpsMockService.class);
             stopIntent.setAction(GpsMockService.ACTION_STOP);
             startService(stopIntent);
+            uiHandler.removeCallbacks(statusUpdateRunnable);
+            mockStatusText.setText("");
             updateButtonState();
+            Toast.makeText(this, "已停止模擬", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -433,6 +479,10 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         }
 
         long duration = DURATION_VALUES[durationSpinner.getSelectedItemPosition()];
+        double distance = haversineDistance(currentLat, currentLng, destLat, destLng);
+
+        AppLog.i("GpsMock", String.format("準備模擬: %s, 距離 %.1fkm, 時間 %d分鐘",
+                destName, distance / 1000, duration / 60000));
 
         Intent intent = new Intent(this, GpsMockService.class);
         intent.putExtra(GpsMockService.EXTRA_START_LAT, currentLat);
@@ -441,17 +491,20 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
         intent.putExtra(GpsMockService.EXTRA_END_LNG, destLng);
         intent.putExtra(GpsMockService.EXTRA_DURATION_MS, duration);
 
-        try {
-            startForegroundService(intent);
-            Toast.makeText(this, "開始模擬位置", Toast.LENGTH_SHORT).show();
-            startStopBtn.postDelayed(this::updateButtonState, 500);
-        } catch (SecurityException e) {
-            showMockLocationSetupDialog();
-        }
+        startForegroundService(intent);
+        Toast.makeText(this, "開始模擬位置", Toast.LENGTH_SHORT).show();
+
+        // Start status update polling
+        uiHandler.postDelayed(() -> {
+            updateButtonState();
+            if (GpsMockService.isRunning()) {
+                uiHandler.post(statusUpdateRunnable);
+            }
+        }, 500);
     }
 
     private void updateButtonState() {
-        boolean running = GpsMockService.isRunning(this);
+        boolean running = GpsMockService.isRunning();
         if (running) {
             startStopBtn.setText("停止模擬");
             startStopBtn.setBackground(UIHelper.roundRect(UIHelper.ACCENT_RED, 14, this));
@@ -462,7 +515,22 @@ public class GpsMockActivity extends AppCompatActivity implements LocationListen
             startStopBtn.setBackground(UIHelper.roundRect(UIHelper.ACCENT_GREEN, 14, this));
             statusText.setText("請在開發者選項中選擇此應用作為模擬位置應用");
             statusText.setTextColor(UIHelper.TEXT_SECONDARY);
+            mockStatusText.setText("");
         }
+    }
+
+    private static double haversineDistance(double lat1, double lng1, double lat2, double lng2) {
+        double R = 6371000;
+        double phi1 = Math.toRadians(lat1);
+        double phi2 = Math.toRadians(lat2);
+        double deltaPhi = Math.toRadians(lat2 - lat1);
+        double deltaLambda = Math.toRadians(lng2 - lng1);
+
+        double a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2)
+                + Math.cos(phi1) * Math.cos(phi2)
+                * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 
     private void showMockLocationSetupDialog() {

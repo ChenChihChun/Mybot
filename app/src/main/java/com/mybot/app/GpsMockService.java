@@ -34,9 +34,15 @@ public class GpsMockService extends Service {
     private static final String PROVIDER_NAME = LocationManager.GPS_PROVIDER;
     private static final long UPDATE_INTERVAL_MS = 1000; // 1 second
 
+    // Static state tracking (reliable across Android versions)
+    private static volatile boolean sIsRunning = false;
+    private static volatile double sCurrentLat = 0;
+    private static volatile double sCurrentLng = 0;
+    private static volatile double sProgress = 0;
+    private static volatile String sLastError = null;
+
     private LocationManager locationManager;
     private Handler handler;
-    private boolean isRunning = false;
 
     private double startLat, startLng;
     private double endLat, endLng;
@@ -46,7 +52,7 @@ public class GpsMockService extends Service {
     private final Runnable updateRunnable = new Runnable() {
         @Override
         public void run() {
-            if (!isRunning) return;
+            if (!sIsRunning) return;
 
             long elapsed = System.currentTimeMillis() - startTimeMs;
             double fraction = Math.min(1.0, (double) elapsed / durationMs);
@@ -54,8 +60,13 @@ public class GpsMockService extends Service {
             double[] pos = interpolate(startLat, startLng, endLat, endLng, fraction);
             double bearing = calculateBearing(startLat, startLng, endLat, endLng);
 
+            // Update static state
+            sCurrentLat = pos[0];
+            sCurrentLng = pos[1];
+            sProgress = fraction;
+
             setMockLocation(pos[0], pos[1], bearing);
-            updateNotification(fraction);
+            updateNotification(fraction, pos[0], pos[1]);
 
             if (fraction >= 1.0) {
                 AppLog.i("GpsMock", "到達目的地: " + String.format("%.4f, %.4f", endLat, endLng));
@@ -91,20 +102,28 @@ public class GpsMockService extends Service {
         startLng = intent.getDoubleExtra(EXTRA_START_LNG, 0);
         endLat = intent.getDoubleExtra(EXTRA_END_LAT, 0);
         endLng = intent.getDoubleExtra(EXTRA_END_LNG, 0);
-        durationMs = intent.getLongExtra(EXTRA_DURATION_MS, 600_000); // default 10 min
+        durationMs = intent.getLongExtra(EXTRA_DURATION_MS, 600_000);
 
-        AppLog.i("GpsMock", String.format("開始模擬: (%.4f, %.4f) -> (%.4f, %.4f), 時長: %d分鐘",
-                startLat, startLng, endLat, endLng, durationMs / 60000));
+        double distance = haversineDistance(startLat, startLng, endLat, endLng);
+        AppLog.i("GpsMock", String.format("開始模擬: (%.4f, %.4f) -> (%.4f, %.4f), 距離: %.1fkm, 時長: %d分鐘",
+                startLat, startLng, endLat, endLng, distance / 1000, durationMs / 60000));
 
         if (!setupMockProvider()) {
-            AppLog.e("GpsMock", "無法設定 Mock Location Provider");
+            sLastError = "請在「設定 > 開發者選項 > 選取模擬位置應用程式」中選擇 Mybot";
+            AppLog.e("GpsMock", "無法設定 Mock Provider: " + sLastError);
             stopSelf();
             return START_NOT_STICKY;
         }
+        sLastError = null;
 
-        startForeground(NOTIFICATION_ID, buildNotification(0));
+        // Update static state
+        sIsRunning = true;
+        sCurrentLat = startLat;
+        sCurrentLng = startLng;
+        sProgress = 0;
 
-        isRunning = true;
+        startForeground(NOTIFICATION_ID, buildNotification(0, startLat, startLng));
+
         startTimeMs = System.currentTimeMillis();
         handler.post(updateRunnable);
 
@@ -113,9 +132,10 @@ public class GpsMockService extends Service {
 
     @Override
     public void onDestroy() {
-        isRunning = false;
+        sIsRunning = false;
         handler.removeCallbacks(updateRunnable);
         removeMockProvider();
+        AppLog.i("GpsMock", "服務已停止");
         super.onDestroy();
     }
 
@@ -143,9 +163,10 @@ public class GpsMockService extends Service {
                         Criteria.POWER_LOW, Criteria.ACCURACY_FINE);
             }
             locationManager.setTestProviderEnabled(PROVIDER_NAME, true);
+            AppLog.i("GpsMock", "Mock Provider 設定成功");
             return true;
         } catch (SecurityException e) {
-            AppLog.e("GpsMock", "權限錯誤，請在開發者選項中選擇此應用作為模擬位置應用: " + e.getMessage());
+            AppLog.e("GpsMock", "權限錯誤: " + e.getMessage());
             return false;
         } catch (Exception e) {
             AppLog.e("GpsMock", "設定 Provider 失敗: " + e.getMessage());
@@ -180,12 +201,9 @@ public class GpsMockService extends Service {
 
     private float calculateSpeed() {
         double distance = haversineDistance(startLat, startLng, endLat, endLng);
-        return (float) (distance / (durationMs / 1000.0)); // m/s
+        return (float) (distance / (durationMs / 1000.0));
     }
 
-    /**
-     * Spherical linear interpolation between two points.
-     */
     private static double[] interpolate(double lat1, double lng1, double lat2, double lng2, double fraction) {
         double phi1 = Math.toRadians(lat1);
         double lambda1 = Math.toRadians(lng1);
@@ -231,7 +249,7 @@ public class GpsMockService extends Service {
     }
 
     private static double haversineDistance(double lat1, double lng1, double lat2, double lng2) {
-        double R = 6371000; // Earth radius in meters
+        double R = 6371000;
         double phi1 = Math.toRadians(lat1);
         double phi2 = Math.toRadians(lat2);
         double deltaPhi = Math.toRadians(lat2 - lat1);
@@ -252,7 +270,7 @@ public class GpsMockService extends Service {
         getSystemService(NotificationManager.class).createNotificationChannel(channel);
     }
 
-    private Notification buildNotification(double progress) {
+    private Notification buildNotification(double progress, double lat, double lng) {
         Intent stopIntent = new Intent(this, GpsMockService.class);
         stopIntent.setAction(ACTION_STOP);
         PendingIntent stopPending = PendingIntent.getService(
@@ -267,8 +285,8 @@ public class GpsMockService extends Service {
         String remainingText = formatDuration(remainingMs);
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("GPS 模擬中")
-                .setContentText(String.format("進度 %d%% | 剩餘 %s", percent, remainingText))
+                .setContentTitle(String.format("GPS 模擬中 %d%%", percent))
+                .setContentText(String.format("位置: %.4f, %.4f | 剩餘 %s", lat, lng, remainingText))
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .setOngoing(true)
                 .setProgress(100, percent, false)
@@ -277,9 +295,9 @@ public class GpsMockService extends Service {
                 .build();
     }
 
-    private void updateNotification(double progress) {
+    private void updateNotification(double progress, double lat, double lng) {
         NotificationManager nm = getSystemService(NotificationManager.class);
-        nm.notify(NOTIFICATION_ID, buildNotification(progress));
+        nm.notify(NOTIFICATION_ID, buildNotification(progress, lat, lng));
     }
 
     private String formatDuration(long ms) {
@@ -292,14 +310,28 @@ public class GpsMockService extends Service {
         return String.format("%d秒", seconds);
     }
 
-    // Static method to check if service is running
-    public static boolean isRunning(Context context) {
-        android.app.ActivityManager am = (android.app.ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
-        for (android.app.ActivityManager.RunningServiceInfo service : am.getRunningServices(Integer.MAX_VALUE)) {
-            if (GpsMockService.class.getName().equals(service.service.getClassName())) {
-                return true;
-            }
-        }
-        return false;
+    // Static methods for state access
+    public static boolean isRunning() {
+        return sIsRunning;
+    }
+
+    public static double getCurrentLat() {
+        return sCurrentLat;
+    }
+
+    public static double getCurrentLng() {
+        return sCurrentLng;
+    }
+
+    public static double getProgress() {
+        return sProgress;
+    }
+
+    public static String getLastError() {
+        return sLastError;
+    }
+
+    public static void clearLastError() {
+        sLastError = null;
     }
 }
