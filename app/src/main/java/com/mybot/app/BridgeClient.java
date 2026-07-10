@@ -1057,6 +1057,100 @@ public class BridgeClient {
     }
 
     /**
+     * GET /stock/swing/recommend — fetch latest swing (3-6 month) recommendation.
+     */
+    public static void getSwingRecommendation(StockRecommendationCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getSwingRecommendation: 取得波段精選");
+            try {
+                URL url = new URL(BASE_URL + "/stock/swing/recommend");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        if (data != null) {
+                            AppLog.i("Bridge", "swingRecommendation成功: date=" + data.optString("date"));
+                            mainHandler.post(() -> callback.onResult(data, null));
+                            return;
+                        }
+                    }
+                    String msg = json.optString("error", "無波段推薦資料");
+                    AppLog.w("Bridge", "swingRecommendation無資料: " + msg);
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    AppLog.e("Bridge", "swingRecommendation HTTP " + code);
+                    mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "swingRecommendation失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
+    /**
+     * GET /stock/swing/tracking — fetch swing pick tracking data (6-month horizon, hit_50 stats).
+     */
+    public static void getSwingTracking(StockRecommendationCallback callback) {
+        executor.execute(() -> {
+            AppLog.i("Bridge", "getSwingTracking: 取得波段追蹤數據");
+            try {
+                URL url = new URL(BASE_URL + "/stock/swing/tracking");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
+
+                int code = conn.getResponseCode();
+                StringBuilder sb = new StringBuilder();
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+                conn.disconnect();
+
+                if (code == 200) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    if (json.optBoolean("success", false)) {
+                        JSONObject data = json.optJSONObject("data");
+                        if (data != null) {
+                            AppLog.i("Bridge", "swingTracking成功: " + data.optJSONObject("stats"));
+                            mainHandler.post(() -> callback.onResult(data, null));
+                            return;
+                        }
+                    }
+                    String msg = json.optString("error", "無波段追蹤資料");
+                    AppLog.w("Bridge", "swingTracking無資料: " + msg);
+                    mainHandler.post(() -> callback.onResult(null, msg));
+                } else {
+                    AppLog.e("Bridge", "swingTracking HTTP " + code);
+                    mainHandler.post(() -> callback.onResult(null, "HTTP " + code));
+                }
+            } catch (Exception e) {
+                String err = e.getClass().getSimpleName() + ": " + e.getMessage();
+                AppLog.e("Bridge", "swingTracking失敗: " + err);
+                mainHandler.post(() -> callback.onResult(null, err));
+            }
+        });
+    }
+
+    /**
      * GET /stock/tracking — fetch recommendation tracking & accuracy data.
      */
     public static void getStockTracking(StockRecommendationCallback callback) {

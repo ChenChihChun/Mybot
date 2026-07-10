@@ -48,12 +48,22 @@ public class StockActivity extends AppCompatActivity {
     private LinearLayout chipTrackingContent;
     private TextView chipTrackingStatus;
     private boolean chipTrackingLoading = false;
+    // Swing recommendation UI (3-6 month horizon)
+    private LinearLayout swingRecContent;
+    private TextView swingRecStatus;
+    private boolean swingRecLoading = false;
+    // Swing tracking UI
+    private LinearLayout swingTrackingContent;
+    private TextView swingTrackingStatus;
+    private boolean swingTrackingLoading = false;
     // Tab state
     private LinearLayout instTab;
     private LinearLayout chipTab;
+    private LinearLayout swingTab;
     private LinearLayout instPage;
     private LinearLayout chipPage;
-    private boolean isChipTabActive = false;
+    private LinearLayout swingPage;
+    private int activeTab = 0; // 0=法人 1=籌碼 2=波段
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,6 +86,8 @@ public class StockActivity extends AppCompatActivity {
         loadTracking();
         loadChipRecommendation();
         loadChipTracking();
+        loadSwingRecommendation();
+        loadSwingTracking();
     }
 
     private void buildUI() {
@@ -112,6 +124,14 @@ public class StockActivity extends AppCompatActivity {
         chipPage.addView(buildChipTrackingCard());
         content.addView(chipPage);
 
+        // === Swing page (3-6 month horizon) ===
+        swingPage = new LinearLayout(this);
+        swingPage.setOrientation(LinearLayout.VERTICAL);
+        swingPage.setVisibility(View.GONE);
+        swingPage.addView(buildSwingRecommendationCard());
+        swingPage.addView(buildSwingTrackingCard());
+        content.addView(swingPage);
+
         scroll.addView(content);
         root.addView(scroll, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
@@ -128,12 +148,15 @@ public class StockActivity extends AppCompatActivity {
 
         instTab = buildTab("法人推薦", true);
         chipTab = buildTab("籌碼選股", false);
+        swingTab = buildTab("波段精選", false);
 
-        instTab.setOnClickListener(v -> switchTab(false));
-        chipTab.setOnClickListener(v -> switchTab(true));
+        instTab.setOnClickListener(v -> switchTab(0));
+        chipTab.setOnClickListener(v -> switchTab(1));
+        swingTab.setOnClickListener(v -> switchTab(2));
 
         tabBar.addView(instTab);
         tabBar.addView(chipTab);
+        tabBar.addView(swingTab);
         return tabBar;
     }
 
@@ -166,21 +189,21 @@ public class StockActivity extends AppCompatActivity {
         return tab;
     }
 
-    private void switchTab(boolean toChip) {
-        if (isChipTabActive == toChip) return;
-        isChipTabActive = toChip;
+    private void switchTab(int tab) {
+        if (activeTab == tab) return;
+        activeTab = tab;
 
-        // Update tab visuals
-        ((TextView) instTab.getChildAt(0)).setTextColor(toChip ? UIHelper.TEXT_HINT : UIHelper.ACCENT_ORANGE);
-        instTab.getChildAt(1).setBackgroundColor(toChip ? Color.TRANSPARENT : UIHelper.ACCENT_ORANGE);
-        ((TextView) chipTab.getChildAt(0)).setTextColor(toChip ? UIHelper.ACCENT_ORANGE : UIHelper.TEXT_HINT);
-        chipTab.getChildAt(1).setBackgroundColor(toChip ? UIHelper.ACCENT_ORANGE : Color.TRANSPARENT);
+        LinearLayout[] tabs = {instTab, chipTab, swingTab};
+        LinearLayout[] pages = {instPage, chipPage, swingPage};
+        String[] names = {"法人推薦", "籌碼選股", "波段精選"};
+        for (int i = 0; i < tabs.length; i++) {
+            boolean active = (i == tab);
+            ((TextView) tabs[i].getChildAt(0)).setTextColor(active ? UIHelper.ACCENT_ORANGE : UIHelper.TEXT_HINT);
+            tabs[i].getChildAt(1).setBackgroundColor(active ? UIHelper.ACCENT_ORANGE : Color.TRANSPARENT);
+            pages[i].setVisibility(active ? View.VISIBLE : View.GONE);
+        }
 
-        // Switch pages
-        instPage.setVisibility(toChip ? View.GONE : View.VISIBLE);
-        chipPage.setVisibility(toChip ? View.VISIBLE : View.GONE);
-
-        AppLog.i("Stock", "switchTab: " + (toChip ? "籌碼選股" : "法人推薦"));
+        AppLog.i("Stock", "switchTab: " + names[tab]);
     }
 
     private String formatPrice(double price) {
@@ -1071,6 +1094,463 @@ public class StockActivity extends AppCompatActivity {
             chipTrackingContent.addView(errView);
             AppLog.e("Stock", "displayChipTracking失敗: " + e.getMessage());
         }
+    }
+
+    // ==================== Swing Recommendation (3-6 month) ====================
+
+    private LinearLayout buildSwingRecommendationCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 16, this));
+        int pad = UIHelper.dp(this, 14);
+        card.setPadding(pad, pad, pad, pad);
+        card.setElevation(UIHelper.dp(this, 3));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+        card.setLayoutParams(lp);
+
+        TextView title = new TextView(this);
+        title.setText("波段精選（3-6 個月，目標 +50%）");
+        title.setTextSize(15);
+        title.setTextColor(UIHelper.ACCENT_ORANGE);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        card.addView(title);
+
+        TextView subtitle = new TextView(this);
+        subtitle.setText("每月 12 日更新（月營收公布後）· 中長線持有，非隔日沖");
+        subtitle.setTextSize(11);
+        subtitle.setTextColor(UIHelper.TEXT_HINT);
+        subtitle.setPadding(0, UIHelper.dp(this, 2), 0, 0);
+        card.addView(subtitle);
+
+        swingRecContent = new LinearLayout(this);
+        swingRecContent.setOrientation(LinearLayout.VERTICAL);
+        swingRecContent.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        card.addView(swingRecContent);
+
+        swingRecStatus = new TextView(this);
+        swingRecStatus.setTextSize(13);
+        swingRecStatus.setTextColor(UIHelper.TEXT_HINT);
+        swingRecStatus.setText("載入中...");
+        swingRecContent.addView(swingRecStatus);
+
+        return card;
+    }
+
+    private void loadSwingRecommendation() {
+        if (swingRecLoading) return;
+        swingRecLoading = true;
+        swingRecStatus.setText("載入波段推薦中...");
+        swingRecStatus.setVisibility(View.VISIBLE);
+        AppLog.i("Stock", "loadSwingRecommendation: 開始載入");
+
+        BridgeClient.getSwingRecommendation((data, error) -> {
+            swingRecLoading = false;
+            if (error != null || data == null) {
+                swingRecStatus.setText("尚無波段推薦資料（每月 12 日產生）");
+                AppLog.w("Stock", "loadSwingRecommendation: " + (error != null ? error : "null"));
+                return;
+            }
+            displaySwingRecommendation(data);
+        });
+    }
+
+    private void displaySwingRecommendation(org.json.JSONObject data) {
+        swingRecContent.removeAllViews();
+        try {
+            String date = data.optString("date", "");
+            org.json.JSONObject rec = data.optJSONObject("data");
+            if (rec == null) rec = data;
+
+            // Market regime bar
+            String regime = rec.optString("market_regime", "");
+            String regimeNote = rec.optString("regime_note", "");
+            if (!regime.isEmpty()) {
+                int regimeColor = regime.contains("多") ? UIHelper.ACCENT_GREEN
+                        : regime.contains("空") ? UIHelper.ACCENT_RED : UIHelper.ACCENT_ORANGE;
+                TextView regimeView = new TextView(this);
+                regimeView.setText("市場狀態: " + regime + (regimeNote.isEmpty() ? "" : " — " + regimeNote));
+                regimeView.setTextSize(13);
+                regimeView.setTextColor(regimeColor);
+                regimeView.setTypeface(Typeface.DEFAULT_BOLD);
+                regimeView.setPadding(0, 0, 0, UIHelper.dp(this, 8));
+                swingRecContent.addView(regimeView);
+            }
+
+            if (!date.isEmpty()) {
+                int screened = rec.optInt("candidates_screened", 0);
+                TextView dateView = new TextView(this);
+                dateView.setText("推薦日期: " + date
+                        + (screened > 0 ? "（量化篩選 " + screened + " 檔候選）" : ""));
+                dateView.setTextSize(11);
+                dateView.setTextColor(UIHelper.TEXT_HINT);
+                dateView.setPadding(0, 0, 0, UIHelper.dp(this, 6));
+                swingRecContent.addView(dateView);
+            }
+
+            org.json.JSONArray picks = rec.optJSONArray("picks");
+            if (picks != null && picks.length() > 0) {
+                for (int i = 0; i < picks.length(); i++) {
+                    swingRecContent.addView(buildSwingPickCard(picks.getJSONObject(i), i + 1));
+                }
+            } else {
+                TextView noPicks = new TextView(this);
+                noPicks.setText("本月無波段推薦標的");
+                noPicks.setTextSize(13);
+                noPicks.setTextColor(UIHelper.TEXT_SECONDARY);
+                swingRecContent.addView(noPicks);
+            }
+            AppLog.i("Stock", "displaySwingRecommendation: " + (picks != null ? picks.length() : 0) + " picks");
+        } catch (Exception e) {
+            TextView errView = new TextView(this);
+            errView.setText("解析波段推薦失敗: " + e.getMessage());
+            errView.setTextSize(12);
+            errView.setTextColor(UIHelper.ACCENT_RED);
+            swingRecContent.addView(errView);
+            AppLog.e("Stock", "displaySwingRecommendation失敗: " + e.getMessage());
+        }
+    }
+
+    private void addSwingDetail(LinearLayout card, String label, String text, int color) {
+        if (text == null || text.isEmpty()) return;
+        TextView view = new TextView(this);
+        view.setText(label + ": " + text);
+        view.setTextSize(12);
+        view.setTextColor(color);
+        view.setLineSpacing(UIHelper.dp(this, 2), 1f);
+        view.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+        card.addView(view);
+    }
+
+    private LinearLayout buildSwingPickCard(org.json.JSONObject pick, int rank) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(UIHelper.roundRect(0xFF1E1E2E, 12, this));
+        int pad = UIHelper.dp(this, 12);
+        card.setPadding(pad, pad, pad, pad);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 4));
+        card.setLayoutParams(lp);
+
+        String symbol = pick.optString("symbol", "?").replace(".TWO", "").replace(".TW", "");
+        String name = pick.optString("name", "?");
+        double price = pick.optDouble("price", 0);
+
+        // Header: rank + symbol + name + Yahoo link + price
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView rankView = new TextView(this);
+        rankView.setText("#" + rank);
+        rankView.setTextSize(16);
+        rankView.setTextColor(UIHelper.ACCENT_ORANGE);
+        rankView.setTypeface(Typeface.DEFAULT_BOLD);
+        rankView.setPadding(0, 0, UIHelper.dp(this, 8), 0);
+
+        TextView nameView = new TextView(this);
+        nameView.setText(symbol + " " + name);
+        nameView.setTextSize(15);
+        nameView.setTextColor(UIHelper.TEXT_PRIMARY);
+        nameView.setTypeface(Typeface.DEFAULT_BOLD);
+        nameView.setSingleLine(true);
+        nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        nameView.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        TextView yahooLink = new TextView(this);
+        yahooLink.setText("Yahoo→");
+        yahooLink.setTextSize(12);
+        yahooLink.setTextColor(UIHelper.ACCENT_BLUE);
+        yahooLink.setPadding(UIHelper.dp(this, 6), 0, UIHelper.dp(this, 6), 0);
+        yahooLink.setOnClickListener(v -> {
+            String url = "https://tw.stock.yahoo.com/quote/" + symbol + ".TW";
+            try {
+                startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(url)));
+            } catch (Exception ignored) {}
+        });
+
+        header.addView(rankView);
+        header.addView(nameView);
+        header.addView(yahooLink);
+        if (price > 0) {
+            TextView priceView = new TextView(this);
+            priceView.setText(formatPrice(price));
+            priceView.setTextSize(15);
+            priceView.setTextColor(UIHelper.TEXT_PRIMARY);
+            priceView.setTypeface(Typeface.DEFAULT_BOLD);
+            header.addView(priceView);
+        }
+        card.addView(header);
+
+        // Badges row: confidence + story stage + upside
+        LinearLayout badges = new LinearLayout(this);
+        badges.setOrientation(LinearLayout.HORIZONTAL);
+        badges.setPadding(0, UIHelper.dp(this, 6), 0, 0);
+
+        double confidence = pick.optDouble("confidence", -1);
+        if (confidence >= 0) {
+            int confPct = (int) Math.round(confidence * 100);
+            int confColor = confidence >= 0.7 ? UIHelper.ACCENT_GREEN
+                    : confidence >= 0.5 ? UIHelper.ACCENT_ORANGE : UIHelper.ACCENT_RED;
+            badges.addView(buildSwingBadge("信心 " + confPct + "%", confColor));
+        }
+        String stage = pick.optString("story_stage", "");
+        if (!stage.isEmpty()) {
+            int stageColor = stage.contains("早") ? UIHelper.ACCENT_GREEN
+                    : stage.contains("晚") ? UIHelper.ACCENT_RED : UIHelper.ACCENT_ORANGE;
+            badges.addView(buildSwingBadge("故事" + stage, stageColor));
+        }
+        int upside = pick.optInt("upside_pct", 0);
+        if (upside > 0) {
+            badges.addView(buildSwingBadge("上檔 +" + upside + "%", UIHelper.ACCENT_BLUE));
+        }
+        if (badges.getChildCount() > 0) card.addView(badges);
+
+        // Thesis (投資論點)
+        String thesis = pick.optString("thesis", "");
+        if (!thesis.isEmpty()) {
+            TextView thesisView = new TextView(this);
+            thesisView.setText(thesis);
+            thesisView.setTextSize(13);
+            thesisView.setTextColor(UIHelper.TEXT_PRIMARY);
+            thesisView.setLineSpacing(UIHelper.dp(this, 2), 1f);
+            thesisView.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+            card.addView(thesisView);
+        }
+
+        // Catalysts (催化劑列表)
+        org.json.JSONArray catalysts = pick.optJSONArray("catalysts");
+        if (catalysts != null && catalysts.length() > 0) {
+            TextView catTitle = new TextView(this);
+            catTitle.setText("催化劑");
+            catTitle.setTextSize(12);
+            catTitle.setTextColor(UIHelper.ACCENT_GREEN);
+            catTitle.setTypeface(Typeface.DEFAULT_BOLD);
+            catTitle.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 2));
+            card.addView(catTitle);
+            for (int i = 0; i < catalysts.length(); i++) {
+                String cat = catalysts.optString(i, "");
+                if (cat.isEmpty()) continue;
+                TextView catView = new TextView(this);
+                catView.setText("• " + cat);
+                catView.setTextSize(12);
+                catView.setTextColor(UIHelper.TEXT_SECONDARY);
+                catView.setLineSpacing(UIHelper.dp(this, 1), 1f);
+                catView.setPadding(UIHelper.dp(this, 4), UIHelper.dp(this, 1), 0, 0);
+                card.addView(catView);
+            }
+        }
+
+        // Risk + invalidation (完整原因的另一半：何時該放棄)
+        addSwingDetail(card, "最大風險", pick.optString("risk", ""), UIHelper.ACCENT_RED);
+        addSwingDetail(card, "失效條件", pick.optString("invalidation", ""), UIHelper.ACCENT_ORANGE);
+
+        // Quantitative screening basis (為什麼入選量化篩選)
+        org.json.JSONObject sd = pick.optJSONObject("screen_data");
+        if (sd != null) {
+            TextView sdTitle = new TextView(this);
+            sdTitle.setText("量化入選依據");
+            sdTitle.setTextSize(12);
+            sdTitle.setTextColor(UIHelper.ACCENT_BLUE);
+            sdTitle.setTypeface(Typeface.DEFAULT_BOLD);
+            sdTitle.setPadding(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 2));
+            card.addView(sdTitle);
+
+            StringBuilder sb = new StringBuilder();
+            if (!sd.isNull("yoy_latest"))
+                sb.append("月營收 YoY ").append(String.format("%+.1f%%", sd.optDouble("yoy_latest")));
+            if (!sd.isNull("rev_accel"))
+                sb.append("（加速 ").append(String.format("%+.1f", sd.optDouble("rev_accel"))).append("pp）");
+            if (sd.optBoolean("rev_new_high", false)) sb.append(" · 創12月新高");
+            if (!sd.isNull("inst_20d"))
+                sb.append("\n法人20日淨買超 ").append(String.format("%,d", sd.optLong("inst_20d"))).append(" 張");
+            if (!sd.isNull("pct_off_high"))
+                sb.append("\n距52週高 ").append(String.format("%+.1f%%", sd.optDouble("pct_off_high")));
+            if (!sd.isNull("ret_6m"))
+                sb.append(" · 近6月漲幅 ").append(String.format("%+.1f%%", sd.optDouble("ret_6m")));
+
+            TextView sdView = new TextView(this);
+            sdView.setText(sb.toString());
+            sdView.setTextSize(12);
+            sdView.setTextColor(UIHelper.TEXT_SECONDARY);
+            sdView.setLineSpacing(UIHelper.dp(this, 2), 1f);
+            sdView.setPadding(UIHelper.dp(this, 4), 0, 0, 0);
+            card.addView(sdView);
+        }
+
+        return card;
+    }
+
+    private TextView buildSwingBadge(String text, int color) {
+        TextView badge = new TextView(this);
+        badge.setText(text);
+        badge.setTextSize(11);
+        badge.setTextColor(color);
+        badge.setTypeface(Typeface.DEFAULT_BOLD);
+        badge.setBackground(UIHelper.roundRect(0xFF262640, 6, this));
+        badge.setPadding(UIHelper.dp(this, 8), UIHelper.dp(this, 3),
+                UIHelper.dp(this, 8), UIHelper.dp(this, 3));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, UIHelper.dp(this, 6), 0);
+        badge.setLayoutParams(lp);
+        return badge;
+    }
+
+    // ==================== Swing Tracking ====================
+
+    private LinearLayout buildSwingTrackingCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(UIHelper.roundRect(UIHelper.BG_CARD, 16, this));
+        int pad = UIHelper.dp(this, 14);
+        card.setPadding(pad, pad, pad, pad);
+        card.setElevation(UIHelper.dp(this, 3));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 8), 0, UIHelper.dp(this, 4));
+        card.setLayoutParams(lp);
+
+        TextView title = new TextView(this);
+        title.setText("波段追蹤（6 個月視野，達標 = 最大漲幅 +50%）");
+        title.setTextSize(15);
+        title.setTextColor(UIHelper.ACCENT_PURPLE);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        card.addView(title);
+
+        swingTrackingContent = new LinearLayout(this);
+        swingTrackingContent.setOrientation(LinearLayout.VERTICAL);
+        swingTrackingContent.setPadding(0, UIHelper.dp(this, 8), 0, 0);
+        card.addView(swingTrackingContent);
+
+        swingTrackingStatus = new TextView(this);
+        swingTrackingStatus.setTextSize(13);
+        swingTrackingStatus.setTextColor(UIHelper.TEXT_HINT);
+        swingTrackingStatus.setText("載入中...");
+        swingTrackingContent.addView(swingTrackingStatus);
+
+        return card;
+    }
+
+    private void loadSwingTracking() {
+        if (swingTrackingLoading) return;
+        swingTrackingLoading = true;
+        swingTrackingStatus.setText("載入波段追蹤數據...");
+        swingTrackingStatus.setVisibility(View.VISIBLE);
+
+        BridgeClient.getSwingTracking((data, error) -> {
+            swingTrackingLoading = false;
+            if (error != null || data == null) {
+                swingTrackingStatus.setText("無波段追蹤資料");
+                AppLog.w("Stock", "loadSwingTracking: " + (error != null ? error : "null"));
+                return;
+            }
+            displaySwingTracking(data);
+        });
+    }
+
+    private void displaySwingTracking(org.json.JSONObject data) {
+        swingTrackingContent.removeAllViews();
+        try {
+            org.json.JSONObject stats = data.optJSONObject("stats");
+            org.json.JSONArray picks = data.optJSONArray("picks");
+
+            if (stats != null && stats.optInt("total_picks", 0) > 0) {
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER);
+                row.setPadding(0, UIHelper.dp(this, 4), 0, UIHelper.dp(this, 4));
+
+                int total = stats.optInt("total_picks", 0);
+                int hit50 = stats.optInt("hit_50_count", 0);
+                double avgReturn = stats.optDouble("avg_return", 0);
+                double avgMaxGain = stats.optDouble("avg_max_gain", 0);
+
+                row.addView(buildStatBox("達標+50%", hit50 + "/" + total,
+                        hit50 > 0 ? UIHelper.ACCENT_GREEN : UIHelper.TEXT_SECONDARY));
+                row.addView(buildStatBox("平均報酬", String.format("%+.1f%%", avgReturn),
+                        avgReturn >= 0 ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED));
+                row.addView(buildStatBox("平均最大漲幅", String.format("%+.1f%%", avgMaxGain),
+                        avgMaxGain >= 0 ? UIHelper.ACCENT_GREEN : UIHelper.ACCENT_RED));
+                swingTrackingContent.addView(row);
+            }
+
+            if (picks != null && picks.length() > 0) {
+                for (int i = 0; i < picks.length(); i++) {
+                    swingTrackingContent.addView(buildSwingTrackingEntry(picks.getJSONObject(i)));
+                }
+            } else {
+                TextView empty = new TextView(this);
+                empty.setText("尚無波段追蹤數據，首次推薦後將自動顯示");
+                empty.setTextSize(13);
+                empty.setTextColor(UIHelper.TEXT_HINT);
+                empty.setPadding(0, UIHelper.dp(this, 4), 0, 0);
+                swingTrackingContent.addView(empty);
+            }
+        } catch (Exception e) {
+            TextView errView = new TextView(this);
+            errView.setText("解析波段追蹤失敗: " + e.getMessage());
+            errView.setTextSize(12);
+            errView.setTextColor(UIHelper.ACCENT_RED);
+            swingTrackingContent.addView(errView);
+            AppLog.e("Stock", "displaySwingTracking失敗: " + e.getMessage());
+        }
+    }
+
+    private LinearLayout buildSwingTrackingEntry(org.json.JSONObject entry) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackground(UIHelper.roundRect(0xFF1E1E2E, 8, this));
+        int pad = UIHelper.dp(this, 8);
+        row.setPadding(pad, UIHelper.dp(this, 6), pad, UIHelper.dp(this, 6));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, UIHelper.dp(this, 2), 0, UIHelper.dp(this, 2));
+        row.setLayoutParams(lp);
+
+        String recDate = entry.optString("rec_date", "");
+        String symbol = entry.optString("symbol", "").replace(".TWO", "").replace(".TW", "");
+        String name = entry.optString("name", "");
+        double recPrice = entry.optDouble("price_at_rec", 0);
+        double lastPrice = entry.optDouble("last_price", 0);
+        double returnPct = entry.optDouble("return_pct", 0);
+        double maxGainPct = entry.optDouble("max_gain_pct", 0);
+        boolean hit50 = entry.optInt("hit_50", 0) == 1;
+
+        String shortDate = recDate.length() >= 10 ? recDate.substring(5) : recDate;
+
+        LinearLayout leftCol = new LinearLayout(this);
+        leftCol.setOrientation(LinearLayout.VERTICAL);
+        leftCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        TextView nameRow = new TextView(this);
+        nameRow.setText(shortDate + "  " + symbol + " " + name + (hit50 ? " ✅達標" : ""));
+        nameRow.setTextSize(13);
+        nameRow.setTextColor(hit50 ? UIHelper.ACCENT_GREEN : UIHelper.TEXT_PRIMARY);
+        leftCol.addView(nameRow);
+
+        TextView priceRow = new TextView(this);
+        priceRow.setText(formatPrice(recPrice) + " → " + formatPrice(lastPrice)
+                + "  最大漲幅 " + String.format("%+.1f%%", maxGainPct));
+        priceRow.setTextSize(11);
+        priceRow.setTextColor(UIHelper.TEXT_HINT);
+        leftCol.addView(priceRow);
+
+        row.addView(leftCol);
+
+        TextView returnView = new TextView(this);
+        returnView.setText(String.format("%+.1f%%", returnPct));
+        returnView.setTextSize(14);
+        returnView.setTextColor(returnPct > 0 ? UIHelper.ACCENT_GREEN
+                : returnPct < 0 ? UIHelper.ACCENT_RED : UIHelper.TEXT_HINT);
+        returnView.setTypeface(Typeface.DEFAULT_BOLD);
+        row.addView(returnView);
+
+        return row;
     }
 
     // ==================== Watchlist Analysis ====================
